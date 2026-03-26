@@ -1,0 +1,1 @@
+ALTER TABLE "profiles" ADD COLUMN "theme" varchar(30) DEFAULT 'default' NOT NULL;
