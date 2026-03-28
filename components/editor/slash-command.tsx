@@ -337,9 +337,21 @@ export const SlashCommandExtension = Extension.create({
           props.command(editor)
         },
         items: ({ query }: { query: string }) => {
-          return commandItems.filter((item) =>
-            item.title.toLowerCase().startsWith(query.toLowerCase())
-          )
+          const normalizedQuery = query.trim().toLowerCase()
+
+          if (!normalizedQuery) {
+            return commandItems
+          }
+
+          return commandItems.filter((item) => {
+            const title = item.title.toLowerCase()
+            const description = item.description.toLowerCase()
+
+            return (
+              title.includes(normalizedQuery) ||
+              description.includes(normalizedQuery)
+            )
+          })
         },
         render: () => {
           return {
