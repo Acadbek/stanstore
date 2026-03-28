@@ -8,6 +8,7 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useRef,
   useState,
 } from 'react'
 import {
@@ -26,6 +27,16 @@ import {
   AlertTriangle,
   XCircle,
   CheckCircle2,
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Link as LinkIcon,
+  Image as ImageIcon,
+  RemoveFormatting,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -133,6 +144,82 @@ const commandItems: CommandItem[] = [
     icon: CheckCircle2,
     command: (editor) => editor.chain().focus().setCallout('success').run(),
   },
+  {
+    title: 'Bold',
+    description: 'Thicken text',
+    icon: Bold,
+    command: (editor) => editor.chain().focus().toggleBold().run(),
+  },
+  {
+    title: 'Italic',
+    description: 'Emphasize text',
+    icon: Italic,
+    command: (editor) => editor.chain().focus().toggleItalic().run(),
+  },
+  {
+    title: 'Underline',
+    description: 'Underline text',
+    icon: Underline,
+    command: (editor) => editor.chain().focus().toggleUnderline().run(),
+  },
+  {
+    title: 'Strikethrough',
+    description: 'Cross out text',
+    icon: Strikethrough,
+    command: (editor) => editor.chain().focus().toggleStrike().run(),
+  },
+  {
+    title: 'Code',
+    description: 'Inline code',
+    icon: Code,
+    command: (editor) => editor.chain().focus().toggleCode().run(),
+  },
+  {
+    title: 'Align Left',
+    description: 'Left align text',
+    icon: AlignLeft,
+    command: (editor) => editor.chain().focus().setTextAlign('left').run(),
+  },
+  {
+    title: 'Align Center',
+    description: 'Center align text',
+    icon: AlignCenter,
+    command: (editor) => editor.chain().focus().setTextAlign('center').run(),
+  },
+  {
+    title: 'Align Right',
+    description: 'Right align text',
+    icon: AlignRight,
+    command: (editor) => editor.chain().focus().setTextAlign('right').run(),
+  },
+  {
+    title: 'Link',
+    description: 'Insert web link',
+    icon: LinkIcon,
+    command: (editor) => {
+      const url = window.prompt('URL:');
+      if (url) {
+        editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+      }
+    },
+  },
+  {
+    title: 'Image',
+    description: 'Insert image URL',
+    icon: ImageIcon,
+    command: (editor) => {
+      const url = window.prompt('Image URL:');
+      if (url) {
+        editor.chain().focus().setImage({ src: url }).run();
+      }
+    },
+  },
+  {
+    title: 'Clear Formatting',
+    description: 'Remove all styles',
+    icon: RemoveFormatting,
+    command: (editor) => editor.chain().focus().unsetAllMarks().clearNodes().run(),
+  },
 ]
 
 interface CommandListRef {
@@ -153,19 +240,31 @@ let popup: any
 const CommandList = forwardRef<CommandListRef, CommandListProps>(
   ({ items, command }, ref) => {
     const [selectedIndex, setSelectedIndex] = useState(0)
+    const containerRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
       setSelectedIndex(0)
     }, [items])
 
+    useEffect(() => {
+      if (containerRef.current) {
+        const item = containerRef.current.querySelector('.is-selected') as HTMLElement
+        if (item) {
+          item.scrollIntoView({ block: 'nearest' })
+        }
+      }
+    }, [selectedIndex])
+
     useImperativeHandle(ref, () => ({
       onKeyDown: ({ event }: { event: KeyboardEvent }) => {
         if (event.key === 'ArrowUp') {
+          event.preventDefault()
           setSelectedIndex((prev) => (prev + items.length - 1) % items.length)
           return true
         }
 
         if (event.key === 'ArrowDown') {
+          event.preventDefault()
           setSelectedIndex((prev) => (prev + 1) % items.length)
           return true
         }
@@ -189,7 +288,7 @@ const CommandList = forwardRef<CommandListRef, CommandListProps>(
     }
 
     return (
-      <div className="slash-command-menu">
+      <div ref={containerRef} className="slash-command-menu">
         <div className="slash-command-label">Block type</div>
         {items.map((item, index) => {
           const Icon = item.icon
