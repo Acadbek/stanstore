@@ -11,7 +11,7 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Loader2, PlusCircle, Eye, EyeOff, Trash2, Pencil, X } from 'lucide-react';
+import { Loader2, PlusCircle, Eye, EyeOff, Trash2, Pencil } from 'lucide-react';
 import { createProduct, updateProduct, deleteProduct, toggleProductPublish } from './actions';
 import { Product, User } from '@/lib/db/schema';
 import useSWR, { mutate } from 'swr';

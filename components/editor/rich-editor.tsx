@@ -13,6 +13,7 @@ import TaskItem from '@tiptap/extension-task-item';
 import DragHandle from '@tiptap/extension-drag-handle-react';
 import { SlashCommandExtension } from './slash-command';
 import { Callout } from './callout';
+import { Carousel, CarouselItem } from './carousel';
 import {
   Bold,
   Italic,
@@ -35,6 +36,7 @@ import {
   Minus,
   GripVertical,
   Trash2,
+  LayoutGrid,
 } from 'lucide-react';
 import { useCallback } from 'react';
 import { generateReactHelpers } from '@uploadthing/react';
@@ -117,6 +119,8 @@ export default function RichEditor({
       }),
       SlashCommandExtension as any,
       Callout as any,
+      CarouselItem,
+      Carousel,
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -124,7 +128,7 @@ export default function RichEditor({
     },
     editorProps: {
       attributes: {
-        class: 'min-h-[300px] focus:outline-none',
+        class: 'tiptap min-h-[300px] focus:outline-none',
       },
     },
     immediatelyRender: false,
@@ -370,6 +374,12 @@ export default function RichEditor({
             ) : (
               <ImageIcon className="h-4 w-4" />
             )}
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().insertCarousel().run()}
+            title="Carousel"
+          >
+            <LayoutGrid className="h-4 w-4" />
           </ToolbarButton>
         </div>
 
