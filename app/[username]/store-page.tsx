@@ -2,7 +2,6 @@
 
 import { Profile, Product } from '@/lib/db/schema';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { getTheme } from '@/lib/themes';
 
@@ -72,6 +71,21 @@ function GlobeIcon({ color }: { color?: string }) {
       <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
       <path d="M2 12h20" />
     </svg>
+  );
+}
+
+function ProductLink({ product, username, children }: { product: Product; username: string | null; children: React.ReactNode }) {
+  if (product.type === 'link' && product.productUrl) {
+    return (
+      <a href={product.productUrl} target="_blank" rel="noopener noreferrer" className="block">
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link href={`/${username}/${product.slug}`} className="block">
+      {children}
+    </Link>
   );
 }
 
@@ -170,7 +184,7 @@ export default function StorePage({ data }: { data: StoreData }) {
               return (
                 <div className={`grid ${colClass} gap-4`}>
                   {products.map((product) => (
-                    <Link key={product.id} href={`/${profile.username}/${product.slug}`} className="block">
+                    <ProductLink key={product.id} product={product} username={profile.username}>
                       <div
                         className="group flex items-center gap-3 border p-3 transition-all duration-200"
                         style={{ background: s.cardBg, borderColor: s.cardBorder, borderRadius: r }}
@@ -191,7 +205,7 @@ export default function StorePage({ data }: { data: StoreData }) {
                           <span className="text-sm font-bold" style={{ color: s.priceColor }}>{formatPrice(product.price)}</span>
                         </div>
                       </div>
-                    </Link>
+                    </ProductLink>
                   ))}
                 </div>
               );
@@ -201,7 +215,7 @@ export default function StorePage({ data }: { data: StoreData }) {
               return (
                 <div className={`grid ${colClass} gap-4`}>
                   {products.map((product) => (
-                    <Link key={product.id} href={`/${profile.username}/${product.slug}`} className="block">
+                    <ProductLink key={product.id} product={product} username={profile.username}>
                       <div
                         className="group relative overflow-hidden transition-all duration-200"
                         style={{ borderRadius: r }}
@@ -228,7 +242,7 @@ export default function StorePage({ data }: { data: StoreData }) {
                           </div>
                         </div>
                       </div>
-                    </Link>
+                    </ProductLink>
                   ))}
                 </div>
               );
@@ -238,7 +252,7 @@ export default function StorePage({ data }: { data: StoreData }) {
               return (
                 <div className={`grid ${colClass} gap-4`}>
                   {products.map((product) => (
-                    <Link key={product.id} href={`/${profile.username}/${product.slug}`} className="block">
+                    <ProductLink key={product.id} product={product} username={profile.username}>
                       <div
                         className="group border p-4 transition-all duration-200"
                         style={{ background: s.cardBg, borderColor: s.cardBorder, borderRadius: r }}
@@ -253,7 +267,7 @@ export default function StorePage({ data }: { data: StoreData }) {
                           <span className="text-sm font-bold" style={{ color: s.priceColor }}>{formatPrice(product.price)}</span>
                         </div>
                       </div>
-                    </Link>
+                    </ProductLink>
                   ))}
                 </div>
               );
@@ -262,7 +276,7 @@ export default function StorePage({ data }: { data: StoreData }) {
             return (
               <div className={`grid ${colClass} gap-4`}>
                 {products.map((product) => (
-                  <Link key={product.id} href={`/${profile.username}/${product.slug}`} className="block">
+                  <ProductLink key={product.id} product={product} username={profile.username}>
                     <div
                       className="group border p-4 transition-all duration-200 h-full flex flex-col"
                       style={{ background: s.cardBg, borderColor: s.cardBorder, borderRadius: r }}
@@ -289,7 +303,7 @@ export default function StorePage({ data }: { data: StoreData }) {
                         <span className="text-xs font-medium" style={{ color: s.mutedColor }}>{product.type}</span>
                       </div>
                     </div>
-                  </Link>
+                  </ProductLink>
                 ))}
               </div>
             );
