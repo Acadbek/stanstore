@@ -46,6 +46,7 @@ type Editor = any
 interface CommandItem {
   title: string
   description: string
+  keywords?: string[]
   icon: LucideIcon
   command: (editor: Editor) => void
 }
@@ -91,16 +92,39 @@ const commandItems: CommandItem[] = [
     command: (editor) => editor.chain().focus().toggleOrderedList().run(),
   },
   {
-    title: 'Task List',
+    title: 'Checkbox',
     description: 'Checkbox list',
+    keywords: ['checklist', 'task', 'todo'],
     icon: CheckSquare,
     command: (editor) => editor.chain().focus().toggleTaskList().run(),
   },
   {
-    title: 'Blockquote',
-    description: 'Quote block',
+    title: 'Quote',
+    description: 'Quote',
+    keywords: ['qoute', 'blockquote', 'citation'],
     icon: Quote,
     command: (editor) => editor.chain().focus().toggleBlockquote().run(),
+  },
+  {
+    title: 'Quote ("")',
+    description: 'Quote with double marks',
+    keywords: ['qoute', 'double quote', 'citation'],
+    icon: Quote,
+    command: (editor) => {
+      if (editor.isActive('blockquote')) {
+        editor
+          .chain()
+          .focus()
+          .updateAttributes('blockquote', { quoteStyle: 'double' })
+          .run()
+        return
+      }
+      editor
+        .chain()
+        .focus()
+        .toggleBlockquote({ quoteStyle: 'double' })
+        .run()
+    },
   },
   {
     title: 'Code Block',
@@ -196,11 +220,8 @@ const commandItems: CommandItem[] = [
     title: 'Link',
     description: 'Insert web link',
     icon: LinkIcon,
-    command: (editor) => {
-      const url = window.prompt('URL:');
-      if (url) {
-        editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
-      }
+    command: () => {
+      window.dispatchEvent(new Event('tiptap-open-link-modal'));
     },
   },
   {
@@ -337,9 +358,15 @@ export const SlashCommandExtension = Extension.create({
           props.command(editor)
         },
         items: ({ query }: { query: string }) => {
-          return commandItems.filter((item) =>
-            item.title.toLowerCase().startsWith(query.toLowerCase())
-          )
+          const normalizedQuery = query.trim().toLowerCase()
+          if (!normalizedQuery) return commandItems
+
+          return commandItems.filter((item) => {
+            const searchable = [item.title, item.description, ...(item.keywords ?? [])]
+              .join(' ')
+              .toLowerCase()
+            return searchable.includes(normalizedQuery)
+          })
         },
         render: () => {
           return {

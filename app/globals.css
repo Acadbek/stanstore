@@ -334,6 +334,75 @@
   margin-bottom: 0.25rem;
   line-height: 1.6;
 }
+.tiptap blockquote {
+  border-left: 3px solid #fdba74;
+  background: #fff7ed;
+  padding: 0.625rem 0.875rem;
+  margin: 0.75rem 0;
+  border-radius: 0 0.5rem 0.5rem 0;
+  color: #9a3412;
+  font-style: italic;
+}
+.tiptap blockquote p {
+  margin: 0;
+}
+.tiptap blockquote[data-quote-style="double"] {
+  border-left: none;
+  background: #fffaf5;
+  color: #7c2d12;
+  font-style: normal;
+}
+.tiptap blockquote[data-quote-style="double"] p:first-of-type::before {
+  content: "“";
+  color: #f97316;
+  font-size: 1.4em;
+  font-weight: 700;
+  line-height: 0;
+  margin-right: 0.2rem;
+  vertical-align: -0.18em;
+}
+.tiptap blockquote[data-quote-style="double"] p:last-of-type::after {
+  content: "”";
+  color: #f97316;
+  font-size: 1.4em;
+  font-weight: 700;
+  line-height: 0;
+  margin-left: 0.2rem;
+  vertical-align: -0.18em;
+}
+.tiptap ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+  margin: 0.5rem 0;
+}
+.tiptap ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+.tiptap ul[data-type="taskList"] li > label {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 0.15rem;
+}
+.tiptap ul[data-type="taskList"] li > label input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #f97316;
+}
+.tiptap ul[data-type="taskList"] li > div {
+  flex: 1;
+  min-width: 0;
+}
+.tiptap ul[data-type="taskList"] li > div p {
+  margin: 0;
+  line-height: 1.55;
+}
+.tiptap ul[data-type="taskList"] li[data-checked="true"] > div {
+  color: #9ca3af;
+  text-decoration: line-through;
+}
 .tiptap pre {
   background: #f3f4f6;
   border-radius: 0.5rem;
@@ -506,11 +575,40 @@
   line-height: 1.6;
 }
 .product-content blockquote {
-  border-left: 3px solid #e5e7eb;
-  padding-left: 1rem;
+  border-left: 3px solid #fdba74;
+  background: #fff7ed;
+  padding: 0.625rem 0.875rem;
   margin: 0.75rem 0;
-  color: #6b7280;
+  border-radius: 0 0.5rem 0.5rem 0;
+  color: #9a3412;
   font-style: italic;
+}
+.product-content blockquote p {
+  margin: 0;
+}
+.product-content blockquote[data-quote-style="double"] {
+  border-left: none;
+  background: #fffaf5;
+  color: #7c2d12;
+  font-style: normal;
+}
+.product-content blockquote[data-quote-style="double"] p:first-of-type::before {
+  content: "“";
+  color: #f97316;
+  font-size: 1.4em;
+  font-weight: 700;
+  line-height: 0;
+  margin-right: 0.2rem;
+  vertical-align: -0.18em;
+}
+.product-content blockquote[data-quote-style="double"] p:last-of-type::after {
+  content: "”";
+  color: #f97316;
+  font-size: 1.4em;
+  font-weight: 700;
+  line-height: 0;
+  margin-left: 0.2rem;
+  vertical-align: -0.18em;
 }
 .product-content pre {
   background: #f3f4f6;
@@ -666,17 +764,31 @@
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
+  margin-bottom: 0.35rem;
 }
 .product-content ul[data-type="taskList"] li > label {
   display: flex;
   align-items: center;
   gap: 0.25rem;
   cursor: pointer;
+  margin-top: 0.15rem;
 }
 .product-content ul[data-type="taskList"] li > label input[type="checkbox"] {
   width: 1rem;
   height: 1rem;
   accent-color: #f97316;
+}
+.product-content ul[data-type="taskList"] li > div {
+  flex: 1;
+  min-width: 0;
+}
+.product-content ul[data-type="taskList"] li > div p {
+  margin: 0;
+  line-height: 1.55;
+}
+.product-content ul[data-type="taskList"] li[data-checked="true"] > div {
+  color: #9ca3af;
+  text-decoration: line-through;
 }
 
 /* Drag Handle Styles */
