@@ -30,6 +30,10 @@ const updateProfileSchema = z.object({
   headline: z.string().max(200, 'Headline must be at most 200 characters').optional(),
   bio: z.string().max(1000, 'Bio must be at most 1000 characters').optional(),
   theme: z.string().max(30).optional(),
+  borderRadius: z.string().max(10).optional(),
+  buttonBorderRadius: z.string().max(10).optional(),
+  productColumns: z.coerce.number().min(1).max(4).optional(),
+  cardTemplate: z.string().max(20).optional(),
   instagram: z.string().optional(),
   twitter: z.string().optional(),
   youtube: z.string().optional(),
@@ -40,7 +44,7 @@ const updateProfileSchema = z.object({
 export const updateProfile = validatedActionWithUser(
   updateProfileSchema,
   async (data, _, user) => {
-    const { username, displayName, headline, bio, theme, instagram, twitter, youtube, tiktok, website } = data;
+    const { username, displayName, headline, bio, theme, borderRadius, buttonBorderRadius, productColumns, cardTemplate, instagram, twitter, youtube, tiktok, website } = data;
 
     const existingProfile = await getProfileByUserId(user.id);
 
@@ -71,6 +75,10 @@ export const updateProfile = validatedActionWithUser(
           headline: headline || null,
           bio: bio || null,
           theme: theme || 'default',
+          borderRadius: borderRadius || 'md',
+          buttonBorderRadius: buttonBorderRadius || 'md',
+          productColumns: productColumns || 3,
+          cardTemplate: cardTemplate || 'standard',
           socialLinks,
           updatedAt: new Date(),
         })
@@ -83,6 +91,10 @@ export const updateProfile = validatedActionWithUser(
         headline: headline || null,
         bio: bio || null,
         theme: theme || 'default',
+        borderRadius: borderRadius || 'md',
+        buttonBorderRadius: buttonBorderRadius || 'md',
+        productColumns: productColumns || 3,
+        cardTemplate: cardTemplate || 'standard',
         socialLinks,
       });
     }

@@ -12,10 +12,15 @@ import {
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, Camera, Trash2, AtSign, Link2, Globe, Palette, Check } from 'lucide-react';
-import { updateProfile, updateAvatar, deleteAvatar, updateTheme } from './actions';
+import { Loader2, Camera, Trash2, AtSign, Link2, Globe, Palette, Check, Square, RectangleHorizontal, MousePointerClick, LayoutGrid } from 'lucide-react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { updateProfile, updateAvatar, deleteAvatar } from './actions';
 import { Profile, User } from '@/lib/db/schema';
-import { themes } from '@/lib/themes';
+import { themes, getTheme, getThemeCategories, type ThemeConfig } from '@/lib/themes';
 import useSWR, { mutate } from 'swr';
 import { Suspense } from 'react';
 import { generateReactHelpers } from '@uploadthing/react';
@@ -34,6 +39,27 @@ type ActionState = {
   error?: string;
   success?: string;
 };
+
+const borderRadiusOptions = [
+  { id: 'none', label: 'None', css: '0px' },
+  { id: 'sm', label: 'Small', css: '2px' },
+  { id: 'md', label: 'Medium', css: '6px' },
+  { id: 'lg', label: 'Large', css: '8px' },
+  { id: 'xl', label: 'XL', css: '16px' },
+] as const;
+
+const btnRadiusOptions = [
+  { id: 'none', label: 'None', css: '0px' },
+  { id: 'sm', label: 'Small', css: '2px' },
+  { id: 'md', label: 'Medium', css: '6px' },
+  { id: 'lg', label: 'Large', css: '8px' },
+  { id: 'full', label: 'Full', css: '9999px' },
+] as const;
+
+type BorderRadiusId = typeof borderRadiusOptions[number]['id'];
+
+const getRadiusCss = (id: string) => borderRadiusOptions.find(r => r.id === id)?.css ?? '6px';
+const getBtnRadiusCss = (id: string) => btnRadiusOptions.find(r => r.id === id)?.css ?? '6px';
 
 function SocialLinkInput({
   platform,
@@ -63,6 +89,391 @@ function SocialLinkInput({
         defaultValue={defaultValue || ''}
         className="flex-1"
       />
+    </div>
+  );
+}
+
+function AvatarSection() {
+  const { data } = useSWR<ProfileData>('/api/profile', fetcher);
+  const profile = data?.profile;
+  const user = data?.user;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { startUpload, isUploading } = useUploadThing('avatarUploader', {
+    onClientUploadComplete: async (res) => {
+      const url = res?.[0]?.ufsUrl;
+      if (url) {
+        await updateAvatar(url);
+        mutate('/api/profile');
+      }
+    },
+    onUploadError: (error) => {
+      console.error(error);
+    },
+  });
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      await startUpload(Array.from(files));
+      e.target.value = '';
+    }
+  };
+
+  const handleAvatarDelete = async () => {
+    await deleteAvatar();
+    mutate('/api/profile');
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Profile Photo</CardTitle>
+        <CardDescription>
+          Upload a profile photo to personalize your page.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center gap-6">
+          <Avatar className="h-24 w-24">
+            <AvatarImage src={profile?.avatarUrl || ''} alt={profile?.displayName || user?.name || ''} />
+            <AvatarFallback className="text-lg">
+              {(profile?.displayName || user?.name || user?.email || 'U')
+                .split(' ')
+                .map((n) => n[0])
+                .join('')
+                .toUpperCase()
+                .slice(0, 2)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="space-y-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isUploading}
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Camera className="mr-2 h-4 w-4" />
+                  Upload Photo
+                </>
+              )}
+            </Button>
+            {profile?.avatarUrl && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                onClick={handleAvatarDelete}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Remove Photo
+              </Button>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ThemePickerCard({
+  theme,
+  isSelected,
+  onClick,
+}: {
+  theme: ThemeConfig;
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group relative rounded-xl border-2 p-1 transition-all text-left w-full ${
+        isSelected
+          ? 'border-orange-500 ring-2 ring-orange-200'
+          : 'border-gray-200 hover:border-gray-300'
+      }`}
+    >
+      <div
+        className="rounded-lg p-3 h-24 flex flex-col justify-between overflow-hidden"
+        style={{ background: theme.preview.bg }}
+      >
+        <div className="flex items-center gap-2">
+          <div
+            className="w-6 h-6 rounded-full shrink-0"
+            style={{ background: theme.preview.accent }}
+          />
+          <div className="flex-1 space-y-1">
+            <div
+              className="h-2 rounded-full w-3/4"
+              style={{ background: theme.preview.text, opacity: 0.7 }}
+            />
+            <div
+              className="h-1.5 rounded-full w-1/2"
+              style={{ background: theme.preview.text, opacity: 0.3 }}
+            />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <div
+            className="h-5 rounded"
+            style={{ background: theme.preview.card }}
+          />
+          <div
+            className="h-5 rounded"
+            style={{ background: theme.preview.card }}
+          />
+        </div>
+      </div>
+
+      <div className="px-2 py-1.5">
+        <p className="text-xs font-medium text-gray-900 truncate">{theme.name}</p>
+      </div>
+
+      {isSelected && (
+        <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center">
+          <Check className="h-3 w-3 text-white" />
+        </div>
+      )}
+    </button>
+  );
+}
+
+function RadiusPickerRow({
+  selected,
+  onSelect,
+  accentColor,
+  options,
+}: {
+  selected: string;
+  onSelect: (id: string) => void;
+  accentColor: string;
+  options: readonly { id: string; label: string; css: string }[];
+}) {
+  return (
+    <div className="grid grid-cols-5 gap-2">
+      {options.map((opt) => {
+        const isActive = selected === opt.id;
+        return (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => onSelect(opt.id)}
+            className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${
+              isActive
+                ? 'border-orange-500 ring-2 ring-orange-200 bg-orange-50'
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <div
+              className="w-8 h-8 border-2 border-current"
+              style={{
+                borderRadius: opt.css,
+                background: isActive ? accentColor : 'transparent',
+                borderColor: isActive ? accentColor : '#d1d5db',
+              }}
+            />
+            <span className="text-[10px] font-medium text-gray-600">{opt.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ProductCardStandard({
+  title, price, type, s, cr,
+}: { title: string; price: string; type: string; s: ThemeConfig['styles']; cr: string }) {
+  return (
+    <div
+      className="border p-3 flex flex-col"
+      style={{ background: s.cardBg, borderColor: s.cardBorder, borderRadius: cr }}
+    >
+      <div className="w-full h-16 mb-2 flex items-center justify-center" style={{ background: s.productBadge, borderRadius: cr }}>
+        <span className="text-xl font-bold" style={{ color: s.productBadgeText }}>{title[0]}</span>
+      </div>
+      <p className="text-xs font-semibold truncate" style={{ color: s.headingColor }}>{title}</p>
+      <p className="text-[10px] mt-0.5" style={{ color: s.mutedColor }}>{type}</p>
+      <div className="flex items-center justify-between mt-auto pt-2" style={{ borderTop: `1px solid ${s.cardBorder}` }}>
+        <span className="text-xs font-bold" style={{ color: s.priceColor }}>{price}</span>
+      </div>
+    </div>
+  );
+}
+
+function ProductCardCompact({
+  title, price, s, cr,
+}: { title: string; price: string; s: ThemeConfig['styles']; cr: string }) {
+  return (
+    <div
+      className="border p-2.5 flex items-center gap-3"
+      style={{ background: s.cardBg, borderColor: s.cardBorder, borderRadius: cr }}
+    >
+      <div className="w-12 h-12 shrink-0 flex items-center justify-center" style={{ background: s.productBadge, borderRadius: cr }}>
+        <span className="text-sm font-bold" style={{ color: s.productBadgeText }}>{title[0]}</span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[11px] font-semibold truncate" style={{ color: s.headingColor }}>{title}</p>
+        <p className="text-[11px] font-bold" style={{ color: s.priceColor }}>{price}</p>
+      </div>
+    </div>
+  );
+}
+
+function ProductCardOverlay({
+  title, price, type, s, cr,
+}: { title: string; price: string; type: string; s: ThemeConfig['styles']; cr: string }) {
+  return (
+    <div
+      className="relative overflow-hidden"
+      style={{ background: s.productBadge, borderRadius: cr }}
+    >
+      <div className="h-28 flex items-center justify-center">
+        <span className="text-3xl font-bold" style={{ color: s.productBadgeText }}>{title[0]}</span>
+      </div>
+      <div
+        className="absolute inset-x-0 bottom-0 p-2.5"
+        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)', borderRadius: `0 0 ${cr} ${cr}` }}
+      >
+        <p className="text-[11px] font-semibold truncate text-white">{title}</p>
+        <div className="flex items-center justify-between mt-0.5">
+          <span className="text-[10px] text-white/70">{type}</span>
+          <span className="text-xs font-bold text-white">{price}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProductCardMinimal({
+  title, price, type, s, cr,
+}: { title: string; price: string; type: string; s: ThemeConfig['styles']; cr: string }) {
+  return (
+    <div
+      className="border p-3"
+      style={{ background: s.cardBg, borderColor: s.cardBorder, borderRadius: cr }}
+    >
+      <p className="text-xs font-semibold truncate" style={{ color: s.headingColor }}>{title}</p>
+      <p className="text-[10px] mt-0.5" style={{ color: s.mutedColor }}>{type}</p>
+      <div className="mt-2" style={{ borderTop: `1px solid ${s.cardBorder}` }}>
+        <span className="text-xs font-bold" style={{ color: s.priceColor }}>{price}</span>
+      </div>
+    </div>
+  );
+}
+
+function ProductCardsGrid({
+  s, cr, columns, cardTemplate,
+}: { s: ThemeConfig['styles']; cr: string; columns: number; cardTemplate: string }) {
+  const items = [
+    { title: 'E-book Template', price: '$29.00', type: 'Digital' },
+    { title: 'Design Course', price: '$49.00', type: 'Course' },
+    { title: 'Icon Pack', price: '$9.00', type: 'Digital' },
+  ];
+
+  const colClass = columns === 1 ? 'grid-cols-1' : columns === 2 ? 'grid-cols-2' : columns === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3';
+
+  const CardComponent = cardTemplate === 'compact' ? ProductCardCompact
+    : cardTemplate === 'overlay' ? ProductCardOverlay
+      : cardTemplate === 'minimal' ? ProductCardMinimal
+        : ProductCardStandard;
+
+  return (
+    <div className={`grid ${colClass} gap-3`}>
+      {items.map((item) => (
+        <CardComponent key={item.title} {...item} s={s} cr={cr} />
+      ))}
+    </div>
+  );
+}
+
+function StorePreview({
+  theme,
+  cardRadius,
+  btnRadius,
+  profile,
+  productColumns,
+  cardTemplate,
+}: {
+  theme: ThemeConfig;
+  cardRadius: string;
+  btnRadius: string;
+  profile: Profile | null | undefined;
+  productColumns: number;
+  cardTemplate: string;
+}) {
+  const s = theme.styles;
+  const cr = getRadiusCss(cardRadius);
+  const br = getBtnRadiusCss(btnRadius);
+
+  return (
+    <div className="h-full rounded-xl border border-gray-200 overflow-hidden">
+      <div
+        className="h-full p-4 overflow-y-auto"
+        style={{ background: s.pageBgGradient || s.pageBg }}
+      >
+        <div className="flex flex-col sm:flex-row gap-4 max-w-full">
+          <div
+            className="shrink-0 border p-4 flex flex-col items-center text-center sm:w-[140px]"
+            style={{ background: s.cardBg, borderColor: s.cardBorder, borderRadius: cr }}
+          >
+            <div
+              className="w-14 h-14 flex items-center justify-center text-sm font-bold"
+              style={{ borderRadius: cr, background: s.avatarFallback, color: s.avatarFallbackText }}
+            >
+              {(profile?.displayName || profile?.username || 'U')
+                .split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
+            </div>
+            <p className="text-sm font-bold mt-2" style={{ color: s.headingColor }}>
+              {profile?.displayName || profile?.username || 'Your Name'}
+            </p>
+            <p className="text-[10px] mt-0.5" style={{ color: s.mutedColor }}>
+              {profile?.headline || 'Creator'}
+            </p>
+            <div className="flex gap-1.5 mt-3">
+              {['t', 'i', 'g'].map((_, i) => (
+                <div key={i} className="w-4 h-4" style={{ color: s.socialIconColor, opacity: 0.6 }}>
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><circle cx="12" cy="12" r="10" /></svg>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex-1 min-w-0 space-y-3">
+            <ProductCardsGrid s={s} cr={cr} columns={productColumns} cardTemplate={cardTemplate} />
+
+            <div className="flex gap-2 pt-2">
+              <button className="px-4 py-2 text-xs font-medium transition-colors" style={{ background: s.buttonBg, color: s.buttonText, borderRadius: br }}>
+                Buy Now
+              </button>
+              <button className="px-4 py-2 text-xs font-medium border transition-colors" style={{ background: 'transparent', color: s.buttonBg, borderColor: s.cardBorder, borderRadius: br }}>
+                View Details
+              </button>
+            </div>
+
+            <p className="text-center text-[10px] pt-2" style={{ color: s.footerColor }}>
+              Powered by ACME
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -228,221 +639,309 @@ function ProfileForm({
   );
 }
 
-function ProfileFormWithData({ state, formAction, isPending }: { state: ActionState; formAction: (formData: FormData) => void; isPending: boolean }) {
+function ProfileFormWithData({
+  selectedTheme,
+  selectedRadius,
+  selectedBtnRadius,
+  productColumns,
+  cardTemplate,
+  state,
+  formAction,
+  isPending,
+}: {
+  selectedTheme: string;
+  selectedRadius: string;
+  selectedBtnRadius: string;
+  productColumns: number;
+  cardTemplate: string;
+  state: ActionState;
+  formAction: (formData: FormData) => void;
+  isPending: boolean;
+}) {
   const { data } = useSWR<ProfileData>('/api/profile', fetcher);
-  return <ProfileForm state={state} initialData={data} formAction={formAction} isPending={isPending} />;
+
+  const wrappedFormAction = useCallback(
+    (formData: FormData) => {
+      formData.append('theme', selectedTheme);
+      formData.append('borderRadius', selectedRadius);
+      formData.append('buttonBorderRadius', selectedBtnRadius);
+      formData.append('productColumns', String(productColumns));
+      formData.append('cardTemplate', cardTemplate);
+      formAction(formData);
+    },
+    [formAction, selectedTheme, selectedRadius, selectedBtnRadius, productColumns, cardTemplate]
+  );
+
+  return <ProfileForm state={state} initialData={data} formAction={wrappedFormAction} isPending={isPending} />;
 }
 
-function AvatarSection() {
-  const { data } = useSWR<ProfileData>('/api/profile', fetcher);
-  const profile = data?.profile;
-  const user = data?.user;
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const { startUpload, isUploading } = useUploadThing('avatarUploader', {
-    onClientUploadComplete: async (res) => {
-      const url = res?.[0]?.ufsUrl;
-      if (url) {
-        await updateAvatar(url);
-        mutate('/api/profile');
-      }
-    },
-    onUploadError: (error) => {
-      console.error(error);
-    },
-  });
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      await startUpload(Array.from(files));
-      e.target.value = '';
-    }
-  };
-
-  const handleAvatarDelete = async () => {
-    await deleteAvatar();
-    mutate('/api/profile');
-  };
-
+function ProfileSkeleton() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Profile Photo</CardTitle>
-        <CardDescription>
-          Upload a profile photo to personalize your page.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center gap-6">
-          <Avatar className="h-24 w-24">
-            <AvatarImage src={profile?.avatarUrl || ''} alt={profile?.displayName || user?.name || ''} />
-            <AvatarFallback className="text-lg">
-              {(profile?.displayName || user?.name || user?.email || 'U')
-                .split(' ')
-                .map((n) => n[0])
-                .join('')
-                .toUpperCase()
-                .slice(0, 2)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="space-y-3">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isUploading}
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {isUploading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Uploading...
-                </>
-              ) : (
-                <>
-                  <Camera className="mr-2 h-4 w-4" />
-                  Upload Photo
-                </>
-              )}
-            </Button>
-            {profile?.avatarUrl && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                onClick={handleAvatarDelete}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Remove Photo
-              </Button>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex-1 lg:p-8 space-y-6">
+      <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
+      <div className="h-[180px] bg-gray-100 rounded-xl animate-pulse" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="h-[400px] bg-gray-100 rounded-xl animate-pulse" />
+        <div className="h-[400px] bg-gray-100 rounded-xl animate-pulse" />
+      </div>
+      <div className="h-[300px] bg-gray-100 rounded-xl animate-pulse" />
+      <div className="h-[280px] bg-gray-100 rounded-xl animate-pulse" />
+    </div>
   );
 }
 
-function ThemePickerSection() {
-  const { data } = useSWR<ProfileData>('/api/profile', fetcher);
-  const currentTheme = data?.profile?.theme || 'default';
-  const [isUpdating, setIsUpdating] = useState<string | null>(null);
+function ThemeCardWithPopover({
+  theme,
+  isSelected,
+  selectedTheme,
+  onSelect,
+}: {
+  theme: ThemeConfig;
+  isSelected: boolean;
+  selectedTheme: string;
+  onSelect: (id: string) => void;
+}) {
+  const categories = getThemeCategories();
+  const category = categories.find((c) => c.id === theme.category);
+  const variants = category?.variants || [theme];
+  const hasMultiple = variants.length > 1;
 
-  const handleSelectTheme = async (themeId: string) => {
-    if (themeId === currentTheme || isUpdating) return;
-    setIsUpdating(themeId);
-    const formData = new FormData();
-    formData.append('theme', themeId);
-    await updateTheme({}, formData);
-    mutate('/api/profile');
-    setIsUpdating(null);
-  };
+  if (!hasMultiple) {
+    return (
+      <ThemePickerCard
+        theme={theme}
+        isSelected={isSelected}
+        onClick={() => onSelect(theme.id)}
+      />
+    );
+  }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Palette className="h-5 w-5" />
-          Store Theme
-        </CardTitle>
-        <CardDescription>
-          Choose a design theme for your public storefront page.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {themes.map((theme) => {
-            const isSelected = currentTheme === theme.id;
-            const isThisUpdating = isUpdating === theme.id;
+    <Popover>
+      <PopoverTrigger asChild>
+        <div className="relative cursor-pointer w-full">
+          <ThemePickerCard
+            theme={theme}
+            isSelected={isSelected}
+            onClick={() => {}}
+          />
+          <div className="absolute -top-1.5 -left-1.5 z-10 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+            {variants.length}
+          </div>
+        </div>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-2" side="top" align="center" sideOffset={8}>
+        <p className="text-[10px] font-semibold text-gray-500 mb-1.5 px-1">{category?.label}</p>
+        <div className="flex gap-1.5">
+          {variants.map((v) => {
+            const isThis = selectedTheme === v.id;
             return (
               <button
-                key={theme.id}
+                key={v.id}
                 type="button"
-                onClick={() => handleSelectTheme(theme.id)}
-                disabled={isUpdating !== null}
-                className={`group relative rounded-xl border-2 p-1 transition-all text-left ${
-                  isSelected
-                    ? 'border-orange-500 ring-2 ring-orange-200'
-                    : 'border-gray-200 hover:border-gray-300'
+                onClick={() => onSelect(v.id)}
+                className={`relative flex flex-col items-center gap-1 p-1 rounded-lg transition-all ${
+                  isThis ? 'bg-orange-50' : 'hover:bg-gray-50'
                 }`}
               >
-                {/* Mini preview */}
-                <div
-                  className="rounded-lg p-3 h-24 flex flex-col justify-between overflow-hidden"
-                  style={{ background: theme.preview.bg }}
-                >
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-6 h-6 rounded-full shrink-0"
-                      style={{ background: theme.preview.accent }}
-                    />
-                    <div className="flex-1 space-y-1">
-                      <div
-                        className="h-2 rounded-full w-3/4"
-                        style={{ background: theme.preview.text, opacity: 0.7 }}
-                      />
-                      <div
-                        className="h-1.5 rounded-full w-1/2"
-                        style={{ background: theme.preview.text, opacity: 0.3 }}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <div
-                      className="h-5 rounded"
-                      style={{ background: theme.preview.card }}
-                    />
-                    <div
-                      className="h-5 rounded"
-                      style={{ background: theme.preview.card }}
-                    />
-                  </div>
+                <div className="flex gap-0.5">
+                  <div className="w-5 h-5 rounded" style={{ background: v.preview.bg, border: '1px solid #e5e7eb' }} />
+                  <div className="w-5 h-5 rounded" style={{ background: v.preview.card, border: '1px solid #e5e7eb' }} />
+                  <div className="w-5 h-5 rounded" style={{ background: v.preview.accent }} />
+                  <div className="w-5 h-5 rounded" style={{ background: v.preview.text }} />
                 </div>
-
-                {/* Theme name */}
-                <div className="px-2 py-1.5">
-                  <p className="text-xs font-medium text-gray-900 truncate">{theme.name}</p>
-                </div>
-
-                {/* Selected indicator */}
-                {isSelected && (
-                  <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center">
-                    <Check className="h-3 w-3 text-white" />
-                  </div>
-                )}
-
-                {/* Loading overlay */}
-                {isThisUpdating && (
-                  <div className="absolute inset-0 bg-white/60 rounded-xl flex items-center justify-center">
-                    <Loader2 className="h-5 w-5 animate-spin text-orange-500" />
+                <span className={`text-[9px] leading-tight font-medium text-center w-14 truncate ${isThis ? 'text-orange-600' : 'text-gray-600'}`}>
+                  {v.name}
+                </span>
+                {isThis && (
+                  <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-orange-500 rounded-full flex items-center justify-center">
+                    <Check className="h-1.5 w-1.5 text-white" />
                   </div>
                 )}
               </button>
             );
           })}
         </div>
-      </CardContent>
-    </Card>
+      </PopoverContent>
+    </Popover>
   );
 }
 
-function ProfileSkeleton() {
+function getUniqueThemeCards(): ThemeConfig[] {
+  const seen = new Set<string>();
+  return themes.filter((t) => {
+    if (seen.has(t.category)) return false;
+    seen.add(t.category);
+    return true;
+  });
+}
+
+function ThemeConfigSection({
+  selectedTheme,
+  selectedRadius,
+  selectedBtnRadius,
+  productColumns,
+  cardTemplate,
+  onThemeChange,
+  onRadiusChange,
+  onBtnRadiusChange,
+  onColumnsChange,
+  onCardTemplateChange,
+  profile,
+}: {
+  selectedTheme: string;
+  selectedRadius: string;
+  selectedBtnRadius: string;
+  productColumns: number;
+  cardTemplate: string;
+  onThemeChange: (id: string) => void;
+  onRadiusChange: (id: string) => void;
+  onBtnRadiusChange: (id: string) => void;
+  onColumnsChange: (n: number) => void;
+  onCardTemplateChange: (id: string) => void;
+  profile: Profile | null | undefined;
+}) {
+  const theme = getTheme(selectedTheme);
+  const cards = getUniqueThemeCards();
+
+  const columnOptions = [1, 2, 3, 4];
+
+  const cardTemplates = [
+    { id: 'standard', label: 'Standard' },
+    { id: 'compact', label: 'Compact' },
+    { id: 'overlay', label: 'Overlay' },
+    { id: 'minimal', label: 'Minimal' },
+  ];
+
   return (
-    <div className="flex-1 p-4 lg:p-8 space-y-6">
-      <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
-      <div className="h-[180px] bg-gray-100 rounded-xl animate-pulse" />
-      <div className="h-[300px] bg-gray-100 rounded-xl animate-pulse" />
-      <div className="h-[280px] bg-gray-100 rounded-xl animate-pulse" />
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Palette className="h-5 w-5" />
+          Appearance
+        </CardTitle>
+        <CardDescription>
+          Customize the look of your public storefront page.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div>
+          <h3 className="text-sm font-medium text-gray-900 mb-3">Store Theme</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {cards.map((t) => {
+              const categories = getThemeCategories();
+              const cat = categories.find((c) => c.id === t.category);
+              const isCategorySelected = cat?.variants.some((v) => v.id === selectedTheme);
+              return (
+                <ThemeCardWithPopover
+                  key={t.id}
+                  theme={t}
+                  isSelected={isCategorySelected || false}
+                  selectedTheme={selectedTheme}
+                  onSelect={onThemeChange}
+                />
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
+            <LayoutGrid className="h-4 w-4" />
+            Product Columns
+          </h3>
+          <div className="grid grid-cols-4 gap-2">
+            {columnOptions.map((n) => {
+              const isActive = productColumns === n;
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => onColumnsChange(n)}
+                  className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${
+                    isActive
+                      ? 'border-orange-500 ring-2 ring-orange-200 bg-orange-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex gap-0.5">
+                    {Array.from({ length: Math.min(n, 4) }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="h-4 border border-current"
+                        style={{
+                          width: n === 1 ? '24px' : n === 2 ? '12px' : n === 3 ? '8px' : '6px',
+                          borderColor: isActive ? '#f97316' : '#d1d5db',
+                          background: isActive ? '#f97316' : 'transparent',
+                          opacity: isActive ? 1 : 0.4,
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[10px] font-medium text-gray-600">{n}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-medium text-gray-900 mb-3">Card Template</h3>
+          <div className="grid grid-cols-4 gap-2">
+            {cardTemplates.map((t) => {
+              const isActive = cardTemplate === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => onCardTemplateChange(t.id)}
+                  className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${
+                    isActive
+                      ? 'border-orange-500 ring-2 ring-orange-200 bg-orange-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div
+                    className="w-8 h-6 rounded border"
+                    style={{
+                      borderColor: isActive ? '#f97316' : '#d1d5db',
+                      background: isActive ? '#fed7aa' : '#f9fafb',
+                    }}
+                  />
+                  <span className="text-[10px] font-medium text-gray-600">{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
+            <RectangleHorizontal className="h-4 w-4" />
+            Card Radius
+          </h3>
+          <RadiusPickerRow
+            selected={selectedRadius}
+            onSelect={onRadiusChange}
+            accentColor={theme.styles.cardBorder}
+            options={borderRadiusOptions}
+          />
+        </div>
+
+        <div>
+          <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
+            <MousePointerClick className="h-4 w-4" />
+            Button Radius
+          </h3>
+          <RadiusPickerRow
+            selected={selectedBtnRadius}
+            onSelect={onBtnRadiusChange}
+            accentColor={theme.styles.buttonBg}
+            options={btnRadiusOptions}
+          />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -454,16 +953,81 @@ export default function ProfilePage() {
     return await updateProfile(prevState, formData);
   }, {});
 
+  const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
+  const [selectedRadius, setSelectedRadius] = useState<string | null>(null);
+  const [selectedBtnRadius, setSelectedBtnRadius] = useState<string | null>(null);
+  const [productColumns, setProductColumns] = useState<number>(3);
+  const [cardTemplate, setCardTemplate] = useState<string>('standard');
+
+  const { data } = useSWR<ProfileData>('/api/profile', fetcher);
+
+  useEffect(() => {
+    if (data?.profile) {
+      if (selectedTheme === null) {
+        setSelectedTheme(data.profile.theme || 'default');
+      }
+      if (selectedRadius === null) {
+        setSelectedRadius(data.profile.borderRadius || 'md');
+      }
+      if (selectedBtnRadius === null) {
+        setSelectedBtnRadius(data.profile.buttonBorderRadius || 'md');
+      }
+      setProductColumns(data.profile.productColumns || 3);
+      setCardTemplate(data.profile.cardTemplate || 'standard');
+    }
+  }, [data, selectedTheme, selectedRadius, selectedBtnRadius]);
+
+  const profile = data?.profile;
+
+  const isReady = selectedTheme !== null && selectedRadius !== null && selectedBtnRadius !== null;
+
   return (
-    <section className="flex-1 p-4 lg:p-8">
+    <section className="flex-1 lg:p-8">
       <h1 className="text-lg lg:text-2xl font-medium text-gray-900 mb-6">
         Edit Profile
       </h1>
       <Suspense fallback={<ProfileSkeleton />}>
-        <div className="space-y-6 max-w-2xl">
+        <div className="space-y-6">
           <AvatarSection />
-          <ThemePickerSection />
-          <ProfileFormWithData state={state} formAction={formAction} isPending={isPending} />
+
+          {isReady && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <ThemeConfigSection
+                selectedTheme={selectedTheme}
+                selectedRadius={selectedRadius}
+                selectedBtnRadius={selectedBtnRadius}
+                productColumns={productColumns}
+                cardTemplate={cardTemplate}
+                onThemeChange={setSelectedTheme}
+                onRadiusChange={setSelectedRadius}
+                onBtnRadiusChange={setSelectedBtnRadius}
+                onColumnsChange={setProductColumns}
+                onCardTemplateChange={setCardTemplate}
+                profile={profile}
+              />
+              <div className="lg:sticky lg:top-4 self-start">
+                <StorePreview
+                  theme={getTheme(selectedTheme)}
+                  cardRadius={selectedRadius}
+                  btnRadius={selectedBtnRadius}
+                  productColumns={productColumns}
+                  cardTemplate={cardTemplate}
+                  profile={profile}
+                />
+              </div>
+            </div>
+          )}
+
+          <ProfileFormWithData
+            selectedTheme={selectedTheme || 'default'}
+            selectedRadius={selectedRadius || 'md'}
+            selectedBtnRadius={selectedBtnRadius || 'md'}
+            productColumns={productColumns}
+            cardTemplate={cardTemplate}
+            state={state}
+            formAction={formAction}
+            isPending={isPending}
+          />
         </div>
       </Suspense>
     </section>

@@ -1,0 +1,1 @@
+ALTER TABLE "profiles" ADD COLUMN "border_radius" varchar(10) DEFAULT 'md' NOT NULL;

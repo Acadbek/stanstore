@@ -7,6 +7,17 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 
+const radiusMap: Record<string, string> = {
+  none: '0px',
+  sm: '2px',
+  md: '6px',
+  lg: '8px',
+  xl: '16px',
+  full: '9999px',
+};
+
+const getRadius = (id?: string | null) => radiusMap[id || 'md'] || '6px';
+
 type Props = {
   profile: Profile;
   product: Product;
@@ -15,6 +26,8 @@ type Props = {
 export default function ProductDetailClient({ profile, product }: Props) {
   const theme = getTheme(profile.theme || 'default');
   const s = theme.styles;
+  const cr = getRadius(profile.borderRadius);
+  const br = getRadius(profile.buttonBorderRadius);
 
   const formatPrice = (price: number | null) => {
     if (!price) return 'Free';
@@ -40,8 +53,8 @@ export default function ProductDetailClient({ profile, product }: Props) {
         {/* Cover Image */}
         {product.imageUrl ? (
           <div
-            className="rounded-2xl overflow-hidden mb-6 shadow-lg"
-            style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.12)' }}
+            className="overflow-hidden mb-6 shadow-lg"
+            style={{ borderRadius: cr, boxShadow: '0 8px 30px rgba(0,0,0,0.12)' }}
           >
             <img
               src={product.imageUrl}
@@ -51,8 +64,8 @@ export default function ProductDetailClient({ profile, product }: Props) {
           </div>
         ) : (
           <div
-            className="rounded-2xl h-56 sm:h-72 mb-6 flex items-center justify-center shadow-lg"
-            style={{ background: s.productBadge }}
+            className="h-56 sm:h-72 mb-6 flex items-center justify-center shadow-lg"
+            style={{ background: s.productBadge, borderRadius: cr }}
           >
             <span className="text-6xl font-bold" style={{ color: s.productBadgeText }}>
               {product.title[0]?.toUpperCase()}
@@ -79,8 +92,8 @@ export default function ProductDetailClient({ profile, product }: Props) {
               {formatPrice(product.price)}
             </span>
             <span
-              className="text-xs font-medium uppercase px-2.5 py-1 rounded-full"
-              style={{ background: s.cardBg, color: s.mutedColor, border: `1px solid ${s.cardBorder}` }}
+              className="text-xs font-medium uppercase px-2.5 py-1"
+              style={{ background: s.cardBg, color: s.mutedColor, border: `1px solid ${s.cardBorder}`, borderRadius: br }}
             >
               {product.type}
             </span>
@@ -93,10 +106,11 @@ export default function ProductDetailClient({ profile, product }: Props) {
             href={product.productUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full rounded-xl py-3.5 font-semibold text-base transition-all duration-200 no-underline"
+            className="flex items-center justify-center gap-2 w-full py-3.5 font-semibold text-base transition-all duration-200 no-underline"
             style={{
               background: s.buttonBg,
               color: s.buttonText,
+              borderRadius: br,
             }}
           >
             Get this product
@@ -104,10 +118,11 @@ export default function ProductDetailClient({ profile, product }: Props) {
           </a>
         ) : (
           <Button
-            className="w-full rounded-xl py-3.5 text-base font-semibold"
+            className="w-full py-3.5 text-base font-semibold"
             style={{
               background: s.buttonBg,
               color: s.buttonText,
+              borderRadius: br,
             }}
           >
             Get this product
