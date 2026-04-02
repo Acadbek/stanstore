@@ -13,6 +13,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, Trash2, AtSign, Link2, Globe, Palette, Check, RectangleHorizontal, MousePointerClick, LayoutGrid, Eye, Plus } from 'lucide-react';
+import Cropper from 'react-easy-crop';
 import {
   Popover,
   PopoverContent,
@@ -96,12 +97,47 @@ function SocialLinkInput({
   );
 }
 
+function createImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener('load', () => resolve(image));
+    image.addEventListener('error', (error) => reject(error));
+    image.src = url;
+  });
+}
+
+async function getCroppedImg(
+  imageSrc: string,
+  pixelCrop: { x: number; y: number; width: number; height: number },
+): Promise<Blob> {
+  const image = await createImage(imageSrc);
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d')!;
+
+  canvas.width = pixelCrop.width;
+  canvas.height = pixelCrop.height;
+
+  ctx.drawImage(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, 0, 0, pixelCrop.width, pixelCrop.height);
+
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else resolve(new Blob());
+    }, 'image/jpeg');
+  });
+}
+
 function AvatarSection() {
   const { data } = useSWR<ProfileData>('/api/profile', fetcher);
   const profile = data?.profile;
   const user = data?.user;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [cropOpen, setCropOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<{ width: number; height: number; x: number; y: number } | null>(null);
 
   const { startUpload, isUploading } = useUploadThing('avatarUploader', {
     onClientUploadComplete: async (res) => {
@@ -119,8 +155,27 @@ function AvatarSection() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      await startUpload(Array.from(files));
+      const file = files[0];
+      const src = URL.createObjectURL(file);
+      setCropImageSrc(src);
+      setCropOpen(true);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
       e.target.value = '';
+    }
+  };
+
+  const handleCropAndUpload = async () => {
+    if (!cropImageSrc || !croppedAreaPixels) return;
+    try {
+      const blob = await getCroppedImg(cropImageSrc, croppedAreaPixels);
+      const file = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+      await startUpload([file]);
+      setCropOpen(false);
+      URL.revokeObjectURL(cropImageSrc);
+      setCropImageSrc(null);
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -233,6 +288,45 @@ function AvatarSection() {
             </p>
           </div>
         </div>
+
+        <Dialog open={cropOpen} onOpenChange={(open) => { if (!open) { URL.revokeObjectURL(cropImageSrc || ''); setCropImageSrc(null); } setCropOpen(open); }}>
+          <DialogContent className="max-w-lg p-0 overflow-hidden gap-0">
+            <div className="relative w-full h-[350px] bg-black">
+              {cropImageSrc && (
+                <Cropper
+                  image={cropImageSrc}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={1}
+                  cropShape="round"
+                  onCropChange={setCrop}
+                  onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
+                  onZoomChange={setZoom}
+                />
+              )}
+            </div>
+            <div className="flex items-center justify-between p-4 border-t">
+              <Button variant="ghost" size="sm" onClick={() => { URL.revokeObjectURL(cropImageSrc || ''); setCropImageSrc(null); setCropOpen(false); }}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="bg-orange-500 hover:bg-orange-600 text-white"
+                disabled={!croppedAreaPixels || isUploading}
+                onClick={handleCropAndUpload}
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  'Crop & Upload'
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
