@@ -1,9 +1,16 @@
 'use client';
 
+import { useState } from 'react';
 import { Profile, Product } from '@/lib/db/schema';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Eye } from 'lucide-react';
 import Link from 'next/link';
 import { getTheme } from '@/lib/themes';
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
 const radiusMap: Record<string, string> = {
   none: '0px',
@@ -112,6 +119,8 @@ export default function StorePage({ data }: { data: StoreData }) {
     return `$${(price / 100).toFixed(2)}`;
   };
 
+  const [avatarPreviewOpen, setAvatarPreviewOpen] = useState(false);
+
   return (
     <div
       className="min-h-screen transition-colors duration-300"
@@ -127,17 +136,47 @@ export default function StorePage({ data }: { data: StoreData }) {
             borderRadius: r,
           }}
         >
-          <Avatar className="h-20 w-20 shrink-0" style={{ boxShadow: `0 0 0 4px ${s.avatarRing}` }}>
-            <AvatarImage src={profile.avatarUrl || undefined} alt={profile.displayName || profile.username || ''} />
-            <AvatarFallback className="text-xl" style={{ background: s.avatarFallback, color: s.avatarFallbackText }}>
-              {(profile.displayName || profile.username || 'U')
-                .split(' ')
-                .map((n) => n[0])
-                .join('')
-                .toUpperCase()
-                .slice(0, 2)}
-            </AvatarFallback>
-          </Avatar>
+          {profile.avatarUrl ? (
+            <Dialog open={avatarPreviewOpen} onOpenChange={setAvatarPreviewOpen}>
+              <DialogTrigger asChild>
+                <div className="relative group cursor-pointer shrink-0">
+                  <Avatar className="h-20 w-20" style={{ boxShadow: `0 0 0 4px ${s.avatarRing}` }}>
+                    <AvatarImage src={profile.avatarUrl || undefined} alt={profile.displayName || profile.username || ''} />
+                    <AvatarFallback className="text-xl" style={{ background: s.avatarFallback, color: s.avatarFallbackText }}>
+                      {(profile.displayName || profile.username || 'U')
+                        .split(' ')
+                        .map((n) => n[0])
+                        .join('')
+                        .toUpperCase()
+                        .slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Eye className="h-5 w-5 text-white" />
+                  </div>
+                </div>
+              </DialogTrigger>
+              <DialogContent className="max-w-sm p-2" showClose={false}>
+                <img
+                  src={profile.avatarUrl}
+                  alt={profile.displayName || profile.username || ''}
+                  className="w-full h-auto rounded-xl"
+                />
+              </DialogContent>
+            </Dialog>
+          ) : (
+            <Avatar className="h-20 w-20 shrink-0" style={{ boxShadow: `0 0 0 4px ${s.avatarRing}` }}>
+              <AvatarImage src={profile.avatarUrl || undefined} alt={profile.displayName || profile.username || ''} />
+              <AvatarFallback className="text-xl" style={{ background: s.avatarFallback, color: s.avatarFallbackText }}>
+                {(profile.displayName || profile.username || 'U')
+                  .split(' ')
+                  .map((n) => n[0])
+                  .join('')
+                  .toUpperCase()
+                  .slice(0, 2)}
+              </AvatarFallback>
+            </Avatar>
+          )}
 
           <h1 className="text-lg font-bold mt-4 mb-1" style={{ color: s.headingColor }}>
             {profile.displayName || profile.username}

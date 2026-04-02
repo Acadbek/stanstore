@@ -12,12 +12,17 @@ import {
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, Camera, Trash2, AtSign, Link2, Globe, Palette, Check, RectangleHorizontal, MousePointerClick, LayoutGrid } from 'lucide-react';
+import { Loader2, Trash2, AtSign, Link2, Globe, Palette, Check, RectangleHorizontal, MousePointerClick, LayoutGrid, Eye, Plus } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { updateProfile, updateAvatar, deleteAvatar } from '../actions';
 import { Profile, User } from '@/lib/db/schema';
 import { themes, getTheme, getThemeCategories, type ThemeConfig } from '@/lib/themes';
@@ -96,6 +101,7 @@ function AvatarSection() {
   const profile = data?.profile;
   const user = data?.user;
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const { startUpload, isUploading } = useUploadThing('avatarUploader', {
     onClientUploadComplete: async (res) => {
@@ -123,6 +129,8 @@ function AvatarSection() {
     mutate('/api/profile');
   };
 
+  const hasAvatar = !!profile?.avatarUrl;
+
   return (
     <Card>
       <CardHeader>
@@ -133,18 +141,7 @@ function AvatarSection() {
       </CardHeader>
       <CardContent>
         <div className="flex items-center gap-6">
-          <Avatar className="h-24 w-24">
-            <AvatarImage src={profile?.avatarUrl || ''} alt={profile?.displayName || user?.name || ''} />
-            <AvatarFallback className="text-lg">
-              {(profile?.displayName || user?.name || user?.email || 'U')
-                .split(' ')
-                .map((n) => n[0])
-                .join('')
-                .toUpperCase()
-                .slice(0, 2)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="space-y-3">
+          <div className="relative group">
             <input
               ref={fileInputRef}
               type="file"
@@ -152,37 +149,88 @@ function AvatarSection() {
               className="hidden"
               onChange={handleFileChange}
             />
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isUploading}
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {isUploading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Uploading...
-                </>
-              ) : (
-                <>
-                  <Camera className="mr-2 h-4 w-4" />
-                  Upload Photo
-                </>
-              )}
-            </Button>
-            {profile?.avatarUrl && (
-              <Button
+
+            {hasAvatar ? (
+              <>
+                <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+                  <DialogTrigger asChild>
+                    <div className="cursor-pointer">
+                      <Avatar className="h-24 w-24">
+                        <AvatarImage src={profile?.avatarUrl || ''} alt={profile?.displayName || user?.name || ''} />
+                        <AvatarFallback className="text-lg">
+                          {(profile?.displayName || user?.name || user?.email || 'U')
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')
+                            .toUpperCase()
+                            .slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-sm p-2" showClose={false}>
+                    <img
+                      src={profile?.avatarUrl || ''}
+                      alt={profile?.displayName || user?.name || ''}
+                      className="w-full h-auto rounded-xl"
+                    />
+                  </DialogContent>
+                </Dialog>
+
+                <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 pointer-events-none">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setPreviewOpen(true); }}
+                    className="pointer-events-auto p-1.5 rounded-full bg-white/90 hover:bg-white text-gray-700 transition-colors"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); handleAvatarDelete(); }}
+                    className="pointer-events-auto p-1.5 rounded-full bg-white/90 hover:bg-red-50 hover:text-red-500 text-gray-700 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </>
+            ) : (
+              <button
                 type="button"
-                variant="ghost"
-                size="sm"
-                className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                onClick={handleAvatarDelete}
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="group/avatar relative cursor-pointer"
               >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Remove Photo
-              </Button>
+                <Avatar className="h-24 w-24">
+                  <AvatarFallback className="text-lg bg-muted">
+                    {(profile?.displayName || user?.name || user?.email || 'U')
+                      .split(' ')
+                      .map((n) => n[0])
+                      .join('')
+                      .toUpperCase()
+                      .slice(0, 2)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute inset-0 rounded-full bg-black/40 flex flex-col items-center justify-center gap-0.5">
+                  {isUploading ? (
+                    <Loader2 className="h-5 w-5 text-white animate-spin" />
+                  ) : (
+                    <>
+                      <Plus className="h-5 w-5 text-white" />
+                      <span className="text-[10px] font-medium text-white">Upload</span>
+                    </>
+                  )}
+                </div>
+              </button>
             )}
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {hasAvatar
+                ? 'Hover over your photo to preview or remove it.'
+                : 'Click the avatar area above to upload a photo.'}
+            </p>
           </div>
         </div>
       </CardContent>
