@@ -2,9 +2,19 @@
 
 import { Profile, Product } from '@/lib/db/schema';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { getTheme } from '@/lib/themes';
+
+const radiusMap: Record<string, string> = {
+  none: '0px',
+  sm: '2px',
+  md: '6px',
+  lg: '8px',
+  xl: '16px',
+  full: '9999px',
+};
+
+const getRadius = (id?: string | null) => radiusMap[id || 'md'] || '6px';
 
 type StoreData = {
   profile: Profile;
@@ -64,10 +74,27 @@ function GlobeIcon({ color }: { color?: string }) {
   );
 }
 
+function ProductLink({ product, username, children }: { product: Product; username: string | null; children: React.ReactNode }) {
+  if (product.type === 'link' && product.productUrl) {
+    return (
+      <a href={product.productUrl} target="_blank" rel="noopener noreferrer" className="block">
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link href={`/${username}/${product.slug}`} className="block">
+      {children}
+    </Link>
+  );
+}
+
 export default function StorePage({ data }: { data: StoreData }) {
   const { profile, products } = data;
   const theme = getTheme(profile.theme || 'default');
   const s = theme.styles;
+  const r = getRadius(profile.borderRadius);
+  const br = getRadius(profile.buttonBorderRadius);
   const socialLinks = profile.socialLinks as SocialLinks | null;
 
   const socialItems: { url: string | null | undefined; icon: React.ReactNode }[] = [
@@ -93,10 +120,11 @@ export default function StorePage({ data }: { data: StoreData }) {
       <div className="max-w-5xl mx-auto px-4 py-8 sm:py-0 sm:min-h-screen sm:flex sm:gap-6 sm:items-stretch">
         {/* Profile - fixed center, doesn't scroll */}
         <div
-          className="shrink-0 rounded-2xl border p-6 flex flex-col items-center text-center justify-center sm:w-[220px] mb-6 sm:mb-0 sm:py-16"
+          className="shrink-0 border p-6 flex flex-col items-center text-center justify-center sm:w-[220px] mb-6 sm:mb-0 sm:py-16"
           style={{
             background: s.cardBg,
             borderColor: s.cardBorder,
+            borderRadius: r,
           }}
         >
           <Avatar className="h-20 w-20 shrink-0" style={{ boxShadow: `0 0 0 4px ${s.avatarRing}` }}>
@@ -145,76 +173,141 @@ export default function StorePage({ data }: { data: StoreData }) {
           )}
         </div>
 
-        {/* Products - scrollable, 3 cols */}
+        {/* Products - scrollable */}
         <div className="flex-1 min-w-0 sm:overflow-y-auto sm:max-h-screen sm:py-16">
-          {products.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {products.map((product) => (
-                <Link
-                  key={product.id}
-                  href={`/${profile.username}/${product.slug}`}
-                  className="block"
-                >
-                  <div
-                    className="group rounded-2xl border p-4 transition-all duration-200 h-full flex flex-col"
-                    style={{
-                      background: s.cardBg,
-                      borderColor: s.cardBorder,
-                    }}
-                    onMouseEnter={(e) => {
-                      const el = e.currentTarget as HTMLElement;
-                      el.style.boxShadow = s.cardHoverShadow;
-                      el.style.borderColor = s.cardHoverBorder;
-                    }}
-                    onMouseLeave={(e) => {
-                      const el = e.currentTarget as HTMLElement;
-                      el.style.boxShadow = 'none';
-                      el.style.borderColor = s.cardBorder;
-                    }}
-                  >
-                    {product.imageUrl ? (
-                      <div className="w-full h-32 rounded-xl overflow-hidden mb-3" style={{ background: s.pageBg }}>
-                        <img
-                          src={product.imageUrl}
-                          alt={product.title}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    ) : (
+          {products.length > 0 && (() => {
+            const cols = profile.productColumns || 3;
+            const tmpl = profile.cardTemplate || 'standard';
+            const colClass = cols === 1 ? 'grid-cols-1' : cols === 2 ? 'grid-cols-2' : cols === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-1 sm:grid-cols-3';
+
+            if (tmpl === 'compact') {
+              return (
+                <div className={`grid ${colClass} gap-4`}>
+                  {products.map((product) => (
+                    <ProductLink key={product.id} product={product} username={profile.username}>
                       <div
-                        className="w-full h-32 rounded-xl flex items-center justify-center mb-3"
-                        style={{ background: s.productBadge }}
+                        className="group flex items-center gap-3 border p-3 transition-all duration-200"
+                        style={{ background: s.cardBg, borderColor: s.cardBorder, borderRadius: r }}
+                        onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = s.cardHoverShadow; el.style.borderColor = s.cardHoverBorder; }}
+                        onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = 'none'; el.style.borderColor = s.cardBorder; }}
                       >
-                        <span className="text-3xl font-bold" style={{ color: s.productBadgeText }}>
-                          {(product.title[0] || '').toUpperCase()}
-                        </span>
+                        {product.imageUrl ? (
+                          <div className="w-16 h-16 shrink-0 overflow-hidden" style={{ borderRadius: r }}>
+                            <img src={product.imageUrl} alt={product.title} className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className="w-16 h-16 shrink-0 flex items-center justify-center" style={{ background: s.productBadge, borderRadius: r }}>
+                            <span className="text-xl font-bold" style={{ color: s.productBadgeText }}>{(product.title[0] || '').toUpperCase()}</span>
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-sm mb-1 truncate" style={{ color: s.headingColor }}>{product.title}</h3>
+                          <span className="text-sm font-bold" style={{ color: s.priceColor }}>{formatPrice(product.price)}</span>
+                        </div>
                       </div>
-                    )}
+                    </ProductLink>
+                  ))}
+                </div>
+              );
+            }
 
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-sm mb-1 truncate" style={{ color: s.headingColor }}>
-                        {product.title}
-                      </h3>
-                      {product.description && (
-                        <p className="text-xs line-clamp-2 mb-2" style={{ color: s.mutedColor }}>
-                          {product.description}
-                        </p>
+            if (tmpl === 'overlay') {
+              return (
+                <div className={`grid ${colClass} gap-4`}>
+                  {products.map((product) => (
+                    <ProductLink key={product.id} product={product} username={profile.username}>
+                      <div
+                        className="group relative overflow-hidden transition-all duration-200"
+                        style={{ borderRadius: r }}
+                        onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = s.cardHoverShadow; }}
+                        onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = 'none'; }}
+                      >
+                        <div className="h-44">
+                          {product.imageUrl ? (
+                            <img src={product.imageUrl} alt={product.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center" style={{ background: s.productBadge }}>
+                              <span className="text-4xl font-bold" style={{ color: s.productBadgeText }}>{(product.title[0] || '').toUpperCase()}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div
+                          className="absolute inset-x-0 bottom-0 p-3"
+                          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75), transparent)' }}
+                        >
+                          <h3 className="font-semibold text-sm text-white truncate">{product.title}</h3>
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="text-xs text-white/70">{product.type}</span>
+                            <span className="text-sm font-bold text-white">{formatPrice(product.price)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </ProductLink>
+                  ))}
+                </div>
+              );
+            }
+
+            if (tmpl === 'minimal') {
+              return (
+                <div className={`grid ${colClass} gap-4`}>
+                  {products.map((product) => (
+                    <ProductLink key={product.id} product={product} username={profile.username}>
+                      <div
+                        className="group border p-4 transition-all duration-200"
+                        style={{ background: s.cardBg, borderColor: s.cardBorder, borderRadius: r }}
+                        onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = s.cardHoverShadow; el.style.borderColor = s.cardHoverBorder; }}
+                        onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = 'none'; el.style.borderColor = s.cardBorder; }}
+                      >
+                        <h3 className="font-semibold text-sm mb-1 truncate" style={{ color: s.headingColor }}>{product.title}</h3>
+                        {product.description && (
+                          <p className="text-xs line-clamp-2 mb-2" style={{ color: s.mutedColor }}>{product.description}</p>
+                        )}
+                        <div className="pt-2 mt-auto" style={{ borderTop: `1px solid ${s.cardBorder}` }}>
+                          <span className="text-sm font-bold" style={{ color: s.priceColor }}>{formatPrice(product.price)}</span>
+                        </div>
+                      </div>
+                    </ProductLink>
+                  ))}
+                </div>
+              );
+            }
+
+            return (
+              <div className={`grid ${colClass} gap-4`}>
+                {products.map((product) => (
+                  <ProductLink key={product.id} product={product} username={profile.username}>
+                    <div
+                      className="group border p-4 transition-all duration-200 h-full flex flex-col"
+                      style={{ background: s.cardBg, borderColor: s.cardBorder, borderRadius: r }}
+                      onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = s.cardHoverShadow; el.style.borderColor = s.cardHoverBorder; }}
+                      onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = 'none'; el.style.borderColor = s.cardBorder; }}
+                    >
+                      {product.imageUrl ? (
+                        <div className="w-full h-32 overflow-hidden mb-3" style={{ background: s.pageBg, borderRadius: r }}>
+                          <img src={product.imageUrl} alt={product.title} className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="w-full h-32 flex items-center justify-center mb-3" style={{ background: s.productBadge, borderRadius: r }}>
+                          <span className="text-3xl font-bold" style={{ color: s.productBadgeText }}>{(product.title[0] || '').toUpperCase()}</span>
+                        </div>
                       )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm mb-1 truncate" style={{ color: s.headingColor }}>{product.title}</h3>
+                        {product.description && (
+                          <p className="text-xs line-clamp-2 mb-2" style={{ color: s.mutedColor }}>{product.description}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between pt-2 mt-auto" style={{ borderTop: `1px solid ${s.cardBorder}` }}>
+                        <span className="text-sm font-bold" style={{ color: s.priceColor }}>{formatPrice(product.price)}</span>
+                        <span className="text-xs font-medium" style={{ color: s.mutedColor }}>{product.type}</span>
+                      </div>
                     </div>
-
-                    <div className="flex items-center justify-between pt-2 mt-auto" style={{ borderTop: `1px solid ${s.cardBorder}` }}>
-                      <span className="text-sm font-bold" style={{ color: s.priceColor }}>
-                        {formatPrice(product.price)}
-                      </span>
-                      <span className="text-xs font-medium" style={{ color: s.mutedColor }}>
-                        {product.type}
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
+                  </ProductLink>
+                ))}
+              </div>
+            );
+          })()}
 
           {products.length === 0 && (
             <p className="text-center text-sm py-8" style={{ color: s.mutedColor }}>

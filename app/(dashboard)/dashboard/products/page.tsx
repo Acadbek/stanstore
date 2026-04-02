@@ -11,7 +11,7 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Loader2, PlusCircle, Eye, EyeOff, Trash2, Pencil, X } from 'lucide-react';
+import { Loader2, PlusCircle, Eye, EyeOff, Trash2, Pencil } from 'lucide-react';
 import { createProduct, updateProduct, deleteProduct, toggleProductPublish } from './actions';
 import { Product, User } from '@/lib/db/schema';
 import useSWR, { mutate } from 'swr';
@@ -295,7 +295,7 @@ function ProductList({ onEdit }: { onEdit: (product: Product) => void }) {
 
 function ProductSkeleton() {
   return (
-    <div className="flex-1 p-4 lg:p-8 space-y-6">
+    <div className="flex-1 lg:p-8 space-y-6">
       <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
       <div className="h-[200px] bg-gray-100 rounded-xl animate-pulse" />
       <div className="h-[100px] bg-gray-100 rounded-xl animate-pulse" />
@@ -309,7 +309,7 @@ export default function ProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   return (
-    <section className="flex-1 p-4 lg:p-8">
+    <section className="flex-1 lg:p-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-lg lg:text-2xl font-medium text-gray-900">
           Products

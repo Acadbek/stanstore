@@ -1,7 +1,7 @@
 'use server';
 
 import { z } from 'zod';
-import { eq, and, ne } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { profiles } from '@/lib/db/schema';
 import { getUser, getProfileByUserId, getProfileByUsername } from '@/lib/db/queries';
@@ -9,15 +9,7 @@ import {
   validatedActionWithUser
 } from '@/lib/auth/middleware';
 
-const socialLinksSchema = z.object({
-  instagram: z.string().url().or(z.literal('')).nullish(),
-  twitter: z.string().url().or(z.literal('')).nullish(),
-  youtube: z.string().url().or(z.literal('')).nullish(),
-  tiktok: z.string().url().or(z.literal('')).nullish(),
-  website: z.string().url().or(z.literal('')).nullish(),
-});
-
-const updateProfileSchema = z.object({
+const updateSettingsSchema = z.object({
   username: z
     .string()
     .min(3, 'Username must be at least 3 characters')
@@ -29,11 +21,6 @@ const updateProfileSchema = z.object({
   displayName: z.string().max(100, 'Display name must be at most 100 characters').optional(),
   headline: z.string().max(200, 'Headline must be at most 200 characters').optional(),
   bio: z.string().max(1000, 'Bio must be at most 1000 characters').optional(),
-  theme: z.string().max(30).optional(),
-  borderRadius: z.string().max(10).optional(),
-  buttonBorderRadius: z.string().max(10).optional(),
-  productColumns: z.coerce.number().min(1).max(4).optional(),
-  cardTemplate: z.string().max(20).optional(),
   instagram: z.string().optional(),
   twitter: z.string().optional(),
   youtube: z.string().optional(),
@@ -41,10 +28,10 @@ const updateProfileSchema = z.object({
   website: z.string().optional(),
 });
 
-export const updateProfile = validatedActionWithUser(
-  updateProfileSchema,
+export const updateSettings = validatedActionWithUser(
+  updateSettingsSchema,
   async (data, _, user) => {
-    const { username, displayName, headline, bio, theme, borderRadius, buttonBorderRadius, productColumns, cardTemplate, instagram, twitter, youtube, tiktok, website } = data;
+    const { username, displayName, headline, bio, instagram, twitter, youtube, tiktok, website } = data;
 
     const existingProfile = await getProfileByUserId(user.id);
 
@@ -74,11 +61,6 @@ export const updateProfile = validatedActionWithUser(
           displayName: displayName || null,
           headline: headline || null,
           bio: bio || null,
-          theme: theme || 'default',
-          borderRadius: borderRadius || 'md',
-          buttonBorderRadius: buttonBorderRadius || 'md',
-          productColumns: productColumns || 3,
-          cardTemplate: cardTemplate || 'standard',
           socialLinks,
           updatedAt: new Date(),
         })
@@ -90,16 +72,11 @@ export const updateProfile = validatedActionWithUser(
         displayName: displayName || null,
         headline: headline || null,
         bio: bio || null,
-        theme: theme || 'default',
-        borderRadius: borderRadius || 'md',
-        buttonBorderRadius: buttonBorderRadius || 'md',
-        productColumns: productColumns || 3,
-        cardTemplate: cardTemplate || 'standard',
         socialLinks,
       });
     }
 
-    return { success: 'Profile updated successfully.' };
+    return { success: 'Settings updated successfully.' };
   }
 );
 
@@ -136,31 +113,3 @@ export async function deleteAvatar() {
 
   return { success: 'Avatar removed.' };
 }
-
-const updateThemeSchema = z.object({
-  theme: z.string().min(1).max(30),
-});
-
-export const updateTheme = validatedActionWithUser(
-  updateThemeSchema,
-  async (data, _, user) => {
-    const { theme } = data;
-
-    const existingProfile = await getProfileByUserId(user.id);
-
-    if (existingProfile) {
-      await db
-        .update(profiles)
-        .set({ theme, updatedAt: new Date() })
-        .where(eq(profiles.userId, user.id));
-    } else {
-      await db.insert(profiles).values({
-        userId: user.id,
-        username: user.email?.split('@')[0] || `user${user.id}`,
-        theme,
-      });
-    }
-
-    return { success: 'Theme updated.' };
-  }
-);

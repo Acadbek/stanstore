@@ -13,6 +13,17 @@ import TaskItem from '@tiptap/extension-task-item';
 import DragHandle from '@tiptap/extension-drag-handle-react';
 import { SlashCommandExtension } from './slash-command';
 import { Callout } from './callout';
+import { Carousel, CarouselItem } from './carousel';
+import { QuoteBlock } from './quote-block';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Bold,
   Italic,
@@ -35,8 +46,10 @@ import {
   Minus,
   GripVertical,
   Trash2,
+  LayoutGrid,
+  ChevronDown,
 } from 'lucide-react';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { generateReactHelpers } from '@uploadthing/react';
 import type { OurFileRouter } from '@/lib/uploadthing';
 
@@ -47,6 +60,8 @@ type RichEditorProps = {
   onChange: (html: string) => void;
   placeholder?: string;
 };
+
+type QuoteStyle = 'line' | 'double';
 
 function ToolbarButton({
   onClick,
@@ -77,16 +92,43 @@ function ToolbarSeparator() {
   return <div className="w-px h-6 bg-gray-200 mx-0.5" />;
 }
 
+function normalizeLinkHref(href: string) {
+  const trimmed = href.trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('/') || trimmed.startsWith('#')) return trimmed;
+  if (/^(https?:\/\/|mailto:|tel:)/i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
 export default function RichEditor({
   content,
   onChange,
   placeholder,
 }: RichEditorProps) {
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [linkText, setLinkText] = useState('');
+  const linkUrlInputRef = useRef<HTMLInputElement>(null);
+  const linkModalContextRef = useRef<{
+    from: number;
+    to: number;
+    wasEmpty: boolean;
+    wasLinkActive: boolean;
+    selectedText: string;
+  } | null>(null);
+  const [linkModalContext, setLinkModalContext] = useState<{
+    wasEmpty: boolean;
+    wasLinkActive: boolean;
+    selectedText: string;
+  } | null>(null);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
+        blockquote: false,
       }),
+      QuoteBlock,
       Image.configure({
         HTMLAttributes: {
           class: 'rounded-lg max-w-full',
@@ -117,6 +159,8 @@ export default function RichEditor({
       }),
       SlashCommandExtension as any,
       Callout as any,
+      CarouselItem,
+      Carousel,
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -124,7 +168,7 @@ export default function RichEditor({
     },
     editorProps: {
       attributes: {
-        class: 'min-h-[300px] focus:outline-none',
+        class: 'tiptap min-h-[300px] focus:outline-none',
       },
     },
     immediatelyRender: false,
@@ -152,27 +196,122 @@ export default function RichEditor({
     input.click();
   }, [startUpload]);
 
-  const handleAddLink = useCallback(() => {
+  const closeLinkModal = useCallback(() => {
+    linkModalContextRef.current = null;
+    setIsLinkModalOpen(false);
+    setLinkModalContext(null);
+  }, []);
+
+  const openLinkModal = useCallback(() => {
     if (!editor) return;
-    const previousUrl = editor.getAttributes('link').href;
-    const url = window.prompt('URL:', previousUrl);
-    if (url === null) return;
-    if (url === '') {
-      editor.chain().focus().extendMarkRange('link').unsetLink().run();
+
+    const { from, to, empty } = editor.state.selection;
+    const wasLinkActive = editor.isActive('link');
+    const selectedText = empty ? '' : editor.state.doc.textBetween(from, to, ' ');
+    const previousUrl = (editor.getAttributes('link').href as string | undefined) || '';
+
+    linkModalContextRef.current = { from, to, wasEmpty: empty, wasLinkActive, selectedText };
+    setLinkModalContext({ wasEmpty: empty, wasLinkActive, selectedText });
+    setLinkUrl(previousUrl);
+    setLinkText(selectedText);
+    setIsLinkModalOpen(true);
+  }, [editor]);
+
+  const applyLinkFromModal = useCallback(() => {
+    if (!editor) return;
+
+    const context = linkModalContextRef.current;
+    const href = normalizeLinkHref(linkUrl);
+    const shouldInsertText = Boolean(context?.wasEmpty && !context.wasLinkActive);
+
+    let chain = editor.chain().focus();
+    if (context) {
+      chain = chain.setTextSelection({ from: context.from, to: context.to });
+    }
+
+    if (!href) {
+      chain.extendMarkRange('link').unsetLink().run();
+      closeLinkModal();
       return;
     }
-    editor
-      .chain()
-      .focus()
-      .extendMarkRange('link')
-      .setLink({ href: url })
-      .run();
-  }, [editor]);
+
+    if (shouldInsertText) {
+      const text = linkText.trim() || href;
+      chain.setLink({ href }).insertContent(text).unsetLink().run();
+      closeLinkModal();
+      return;
+    }
+
+    chain.extendMarkRange('link').setLink({ href }).run();
+    closeLinkModal();
+  }, [closeLinkModal, editor, linkText, linkUrl]);
+
+  const removeLinkFromModal = useCallback(() => {
+    if (!editor) return;
+
+    const context = linkModalContextRef.current;
+    let chain = editor.chain().focus();
+    if (context) {
+      chain = chain.setTextSelection({ from: context.from, to: context.to });
+    }
+
+    chain.extendMarkRange('link').unsetLink().run();
+    closeLinkModal();
+  }, [closeLinkModal, editor]);
+
+  useEffect(() => {
+    if (!isLinkModalOpen) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      linkUrlInputRef.current?.focus();
+      linkUrlInputRef.current?.select();
+    });
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeLinkModal();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [closeLinkModal, isLinkModalOpen]);
+
+  useEffect(() => {
+    const onOpen = () => openLinkModal();
+    window.addEventListener('tiptap-open-link-modal', onOpen);
+    return () => window.removeEventListener('tiptap-open-link-modal', onOpen);
+  }, [openLinkModal]);
 
   const addHorizontalRule = useCallback(() => {
     if (!editor) return;
     editor.chain().focus().setHorizontalRule().run();
   }, [editor]);
+
+  const applyQuoteStyle = useCallback(
+    (style: QuoteStyle) => {
+      if (!editor) return;
+
+      if (editor.isActive('blockquote')) {
+        editor
+          .chain()
+          .focus()
+          .updateAttributes('blockquote', { quoteStyle: style })
+          .run();
+        return;
+      }
+
+      editor
+        .chain()
+        .focus()
+        .toggleBlockquote()
+        .updateAttributes('blockquote', { quoteStyle: style })
+        .run();
+    },
+    [editor]
+  );
 
   if (!editor) return null;
 
@@ -293,7 +432,7 @@ export default function RichEditor({
               editor.chain().focus().toggleTaskList().run()
             }
             isActive={editor.isActive('taskList')}
-            title="Checklist"
+            title="Checkbox"
           >
             <CheckSquare className="h-4 w-4" />
           </ToolbarButton>
@@ -302,15 +441,33 @@ export default function RichEditor({
         <ToolbarSeparator />
 
         <div className="flex items-center gap-0.5">
-          <ToolbarButton
-            onClick={() =>
-              editor.chain().focus().toggleBlockquote().run()
-            }
-            isActive={editor.isActive('blockquote')}
-            title="Quote"
-          >
-            <Quote className="h-4 w-4" />
-          </ToolbarButton>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                title="Quote style"
+                className={`inline-flex items-center gap-1 rounded-md px-1.5 py-1.5 hover:bg-gray-100 transition-colors ${
+                  editor.isActive('blockquote') ? 'bg-orange-100 text-orange-600' : 'text-gray-500'
+                }`}
+              >
+                <Quote className="h-4 w-4" />
+                <ChevronDown className="h-3 w-3" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-44">
+              <DropdownMenuItem onClick={() => applyQuoteStyle('line')}>
+                Quote (line)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => applyQuoteStyle('double')}>
+                Quote ("")
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => editor.chain().focus().unsetBlockquote().run()}
+              >
+                Remove quote
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <ToolbarButton
             onClick={() =>
               editor.chain().focus().setTextAlign('left').run()
@@ -358,7 +515,7 @@ export default function RichEditor({
 
         <div className="flex items-center gap-0.5">
           <ToolbarButton
-            onClick={handleAddLink}
+            onClick={openLinkModal}
             isActive={editor.isActive('link')}
             title="Add Link"
           >
@@ -370,6 +527,12 @@ export default function RichEditor({
             ) : (
               <ImageIcon className="h-4 w-4" />
             )}
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().insertCarousel().run()}
+            title="Carousel"
+          >
+            <LayoutGrid className="h-4 w-4" />
           </ToolbarButton>
         </div>
 
@@ -421,6 +584,102 @@ export default function RichEditor({
         </DragHandle>
         <EditorContent editor={editor} />
       </div>
+
+      {isLinkModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/30"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              closeLinkModal();
+            }}
+          />
+          <div
+            className="relative w-full max-w-md rounded-xl border border-gray-200 bg-white p-4 shadow-lg"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Link"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-gray-900 truncate">
+                  {linkModalContext?.wasLinkActive ? 'Edit link' : 'Add link'}
+                </h3>
+                {!!linkModalContext?.selectedText && (
+                  <p className="text-xs text-gray-500 truncate">
+                    {linkModalContext.selectedText}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                className="shrink-0 text-gray-400 hover:text-gray-700 px-2 py-1 rounded-md"
+                onClick={closeLinkModal}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {linkModalContext?.wasEmpty && !linkModalContext.wasLinkActive && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="linkText">Text</Label>
+                  <Input
+                    id="linkText"
+                    value={linkText}
+                    onChange={(e) => setLinkText(e.target.value)}
+                    placeholder="Link text"
+                    autoComplete="off"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        applyLinkFromModal();
+                      }
+                    }}
+                  />
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <Label htmlFor="linkUrl">URL</Label>
+                <Input
+                  id="linkUrl"
+                  ref={linkUrlInputRef}
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  placeholder="https://example.com"
+                  autoComplete="off"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      applyLinkFromModal();
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <Button type="button" variant="outline" onClick={closeLinkModal}>
+                Cancel
+              </Button>
+              {linkModalContext?.wasLinkActive && (
+                <Button type="button" variant="outline" onClick={removeLinkFromModal}>
+                  Remove
+                </Button>
+              )}
+              <Button
+                type="button"
+                className="bg-orange-500 hover:bg-orange-600 text-white"
+                onClick={applyLinkFromModal}
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

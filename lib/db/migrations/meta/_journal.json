@@ -29,6 +29,27 @@
       "when": 1773909476943,
       "tag": "0003_clean_white_tiger",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1774696321748,
+      "tag": "0004_friendly_eternity",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1774698581405,
+      "tag": "0005_pink_sheva_callister",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1774699613964,
+      "tag": "0006_yellow_scream",
+      "breakpoints": true
     }
   ]
 }
