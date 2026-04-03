@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Users, Settings, Shield, Activity, Menu, UserCircle, Package, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, Shield, Activity, Menu, UserCircle, Package, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -13,10 +13,9 @@ import {
 
 const navItems = [
   { href: '/dashboard', icon: Users, label: 'Team' },
-  { href: '/dashboard/profile', icon: UserCircle, label: 'Profile' },
+  { href: '/dashboard/profile', icon: UserCircle, label: 'Profile', matchPrefix: true },
   { href: '/dashboard/products', icon: Package, label: 'Products' },
-  { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
-  { href: '/dashboard/general', icon: Settings, label: 'General' },
+  { href: '/dashboard/general', icon: Shield, label: 'General' },
   { href: '/dashboard/activity', icon: Activity, label: 'Activity' },
   { href: '/dashboard/security', icon: Shield, label: 'Security' },
 ];
@@ -28,7 +27,7 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   return (
     <div className="flex min-h-[calc(100dvh-68px)] w-full">
@@ -51,7 +50,7 @@ export default function DashboardLayout({
 
         <nav className="h-full overflow-y-auto p-2 flex flex-col">
           {navItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = item.matchPrefix ? pathname.startsWith(item.href) : pathname === item.href;
             const button = (
               <Link key={item.href} href={item.href}>
                 <Button
