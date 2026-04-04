@@ -11,7 +11,7 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Loader2, PlusCircle, Eye, EyeOff, Trash2, Pencil, MessageSquare } from 'lucide-react';
+import { Loader2, PlusCircle, Eye, EyeOff, Trash2, Pencil } from 'lucide-react';
 import { createProduct, updateProduct, deleteProduct, toggleProductPublish } from './actions';
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { Product, User } from '@/lib/db/schema';
@@ -308,7 +308,7 @@ function ProductSkeleton() {
 export default function ProductsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const isFormOpen = showForm || !!editingProduct;
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -317,26 +317,15 @@ export default function ProductsPage() {
           <h1 className="text-lg lg:text-2xl font-medium text-gray-900">
             Products
           </h1>
-          <div className="flex items-center gap-2">
-            {!showForm && !editingProduct && (
-              <Button
-                onClick={() => setShowForm(true)}
-                className="bg-orange-500 hover:bg-orange-600 text-white"
-              >
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add Product
-              </Button>
-            )}
+          {!showForm && !editingProduct && (
             <Button
-              variant={isChatOpen ? 'secondary' : 'outline'}
-              size="icon"
-              onClick={() => setIsChatOpen(!isChatOpen)}
-              className={isChatOpen ? 'bg-orange-100 text-orange-600 border-orange-200' : ''}
-              title="AI Assistant"
+              onClick={() => setShowForm(true)}
+              className="bg-orange-500 hover:bg-orange-600 text-white"
             >
-              <MessageSquare className="h-4 w-4" />
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Add Product
             </Button>
-          </div>
+          )}
         </div>
 
         <Suspense fallback={<ProductSkeleton />}>
@@ -363,7 +352,9 @@ export default function ProductsPage() {
         </Suspense>
       </section>
 
-      <ChatPanel isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+      {isFormOpen && (
+        <ChatPanel isOpen onClose={() => {}} />
+      )}
     </div>
   );
 }
