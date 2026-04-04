@@ -226,13 +226,10 @@ const commandItems: CommandItem[] = [
   },
   {
     title: 'Image',
-    description: 'Insert image URL',
+    description: 'Upload image from device',
     icon: ImageIcon,
-    command: (editor) => {
-      const url = window.prompt('Image URL:');
-      if (url) {
-        editor.chain().focus().setImage({ src: url }).run();
-      }
+    command: () => {
+      window.dispatchEvent(new Event('tiptap-open-image-picker'));
     },
   },
   {

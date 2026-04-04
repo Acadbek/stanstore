@@ -462,10 +462,14 @@
 }
 .tiptap .carousel-node {
   border: 1px dashed #e5e7eb;
-  border-radius: 0.75rem;
-  padding: 0.5rem;
+  border-radius: 1rem;
+  padding: 15px;
   margin: 0.75rem 0;
-  background: #fafafa;
+  background: #f8fafc;
+  width: min(100%, 560px);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 .tiptap .carousel-node__header {
   display: flex;
@@ -498,33 +502,46 @@
   border-color: #fdba74;
 }
 .tiptap .carousel {
-  display: grid;
   gap: 0.75rem;
+  padding: 0;
+  width: 100%;
 }
-.tiptap .carousel[data-count="1"] {
+.tiptap .carousel.is-static {
+  display: grid;
+}
+.tiptap .carousel.is-static[data-count="1"] {
   grid-template-columns: 1fr;
 }
-.tiptap .carousel[data-count="2"] {
+.tiptap .carousel.is-static[data-count="2"] {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
+.tiptap .carousel.is-carousel,
 .tiptap .carousel[data-count]:not([data-count="1"]):not([data-count="2"]) {
   display: flex;
-  gap: 0.75rem;
+  flex-wrap: nowrap;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
-  padding-bottom: 0.25rem;
+  scroll-behavior: smooth;
 }
-.tiptap
-  .carousel[data-count]:not([data-count="1"]):not([data-count="2"])
-  .carousel-card {
-  min-width: 80%;
+.tiptap .carousel.is-carousel::-webkit-scrollbar,
+.tiptap .carousel[data-count]:not([data-count="1"]):not([data-count="2"])::-webkit-scrollbar {
+  display: none;
+}
+.tiptap .carousel.is-carousel,
+.tiptap .carousel[data-count]:not([data-count="1"]):not([data-count="2"]) {
+  scrollbar-width: none;
+}
+.tiptap .carousel.is-carousel .carousel-card,
+.tiptap .carousel[data-count]:not([data-count="1"]):not([data-count="2"]) .carousel-card {
+  min-width: 100%;
   scroll-snap-align: start;
 }
 .tiptap .carousel-card {
   border: 1px solid #e5e7eb;
-  background: #ffffff;
-  border-radius: 0.75rem;
-  padding: 0.75rem;
+  background: #f9fafb;
+  border-radius: 1rem;
+  padding: 1rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
 }
 .tiptap .carousel-card > :first-child {
   margin-top: 0;
@@ -681,29 +698,41 @@
   gap: 0.75rem;
   margin: 0.75rem 0;
 }
+.product-content .carousel[data-count="1"] {
+  grid-template-columns: 1fr;
+}
+.product-content .carousel[data-count="2"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
 .product-content .carousel.is-static {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .product-content .carousel.is-static[data-count="1"] {
   grid-template-columns: 1fr;
 }
-.product-content .carousel.is-carousel {
+.product-content .carousel.is-carousel,
+.product-content .carousel[data-count]:not([data-count="1"]):not([data-count="2"]) {
   display: flex;
   gap: 0.75rem;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
-  padding: 0.25rem 0;
+  padding: 0.25rem 9%;
+  scroll-padding: 0 9%;
 }
-.product-content .carousel.is-carousel::-webkit-scrollbar {
+.product-content .carousel.is-carousel::-webkit-scrollbar,
+.product-content .carousel[data-count]:not([data-count="1"]):not([data-count="2"])::-webkit-scrollbar {
   display: none;
 }
-.product-content .carousel.is-carousel {
+.product-content .carousel.is-carousel,
+.product-content .carousel[data-count]:not([data-count="1"]):not([data-count="2"]) {
   scrollbar-width: none;
 }
-.product-content .carousel.is-carousel .carousel-card {
-  min-width: 100%;
-  scroll-snap-align: start;
+.product-content .carousel.is-carousel .carousel-card,
+.product-content .carousel[data-count]:not([data-count="1"]):not([data-count="2"]) .carousel-card {
+  min-width: 82%;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
 }
 .product-content .carousel-card {
   border: 1px solid #e5e7eb;
@@ -719,17 +748,18 @@
   margin-bottom: 0;
 }
 .product-content .carousel-nav {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 9999px;
   border: 1px solid #e5e7eb;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.95);
   color: #6b7280;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   transition: all 0.15s ease;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
 }
 .product-content .carousel-nav:hover {
   color: #111827;

@@ -20,6 +20,7 @@ declare module '@tiptap/core' {
 const CarouselView = (props: NodeViewProps) => {
   const { editor, node, getPos } = props;
   const count = node.childCount;
+  const isCarousel = count > 2;
 
   const handleAddCard = () => {
     if (!editor) return;
@@ -36,7 +37,10 @@ const CarouselView = (props: NodeViewProps) => {
   };
 
   return (
-    <NodeViewWrapper className="carousel-node">
+    <NodeViewWrapper
+      className={`carousel-node ${isCarousel ? 'is-carousel' : 'is-static'}`}
+      data-count={count}
+    >
       <div className="carousel-node__header">
         <span className="carousel-node__label">Carousel</span>
         <button
@@ -49,7 +53,7 @@ const CarouselView = (props: NodeViewProps) => {
         </button>
       </div>
       <NodeViewContent
-        className="carousel"
+        className={`carousel ${isCarousel ? 'is-carousel' : 'is-static'}`}
         data-carousel="true"
         data-count={count}
       />
