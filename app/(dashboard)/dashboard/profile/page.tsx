@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { Button } from '@/components/ui/button';
-import { Pencil } from 'lucide-react';
-import { Profile, Product } from '@/lib/db/schema';
-import useSWR from 'swr';
-import Link from 'next/link';
-import StorePage from '@/app/[username]/store-page';
+import { Button } from "@/components/ui/button";
+import { Loader2, Pencil } from "lucide-react";
+import Link from "next/link";
+import useSWR from "swr";
+import { Profile, Product } from "@/lib/db/schema";
+import StorePage from "@/app/[username]/store-page";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -20,40 +20,76 @@ type StoreData = {
 };
 
 export default function ProfilePage() {
-  const { data: profileData } = useSWR<ProfileData>('/api/profile', fetcher);
-  const { data: productsData } = useSWR<Product[]>('/api/products', fetcher);
+  const {
+    data: profileData,
+    error: profileError,
+  } = useSWR<ProfileData>("/api/profile", fetcher);
+  const { data: productsData, error: productsError } = useSWR<Product[]>(
+    "/api/products",
+    fetcher,
+  );
 
-  const profile = profileData?.profile;
-
-  if (!profile) {
+  if (profileError || productsError) {
     return (
-      <section className="flex-1">
-        <h1 className="text-lg lg:text-2xl font-medium text-gray-900 mb-6">
-          Profile
-        </h1>
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <p className="text-muted-foreground mb-4">No profile found. Create your profile to get started.</p>
-          <Link href="/dashboard/profile/config">
-            <Button className="bg-orange-500 hover:bg-orange-600 text-white">
-              Create Profile
-            </Button>
-          </Link>
+      <section className="flex-1 p-8">
+        <p className="text-sm text-red-500">
+          Unable to load your profile. Please try again.
+        </p>
+      </section>
+    );
+  }
+
+  if (!profileData || !productsData) {
+    return (
+      <section className="flex-1 flex items-center justify-center min-h-[60vh]">
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading your profile...
         </div>
       </section>
     );
   }
 
+  const profile = profileData.profile;
+
+  if (!profile) {
+    return (
+      <section className="flex-1 flex flex-col items-center justify-center text-center py-24 px-4">
+        <h1 className="text-2xl font-semibold mb-4">Profile</h1>
+        <p className="text-muted-foreground mb-6">
+          No profile found. Create your profile to get started.
+        </p>
+        <Link href="/dashboard/profile/config">
+          <Button className="bg-orange-500 hover:bg-orange-600 text-white">
+            Create Profile
+          </Button>
+        </Link>
+      </section>
+    );
+  }
+
+  const publishedProducts = productsData.filter((product) => product.isPublished);
+
   const storeData: StoreData = {
     profile,
-    products: productsData?.filter((p) => p.isPublished) || [],
+    products: publishedProducts,
   };
 
   return (
-    <section className="flex-1">
-      <div className="flex items-center justify-between">
+    <section className="flex-1 min-h-screen px-4 py-8">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-lg lg:text-2xl font-medium text-gray-900">Profile</h1>
+          <p className="text-sm text-muted-foreground">
+            This is how your storefront looks to visitors.
+          </p>
+        </div>
         <Link href="/dashboard/profile/config">
-          <Button className="absolute top-10 right-10 bg-orange-500 hover:bg-orange-600 text-white" size="sm">
-            <Pencil className="mr-2 h-4 w-4" />
+          <Button
+            variant="secondary"
+            className="flex items-center gap-2"
+          >
+            <Pencil className="h-4 w-4" />
             Edit Profile
           </Button>
         </Link>

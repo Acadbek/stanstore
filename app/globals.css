@@ -911,7 +911,7 @@
 }
 .ProseMirror-selectednode::before,
 .ProseMirror-selectednoderange::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: -2px;
   background-color: rgba(249, 115, 22, 0.1);
