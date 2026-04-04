@@ -92,9 +92,9 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
   return (
     <aside
       className={`
-        bg-gray-50 border-l border-gray-200 flex flex-col shrink-0
+        bg-gray-50 border-l border-gray-200 flex flex-col
         transition-all duration-300 ease-in-out
-        h-[calc(100dvh-68px)] sticky top-0 self-stretch
+        fixed right-0 top-[68px] bottom-0 z-30
         ${isCollapsed ? 'w-16' : 'w-[380px]'}
       `}
     >

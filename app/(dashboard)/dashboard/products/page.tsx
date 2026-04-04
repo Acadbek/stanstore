@@ -312,7 +312,7 @@ export default function ProductsPage() {
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      <section className="flex-1 lg:p-8 overflow-y-auto min-w-0">
+      <section className="flex-1 lg:p-8 overflow-y-auto min-w-0 pr-[380px]">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-lg lg:text-2xl font-medium text-gray-900">
             Products
