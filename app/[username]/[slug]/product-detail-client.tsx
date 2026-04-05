@@ -70,7 +70,7 @@ export default function ProductDetailClient({ profile, product }: Props) {
       prevButton.className = 'carousel-nav carousel-prev';
       prevButton.setAttribute('aria-label', 'Previous');
       prevButton.innerHTML =
-        '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>';
+        '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>';
       prevButton.addEventListener('click', () => {
         carousel.scrollBy({ left: -carousel.clientWidth, behavior: 'smooth' });
       });
@@ -80,7 +80,7 @@ export default function ProductDetailClient({ profile, product }: Props) {
       nextButton.className = 'carousel-nav carousel-next';
       nextButton.setAttribute('aria-label', 'Next');
       nextButton.innerHTML =
-        '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
+        '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
       nextButton.addEventListener('click', () => {
         carousel.scrollBy({ left: carousel.clientWidth, behavior: 'smooth' });
       });

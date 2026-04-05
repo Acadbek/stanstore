@@ -46,8 +46,8 @@ import {
   Minus,
   GripVertical,
   Trash2,
-  LayoutGrid,
   ChevronDown,
+  GalleryHorizontal,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { generateReactHelpers } from '@uploadthing/react';
@@ -195,6 +195,12 @@ export default function RichEditor({
     };
     input.click();
   }, [startUpload]);
+
+  useEffect(() => {
+    const onOpenImagePicker = () => addImage();
+    window.addEventListener('tiptap-open-image-picker', onOpenImagePicker);
+    return () => window.removeEventListener('tiptap-open-image-picker', onOpenImagePicker);
+  }, [addImage]);
 
   const closeLinkModal = useCallback(() => {
     linkModalContextRef.current = null;
@@ -532,7 +538,7 @@ export default function RichEditor({
             onClick={() => editor.chain().focus().insertCarousel().run()}
             title="Carousel"
           >
-            <LayoutGrid className="h-4 w-4" />
+            <GalleryHorizontal className="h-4 w-4" />
           </ToolbarButton>
         </div>
 
