@@ -47,7 +47,7 @@ export default function DashboardLayout({
   return (
     <div className="flex min-h-[calc(100dvh-68px)] w-full">
       <aside
-        className={`bg-white lg:bg-gray-50 border-r border-gray-200 lg:block lg:sticky lg:top-0 lg:h-[calc(100dvh-68px)] shrink-0 ${
+        className={`bg-white lg:bg-gray-50 border-r border-gray-200 lg:block lg:sticky lg:top-0 h-screen shrink-0 ${
           isSidebarOpen ? "block" : "hidden"
         } lg:relative absolute inset-y-0 left-0 z-40 transition-all duration-300 ease-in-out lg:translate-x-0 ${
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
@@ -59,22 +59,8 @@ export default function DashboardLayout({
             <Menu className="h-6 w-6" />
           </Button>
         </div>
-
-        <nav className="overflow-y-auto p-2 flex flex-col">
-          <div className="pt-2 hidden lg:flex w-full justify-center">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setIsCollapsed(!isCollapsed)}
-            >
-              <PanelLeft className="h-4 w-4" />
-            </Button>
-          </div>
+        <nav className="h-full overflow-y-auto p-2 flex flex-col">
           {navItems.map((item) => {
-            if (isCollapsed && item.href === "/dashboard") {
-              return null;
-            }
             const isActive = item.matchPrefix
               ? pathname.startsWith(item.href)
               : pathname === item.href;
@@ -106,6 +92,23 @@ export default function DashboardLayout({
 
             return button;
           })}
+          <div
+            className={`mt-auto pt-2 hidden lg:flex w-full ${
+              isCollapsed ? "justify-center" : "justify-end pr-2"
+            }`}
+          >
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shadow-none"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              aria-label={
+                isCollapsed ? "Expand sidebar" : "Collapse sidebar"
+              }
+            >
+              <PanelLeft className="h-4 w-4" />
+            </Button>
+          </div>
         </nav>
       </aside>
 
