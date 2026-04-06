@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Button } from '@/components/ui/button';
 import {
   Users,
   Shield,
@@ -14,25 +14,25 @@ import {
   ChevronLeft,
   ChevronRight,
   PanelLeft,
-} from "lucide-react";
+} from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from '@/components/ui/tooltip';
 
 const navItems = [
-  { href: "/dashboard", icon: Users, label: "Team" },
+  { href: '/dashboard', icon: Users, label: 'Team' },
   {
-    href: "/dashboard/profile",
+    href: '/dashboard/profile',
     icon: UserCircle,
-    label: "Profile",
+    label: 'Profile',
     matchPrefix: true,
   },
-  { href: "/dashboard/products", icon: Package, label: "Products" },
-  { href: "/dashboard/general", icon: Shield, label: "General" },
-  { href: "/dashboard/activity", icon: Activity, label: "Activity" },
-  { href: "/dashboard/security", icon: Shield, label: "Security" },
+  { href: '/dashboard/products', icon: Package, label: 'Products' },
+  { href: '/dashboard/general', icon: Shield, label: 'General' },
+  { href: '/dashboard/activity', icon: Activity, label: 'Activity' },
+  { href: '/dashboard/security', icon: Shield, label: 'Security' },
 ];
 
 export default function DashboardLayout({
@@ -48,16 +48,28 @@ export default function DashboardLayout({
     <div className="flex min-h-[calc(100dvh-68px)] w-full">
       <aside
         className={`bg-white lg:bg-gray-50 border-r border-gray-200 lg:block lg:sticky lg:top-0 h-screen shrink-0 ${
-          isSidebarOpen ? "block" : "hidden"
+          isSidebarOpen ? 'block' : 'hidden'
         } lg:relative absolute inset-y-0 left-0 z-40 transition-all duration-300 ease-in-out lg:translate-x-0 ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } ${isCollapsed ? "w-16" : "w-64"}`}
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        } ${isCollapsed ? 'w-14' : 'w-40'}`}
       >
         <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-200">
           <span className="font-medium">Settings</span>
           <Button variant="ghost" onClick={() => setIsSidebarOpen(false)}>
             <Menu className="h-6 w-6" />
           </Button>
+        </div>
+        <div className="hidden lg:flex items-center h-12 border-b border-gray-200 px-2">
+          <div className="ml-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+            >
+              <PanelLeft className="h-4 w-4 shrink-0" />
+            </Button>
+          </div>
         </div>
         <nav className="h-full overflow-y-auto p-2 flex flex-col">
           {navItems.map((item) => {
@@ -67,14 +79,14 @@ export default function DashboardLayout({
             const button = (
               <Link key={item.href} href={item.href}>
                 <Button
-                  variant={isActive ? "secondary" : "ghost"}
+                  variant={isActive ? 'secondary' : 'ghost'}
                   className={`shadow-none my-0.5 w-full ${
-                    isCollapsed ? "justify-center px-0" : "justify-start"
-                  } ${isActive ? "bg-gray-100" : ""}`}
+                    isCollapsed ? 'justify-start px-0' : 'justify-start'
+                  } ${isActive ? 'bg-gray-100' : ''}`}
                   onClick={() => setIsSidebarOpen(false)}
                 >
                   <item.icon className="h-4 w-4 shrink-0" />
-                  {!isCollapsed && <span className="ml-3">{item.label}</span>}
+                  {!isCollapsed && <span className="ml-1">{item.label}</span>}
                 </Button>
               </Link>
             );
@@ -92,21 +104,6 @@ export default function DashboardLayout({
 
             return button;
           })}
-          <div
-            className={`mt-auto pt-2 hidden lg:flex w-full ${
-              isCollapsed ? "justify-center" : "justify-start pr-2"
-            }`}
-          >
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shadow-none"
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              <PanelLeft className="h-4 w-4" />
-            </Button>
-          </div>
         </nav>
       </aside>
 
