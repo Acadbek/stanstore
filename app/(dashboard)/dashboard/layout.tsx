@@ -94,7 +94,7 @@ export default function DashboardLayout({
           })}
           <div
             className={`mt-auto pt-2 hidden lg:flex w-full ${
-              isCollapsed ? "justify-center" : "justify-end pr-2"
+              isCollapsed ? "justify-center" : "justify-start pr-2"
             }`}
           >
             <Button
@@ -102,9 +102,7 @@ export default function DashboardLayout({
               size="icon"
               className="h-8 w-8 shadow-none"
               onClick={() => setIsCollapsed(!isCollapsed)}
-              aria-label={
-                isCollapsed ? "Expand sidebar" : "Collapse sidebar"
-              }
+              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               <PanelLeft className="h-4 w-4" />
             </Button>
