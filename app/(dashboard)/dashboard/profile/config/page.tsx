@@ -362,7 +362,7 @@ function AvatarSection() {
                   aspect={1}
                   cropShape="round"
                   onCropChange={setCrop}
-                  onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
+                  onCropComplete={(_: { width: number; height: number; x: number; y: number }, pixels: { width: number; height: number; x: number; y: number }) => setCroppedAreaPixels(pixels)}
                   onZoomChange={setZoom}
                 />
               )}
@@ -1322,7 +1322,7 @@ function ThemeConfigSection({
 
         <div>
           <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
-            <LayoutGrid className="h-4 w-4" />
+            <GalleryHorizontal className="h-4 w-4" />
             Product Columns
           </h3>
           <div className="grid grid-cols-4 gap-2">
