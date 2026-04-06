@@ -353,7 +353,11 @@ export default function ProductsPage() {
       </section>
 
       {isFormOpen && (
-        <ChatPanel isOpen onClose={() => {}} />
+        <div className="flex shrink-0 lg:w-[380px] lg:pl-4">
+          <div className="lg:sticky lg:top-4 lg:self-start">
+            <ChatPanel isOpen onClose={() => {}} />
+          </div>
+        </div>
       )}
     </div>
   );
