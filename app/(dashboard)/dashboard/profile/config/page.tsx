@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
   useActionState,
@@ -6,18 +6,18 @@ import {
   useEffect,
   useCallback,
   useRef,
-} from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+} from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
-} from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+} from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Loader2,
   Trash2,
@@ -32,26 +32,26 @@ import {
   Eye,
   Plus,
   GalleryHorizontal,
-} from "lucide-react";
-import Cropper from "react-easy-crop";
+} from 'lucide-react';
+import Cropper from 'react-easy-crop';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { updateProfile, updateAvatar, deleteAvatar } from "../actions";
-import { Profile, User } from "@/lib/db/schema";
+} from '@/components/ui/popover';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { updateProfile, updateAvatar, deleteAvatar } from '../actions';
+import { Profile, User } from '@/lib/db/schema';
 import {
   themes,
   getTheme,
   getThemeCategories,
   type ThemeConfig,
-} from "@/lib/themes";
-import useSWR, { mutate } from "swr";
-import { Suspense } from "react";
-import { generateReactHelpers } from "@uploadthing/react";
-import type { OurFileRouter } from "@/lib/uploadthing";
+} from '@/lib/themes';
+import useSWR, { mutate } from 'swr';
+import { Suspense } from 'react';
+import { generateReactHelpers } from '@uploadthing/react';
+import type { OurFileRouter } from '@/lib/uploadthing';
 
 const { useUploadThing } = generateReactHelpers<OurFileRouter>();
 
@@ -68,25 +68,25 @@ type ActionState = {
 };
 
 const borderRadiusOptions = [
-  { id: "none", label: "None", css: "0px" },
-  { id: "sm", label: "Small", css: "2px" },
-  { id: "md", label: "Medium", css: "6px" },
-  { id: "lg", label: "Large", css: "8px" },
-  { id: "xl", label: "XL", css: "16px" },
+  { id: 'none', label: 'None', css: '0px' },
+  { id: 'sm', label: 'Small', css: '2px' },
+  { id: 'md', label: 'Medium', css: '6px' },
+  { id: 'lg', label: 'Large', css: '8px' },
+  { id: 'xl', label: 'XL', css: '16px' },
 ] as const;
 
 const btnRadiusOptions = [
-  { id: "none", label: "None", css: "0px" },
-  { id: "sm", label: "Small", css: "2px" },
-  { id: "md", label: "Medium", css: "6px" },
-  { id: "lg", label: "Large", css: "8px" },
-  { id: "full", label: "Full", css: "9999px" },
+  { id: 'none', label: 'None', css: '0px' },
+  { id: 'sm', label: 'Small', css: '2px' },
+  { id: 'md', label: 'Medium', css: '6px' },
+  { id: 'lg', label: 'Large', css: '8px' },
+  { id: 'full', label: 'Full', css: '9999px' },
 ] as const;
 
 const getRadiusCss = (id: string) =>
-  borderRadiusOptions.find((r) => r.id === id)?.css ?? "6px";
+  borderRadiusOptions.find((r) => r.id === id)?.css ?? '6px';
 const getBtnRadiusCss = (id: string) =>
-  btnRadiusOptions.find((r) => r.id === id)?.css ?? "6px";
+  btnRadiusOptions.find((r) => r.id === id)?.css ?? '6px';
 
 function SocialLinkInput({
   platform,
@@ -113,7 +113,7 @@ function SocialLinkInput({
         id={platform}
         name={platform}
         placeholder={placeholder}
-        defaultValue={defaultValue || ""}
+        defaultValue={defaultValue || ''}
         className="flex-1"
       />
     </div>
@@ -123,19 +123,19 @@ function SocialLinkInput({
 function createImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
-    image.addEventListener("load", () => resolve(image));
-    image.addEventListener("error", (error) => reject(error));
+    image.addEventListener('load', () => resolve(image));
+    image.addEventListener('error', (error) => reject(error));
     image.src = url;
   });
 }
 
 async function getCroppedImg(
   imageSrc: string,
-  pixelCrop: { x: number; y: number; width: number; height: number },
+  pixelCrop: { x: number; y: number; width: number; height: number }
 ): Promise<Blob> {
   const image = await createImage(imageSrc);
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d")!;
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d')!;
 
   canvas.width = pixelCrop.width;
   canvas.height = pixelCrop.height;
@@ -149,19 +149,19 @@ async function getCroppedImg(
     0,
     0,
     pixelCrop.width,
-    pixelCrop.height,
+    pixelCrop.height
   );
 
   return new Promise((resolve) => {
     canvas.toBlob((blob) => {
       if (blob) resolve(blob);
       else resolve(new Blob());
-    }, "image/jpeg");
+    }, 'image/jpeg');
   });
 }
 
 function AvatarSection() {
-  const { data } = useSWR<ProfileData>("/api/profile", fetcher);
+  const { data } = useSWR<ProfileData>('/api/profile', fetcher);
   const profile = data?.profile;
   const user = data?.user;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -177,12 +177,12 @@ function AvatarSection() {
     y: number;
   } | null>(null);
 
-  const { startUpload, isUploading } = useUploadThing("avatarUploader", {
+  const { startUpload, isUploading } = useUploadThing('avatarUploader', {
     onClientUploadComplete: async (res) => {
       const url = res?.[0]?.ufsUrl;
       if (url) {
         await updateAvatar(url);
-        mutate("/api/profile");
+        mutate('/api/profile');
       }
     },
     onUploadError: (error) => {
@@ -199,7 +199,7 @@ function AvatarSection() {
       setCropOpen(true);
       setCrop({ x: 0, y: 0 });
       setZoom(1);
-      e.target.value = "";
+      e.target.value = '';
     }
   };
 
@@ -207,7 +207,7 @@ function AvatarSection() {
     if (!cropImageSrc || !croppedAreaPixels) return;
     try {
       const blob = await getCroppedImg(cropImageSrc, croppedAreaPixels);
-      const file = new File([blob], "avatar.jpg", { type: "image/jpeg" });
+      const file = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
       await startUpload([file]);
       setCropOpen(false);
       URL.revokeObjectURL(cropImageSrc);
@@ -219,7 +219,7 @@ function AvatarSection() {
 
   const handleAvatarDelete = async () => {
     await deleteAvatar();
-    mutate("/api/profile");
+    mutate('/api/profile');
   };
 
   const hasAvatar = !!profile?.avatarUrl;
@@ -250,19 +250,19 @@ function AvatarSection() {
                     <div className="cursor-pointer">
                       <Avatar className="h-24 w-24">
                         <AvatarImage
-                          src={profile?.avatarUrl || ""}
-                          alt={profile?.displayName || user?.name || ""}
+                          src={profile?.avatarUrl || ''}
+                          alt={profile?.displayName || user?.name || ''}
                         />
                         <AvatarFallback className="text-lg">
                           {(
                             profile?.displayName ||
                             user?.name ||
                             user?.email ||
-                            "U"
+                            'U'
                           )
-                            .split(" ")
+                            .split(' ')
                             .map((n) => n[0])
-                            .join("")
+                            .join('')
                             .toUpperCase()
                             .slice(0, 2)}
                         </AvatarFallback>
@@ -271,8 +271,8 @@ function AvatarSection() {
                   </DialogTrigger>
                   <DialogContent className="max-w-sm p-2" showClose={false}>
                     <img
-                      src={profile?.avatarUrl || ""}
-                      alt={profile?.displayName || user?.name || ""}
+                      src={profile?.avatarUrl || ''}
+                      alt={profile?.displayName || user?.name || ''}
                       className="w-full h-auto rounded-xl"
                     />
                   </DialogContent>
@@ -310,10 +310,10 @@ function AvatarSection() {
               >
                 <Avatar className="h-24 w-24">
                   <AvatarFallback className="text-lg bg-muted">
-                    {(profile?.displayName || user?.name || user?.email || "U")
-                      .split(" ")
+                    {(profile?.displayName || user?.name || user?.email || 'U')
+                      .split(' ')
                       .map((n) => n[0])
-                      .join("")
+                      .join('')
                       .toUpperCase()
                       .slice(0, 2)}
                   </AvatarFallback>
@@ -337,8 +337,8 @@ function AvatarSection() {
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
               {hasAvatar
-                ? "Hover over your photo to preview or remove it."
-                : "Click the avatar area above to upload a photo."}
+                ? 'Hover over your photo to preview or remove it.'
+                : 'Click the avatar area above to upload a photo.'}
             </p>
           </div>
         </div>
@@ -347,7 +347,7 @@ function AvatarSection() {
           open={cropOpen}
           onOpenChange={(open) => {
             if (!open) {
-              URL.revokeObjectURL(cropImageSrc || "");
+              URL.revokeObjectURL(cropImageSrc || '');
               setCropImageSrc(null);
             }
             setCropOpen(open);
@@ -363,7 +363,15 @@ function AvatarSection() {
                   aspect={1}
                   cropShape="round"
                   onCropChange={setCrop}
-                  onCropComplete={(_: { width: number; height: number; x: number; y: number }, pixels: { width: number; height: number; x: number; y: number }) => setCroppedAreaPixels(pixels)}
+                  onCropComplete={(
+                    _: { width: number; height: number; x: number; y: number },
+                    pixels: {
+                      width: number;
+                      height: number;
+                      x: number;
+                      y: number;
+                    }
+                  ) => setCroppedAreaPixels(pixels)}
                   onZoomChange={setZoom}
                 />
               )}
@@ -373,7 +381,7 @@ function AvatarSection() {
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  URL.revokeObjectURL(cropImageSrc || "");
+                  URL.revokeObjectURL(cropImageSrc || '');
                   setCropImageSrc(null);
                   setCropOpen(false);
                 }}
@@ -392,7 +400,7 @@ function AvatarSection() {
                     Uploading...
                   </>
                 ) : (
-                  "Crop & Upload"
+                  'Crop & Upload'
                 )}
               </Button>
             </div>
@@ -418,8 +426,8 @@ function ThemePickerCard({
       onClick={onClick}
       className={`group relative rounded-xl border-2 p-1 transition-all text-left w-full ${
         isSelected
-          ? "border-orange-500 "
-          : "border-gray-200 hover:border-gray-300"
+          ? 'border-orange-500 '
+          : 'border-gray-200 hover:border-gray-300'
       }`}
     >
       <div
@@ -491,16 +499,16 @@ function RadiusPickerRow({
             onClick={() => onSelect(opt.id)}
             className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${
               isActive
-                ? "border-orange-500  bg-orange-50"
-                : "border-gray-200 hover:border-gray-300"
+                ? 'border-orange-500  bg-orange-50'
+                : 'border-gray-200 hover:border-gray-300'
             }`}
           >
             <div
               className="w-8 h-8 border-2 border-current"
               style={{
                 borderRadius: opt.css,
-                background: isActive ? accentColor : "transparent",
-                borderColor: isActive ? accentColor : "#d1d5db",
+                background: isActive ? accentColor : 'transparent',
+                borderColor: isActive ? accentColor : '#d1d5db',
               }}
             />
             <span className="text-[10px] font-medium text-gray-600">
@@ -523,7 +531,7 @@ function ProductCardStandard({
   title: string;
   price: string;
   type: string;
-  s: ThemeConfig["styles"];
+  s: ThemeConfig['styles'];
   cr: string;
 }) {
   return (
@@ -575,7 +583,7 @@ function ProductCardCompact({
 }: {
   title: string;
   price: string;
-  s: ThemeConfig["styles"];
+  s: ThemeConfig['styles'];
   cr: string;
 }) {
   return (
@@ -623,7 +631,7 @@ function ProductCardOverlay({
   title: string;
   price: string;
   type: string;
-  s: ThemeConfig["styles"];
+  s: ThemeConfig['styles'];
   cr: string;
 }) {
   return (
@@ -642,7 +650,7 @@ function ProductCardOverlay({
       <div
         className="absolute inset-x-0 bottom-0 p-2.5"
         style={{
-          background: "linear-gradient(to top, rgba(0,0,0,0.7), transparent)",
+          background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)',
           borderRadius: `0 0 ${cr} ${cr}`,
         }}
       >
@@ -666,7 +674,7 @@ function ProductCardMinimal({
   title: string;
   price: string;
   type: string;
-  s: ThemeConfig["styles"];
+  s: ThemeConfig['styles'];
   cr: string;
 }) {
   return (
@@ -702,32 +710,32 @@ function ProductCardsGrid({
   columns,
   cardTemplate,
 }: {
-  s: ThemeConfig["styles"];
+  s: ThemeConfig['styles'];
   cr: string;
   columns: number;
   cardTemplate: string;
 }) {
   const items = [
-    { title: "E-book Template", price: "$29.00", type: "Digital" },
-    { title: "Design Course", price: "$49.00", type: "Course" },
-    { title: "Icon Pack", price: "$9.00", type: "Digital" },
+    { title: 'E-book Template', price: '$29.00', type: 'Digital' },
+    { title: 'Design Course', price: '$49.00', type: 'Course' },
+    { title: 'Icon Pack', price: '$9.00', type: 'Digital' },
   ];
 
   const colClass =
     columns === 1
-      ? "grid-cols-1"
+      ? 'grid-cols-1'
       : columns === 2
-        ? "grid-cols-2"
+        ? 'grid-cols-2'
         : columns === 4
-          ? "grid-cols-2 sm:grid-cols-4"
-          : "grid-cols-3";
+          ? 'grid-cols-2 sm:grid-cols-4'
+          : 'grid-cols-3';
 
   const CardComponent =
-    cardTemplate === "compact"
+    cardTemplate === 'compact'
       ? ProductCardCompact
-      : cardTemplate === "overlay"
+      : cardTemplate === 'overlay'
         ? ProductCardOverlay
-        : cardTemplate === "minimal"
+        : cardTemplate === 'minimal'
           ? ProductCardMinimal
           : ProductCardStandard;
 
@@ -782,10 +790,10 @@ function StorePreview({
                 color: s.avatarFallbackText,
               }}
             >
-              {(profile?.displayName || profile?.username || "U")
-                .split(" ")
+              {(profile?.displayName || profile?.username || 'U')
+                .split(' ')
                 .map((n) => n[0])
-                .join("")
+                .join('')
                 .toUpperCase()
                 .slice(0, 2)}
             </div>
@@ -793,13 +801,13 @@ function StorePreview({
               className="text-sm font-bold mt-2"
               style={{ color: s.headingColor }}
             >
-              {profile?.displayName || profile?.username || "Your Name"}
+              {profile?.displayName || profile?.username || 'Your Name'}
             </p>
             <p className="text-[10px] mt-0.5" style={{ color: s.mutedColor }}>
-              {profile?.headline || "Creator"}
+              {profile?.headline || 'Creator'}
             </p>
             <div className="flex gap-1.5 mt-3">
-              {["t", "i", "g"].map((_, i) => (
+              {['t', 'i', 'g'].map((_, i) => (
                 <div
                   key={i}
                   className="w-4 h-4"
@@ -839,7 +847,7 @@ function StorePreview({
               <button
                 className="px-4 py-2 text-xs font-medium border transition-colors"
                 style={{
-                  background: "transparent",
+                  background: 'transparent',
                   color: s.buttonBg,
                   borderColor: s.cardBorder,
                   borderRadius: br,
@@ -898,15 +906,15 @@ function ProfileForm({
               id="username"
               name="username"
               placeholder="your-username"
-              defaultValue={profile?.username || ""}
+              defaultValue={profile?.username || ''}
               required
               pattern="^[a-zA-Z0-9_-]{3,30}$"
               title="Only letters, numbers, underscores, and hyphens. 3-30 characters."
             />
             <p className="text-xs text-muted-foreground mt-1.5">
-              Your page URL:{" "}
+              Your page URL:{' '}
               <span className="font-medium text-foreground">
-                /{profile?.username || "your-username"}
+                /{profile?.username || 'your-username'}
               </span>
             </p>
           </div>
@@ -918,7 +926,7 @@ function ProfileForm({
               id="displayName"
               name="displayName"
               placeholder="John Doe"
-              defaultValue={profile?.displayName || ""}
+              defaultValue={profile?.displayName || ''}
               maxLength={100}
             />
           </div>
@@ -930,7 +938,7 @@ function ProfileForm({
               id="headline"
               name="headline"
               placeholder="Developer, Creator, Coach..."
-              defaultValue={profile?.headline || ""}
+              defaultValue={profile?.headline || ''}
               maxLength={200}
             />
           </div>
@@ -942,13 +950,13 @@ function ProfileForm({
               id="bio"
               name="bio"
               placeholder="Tell people about yourself..."
-              defaultValue={profile?.bio || ""}
+              defaultValue={profile?.bio || ''}
               maxLength={1000}
               rows={4}
               className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
             />
             <p className="text-xs text-muted-foreground mt-1.5 text-right">
-              {(profile?.bio || "").length}/1000
+              {(profile?.bio || '').length}/1000
             </p>
           </div>
         </CardContent>
@@ -978,7 +986,7 @@ function ProfileForm({
               </svg>
             )}
             placeholder="https://x.com/username"
-            defaultValue={socialLinks?.twitter || ""}
+            defaultValue={socialLinks?.twitter || ''}
           />
           <SocialLinkInput
             platform="instagram"
@@ -999,7 +1007,7 @@ function ProfileForm({
               </svg>
             )}
             placeholder="https://instagram.com/username"
-            defaultValue={socialLinks?.instagram || ""}
+            defaultValue={socialLinks?.instagram || ''}
           />
           <SocialLinkInput
             platform="youtube"
@@ -1019,7 +1027,7 @@ function ProfileForm({
               </svg>
             )}
             placeholder="https://youtube.com/@channel"
-            defaultValue={socialLinks?.youtube || ""}
+            defaultValue={socialLinks?.youtube || ''}
           />
           <SocialLinkInput
             platform="tiktok"
@@ -1034,14 +1042,14 @@ function ProfileForm({
               </svg>
             )}
             placeholder="https://tiktok.com/@username"
-            defaultValue={socialLinks?.tiktok || ""}
+            defaultValue={socialLinks?.tiktok || ''}
           />
           <SocialLinkInput
             platform="website"
             label="Website"
             icon={Globe}
             placeholder="https://yourwebsite.com"
-            defaultValue={socialLinks?.website || ""}
+            defaultValue={socialLinks?.website || ''}
           />
         </CardContent>
       </Card>
@@ -1058,7 +1066,7 @@ function ProfileForm({
               Saving...
             </>
           ) : (
-            "Save Changes"
+            'Save Changes'
           )}
         </Button>
         {state.error && <p className="text-red-500 text-sm">{state.error}</p>}
@@ -1089,15 +1097,15 @@ function ProfileFormWithData({
   formAction: (formData: FormData) => void;
   isPending: boolean;
 }) {
-  const { data } = useSWR<ProfileData>("/api/profile", fetcher);
+  const { data } = useSWR<ProfileData>('/api/profile', fetcher);
 
   const wrappedFormAction = useCallback(
     (formData: FormData) => {
-      formData.append("theme", selectedTheme);
-      formData.append("borderRadius", selectedRadius);
-      formData.append("buttonBorderRadius", selectedBtnRadius);
-      formData.append("productColumns", String(productColumns));
-      formData.append("cardTemplate", cardTemplate);
+      formData.append('theme', selectedTheme);
+      formData.append('borderRadius', selectedRadius);
+      formData.append('buttonBorderRadius', selectedBtnRadius);
+      formData.append('productColumns', String(productColumns));
+      formData.append('cardTemplate', cardTemplate);
       formAction(formData);
     },
     [
@@ -1107,7 +1115,7 @@ function ProfileFormWithData({
       selectedBtnRadius,
       productColumns,
       cardTemplate,
-    ],
+    ]
   );
 
   return (
@@ -1193,7 +1201,7 @@ function ThemeCardWithPopover({
                 type="button"
                 onClick={() => onSelect(v.id)}
                 className={`relative flex flex-col items-center gap-1 p-1 rounded-lg transition-all ${
-                  isThis ? "bg-orange-50" : "hover:bg-gray-50"
+                  isThis ? 'bg-orange-50' : 'hover:bg-gray-50'
                 }`}
               >
                 <div className="flex gap-0.5">
@@ -1201,14 +1209,14 @@ function ThemeCardWithPopover({
                     className="w-5 h-5 rounded"
                     style={{
                       background: v.preview.bg,
-                      border: "1px solid #e5e7eb",
+                      border: '1px solid #e5e7eb',
                     }}
                   />
                   <div
                     className="w-5 h-5 rounded"
                     style={{
                       background: v.preview.card,
-                      border: "1px solid #e5e7eb",
+                      border: '1px solid #e5e7eb',
                     }}
                   />
                   <div
@@ -1221,7 +1229,7 @@ function ThemeCardWithPopover({
                   />
                 </div>
                 <span
-                  className={`text-[9px] leading-tight font-medium text-center w-14 truncate ${isThis ? "text-orange-600" : "text-gray-600"}`}
+                  className={`text-[9px] leading-tight font-medium text-center w-14 truncate ${isThis ? 'text-orange-600' : 'text-gray-600'}`}
                 >
                   {v.name}
                 </span>
@@ -1279,10 +1287,10 @@ function ThemeConfigSection({
   const columnOptions = [1, 2, 3, 4];
 
   const cardTemplates = [
-    { id: "standard", label: "Standard" },
-    { id: "compact", label: "Compact" },
-    { id: "overlay", label: "Overlay" },
-    { id: "minimal", label: "Minimal" },
+    { id: 'standard', label: 'Standard' },
+    { id: 'compact', label: 'Compact' },
+    { id: 'overlay', label: 'Overlay' },
+    { id: 'minimal', label: 'Minimal' },
   ];
 
   return (
@@ -1306,7 +1314,7 @@ function ThemeConfigSection({
               const categories = getThemeCategories();
               const cat = categories.find((c) => c.id === t.category);
               const isCategorySelected = cat?.variants.some(
-                (v) => v.id === selectedTheme,
+                (v) => v.id === selectedTheme
               );
               return (
                 <ThemeCardWithPopover
@@ -1336,8 +1344,8 @@ function ThemeConfigSection({
                   onClick={() => onColumnsChange(n)}
                   className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${
                     isActive
-                      ? "border-orange-500  bg-orange-50"
-                      : "border-gray-200 hover:border-gray-300"
+                      ? 'border-orange-500  bg-orange-50'
+                      : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
                   <div className="flex gap-0.5">
@@ -1348,14 +1356,14 @@ function ThemeConfigSection({
                         style={{
                           width:
                             n === 1
-                              ? "24px"
+                              ? '24px'
                               : n === 2
-                                ? "12px"
+                                ? '12px'
                                 : n === 3
-                                  ? "8px"
-                                  : "6px",
-                          borderColor: isActive ? "#f97316" : "#d1d5db",
-                          background: isActive ? "#f97316" : "transparent",
+                                  ? '8px'
+                                  : '6px',
+                          borderColor: isActive ? '#f97316' : '#d1d5db',
+                          background: isActive ? '#f97316' : 'transparent',
                           opacity: isActive ? 1 : 0.4,
                         }}
                       />
@@ -1384,15 +1392,15 @@ function ThemeConfigSection({
                   onClick={() => onCardTemplateChange(t.id)}
                   className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${
                     isActive
-                      ? "border-orange-500 bg-orange-50"
-                      : "border-gray-200 hover:border-gray-300"
+                      ? 'border-orange-500 bg-orange-50'
+                      : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
                   <div
                     className="w-8 h-6 rounded border"
                     style={{
-                      borderColor: isActive ? "#f97316" : "#d1d5db",
-                      background: isActive ? "#fed7aa" : "#f9fafb",
+                      borderColor: isActive ? '#f97316' : '#d1d5db',
+                      background: isActive ? '#fed7aa' : '#f9fafb',
                     }}
                   />
                   <span className="text-[10px] font-medium text-gray-600">
@@ -1439,32 +1447,32 @@ export default function ProfileConfigPage() {
     async (prevState: ActionState, formData: FormData) => {
       return await updateProfile(prevState, formData);
     },
-    {},
+    {}
   );
 
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
   const [selectedRadius, setSelectedRadius] = useState<string | null>(null);
   const [selectedBtnRadius, setSelectedBtnRadius] = useState<string | null>(
-    null,
+    null
   );
   const [productColumns, setProductColumns] = useState<number>(3);
-  const [cardTemplate, setCardTemplate] = useState<string>("standard");
+  const [cardTemplate, setCardTemplate] = useState<string>('standard');
 
-  const { data } = useSWR<ProfileData>("/api/profile", fetcher);
+  const { data } = useSWR<ProfileData>('/api/profile', fetcher);
 
   useEffect(() => {
     if (data?.profile) {
       if (selectedTheme === null) {
-        setSelectedTheme(data.profile.theme || "default");
+        setSelectedTheme(data.profile.theme || 'default');
       }
       if (selectedRadius === null) {
-        setSelectedRadius(data.profile.borderRadius || "md");
+        setSelectedRadius(data.profile.borderRadius || 'md');
       }
       if (selectedBtnRadius === null) {
-        setSelectedBtnRadius(data.profile.buttonBorderRadius || "md");
+        setSelectedBtnRadius(data.profile.buttonBorderRadius || 'md');
       }
       setProductColumns(data.profile.productColumns || 3);
-      setCardTemplate(data.profile.cardTemplate || "standard");
+      setCardTemplate(data.profile.cardTemplate || 'standard');
     }
   }, [data, selectedTheme, selectedRadius, selectedBtnRadius]);
 
@@ -1518,9 +1526,9 @@ export default function ProfileConfigPage() {
           )}
 
           <ProfileFormWithData
-            selectedTheme={selectedTheme || "default"}
-            selectedRadius={selectedRadius || "md"}
-            selectedBtnRadius={selectedBtnRadius || "md"}
+            selectedTheme={selectedTheme || 'default'}
+            selectedRadius={selectedRadius || 'md'}
+            selectedBtnRadius={selectedBtnRadius || 'md'}
             productColumns={productColumns}
             cardTemplate={cardTemplate}
             state={state}

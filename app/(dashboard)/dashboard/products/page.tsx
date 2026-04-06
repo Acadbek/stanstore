@@ -414,7 +414,7 @@ export default function ProductsPage() {
       </section>
 
       {isFormOpen && (
-        <div className="hidden lg:block lg:shrink-0 lg:p-4 lg:pl-0">
+        <div className="hidden lg:block lg:shrink-0">
           <ChatPanel isOpen onClose={() => {}} />
         </div>
       )}
