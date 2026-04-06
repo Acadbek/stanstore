@@ -31,6 +31,7 @@ import {
   LayoutGrid,
   Eye,
   Plus,
+  GalleryHorizontal,
 } from "lucide-react";
 import Cropper from "react-easy-crop";
 import {
