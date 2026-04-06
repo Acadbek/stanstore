@@ -98,7 +98,7 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
       className={`
         bg-gray-50 border-l border-gray-200 flex flex-col
         transition-all duration-300 ease-in-out
-        w-full shrink-0 self-start lg:sticky lg:top-4 lg:h-[calc(100dvh-2rem)]
+        shrink-0 self-start lg:sticky lg:top-4 lg:h-[calc(100dvh-2rem)]
         ${isCollapsed ? 'w-16' : 'w-[380px]'}
       `}
     >
