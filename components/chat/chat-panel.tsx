@@ -80,7 +80,11 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
       setMessages((prev) =>
         prev.map((m) =>
           m.id === assistantId
-            ? { ...m, content: m.content || 'Xatolik yuz berdi. Qayta urinib ko\'ring.' }
+            ? {
+                ...m,
+                content:
+                  m.content || "Xatolik yuz berdi. Qayta urinib ko'ring.",
+              }
             : m
         )
       );
@@ -94,7 +98,7 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
       className={`
         bg-gray-50 border-l border-gray-200 flex flex-col
         transition-all duration-300 ease-in-out
-        fixed right-0 top-[68px] bottom-0 z-30
+        w-full shrink-0 self-start lg:sticky lg:top-4 lg:h-[calc(100dvh-2rem)]
         ${isCollapsed ? 'w-16' : 'w-[380px]'}
       `}
     >
@@ -104,7 +108,9 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
             <div className="w-7 h-7 rounded-full bg-orange-500 flex items-center justify-center">
               <MessageSquare className="w-3.5 h-3.5 text-white" />
             </div>
-            <span className="font-medium text-sm text-gray-900">AI Assistant</span>
+            <span className="font-medium text-sm text-gray-900">
+              AI Assistant
+            </span>
           </div>
         )}
         <button
@@ -128,15 +134,22 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                 <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center mb-3">
                   <MessageSquare className="w-6 h-6 text-orange-500" />
                 </div>
-                <p className="text-sm font-medium text-gray-700 mb-1">AI yordamchi</p>
+                <p className="text-sm font-medium text-gray-700 mb-1">
+                  AI yordamchi
+                </p>
                 <p className="text-xs text-gray-400 leading-relaxed">
-                  Mahsulotlar bo&apos;yicha savollaringizni bering. Tavsif yozish, narx belgilash, marketing — hammasida yordam beraman.
+                  Mahsulotlar bo&apos;yicha savollaringizni bering. Tavsif
+                  yozish, narx belgilash, marketing — hammasida yordam beraman.
                 </p>
               </div>
             ) : (
               <div className="py-2">
                 {messages.map((message) => (
-                  <ChatMessage key={message.id} content={message.content} role={message.role} />
+                  <ChatMessage
+                    key={message.id}
+                    content={message.content}
+                    role={message.role}
+                  />
                 ))}
                 {isLoading && (
                   <div className="flex gap-3 px-4 py-3 justify-start">
@@ -145,9 +158,18 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                     </div>
                     <div className="bg-white rounded-2xl rounded-bl-md px-4 py-3 border border-gray-200">
                       <div className="flex gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                        <span
+                          className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce"
+                          style={{ animationDelay: '0ms' }}
+                        />
+                        <span
+                          className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce"
+                          style={{ animationDelay: '150ms' }}
+                        />
+                        <span
+                          className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce"
+                          style={{ animationDelay: '300ms' }}
+                        />
                       </div>
                     </div>
                   </div>
@@ -157,7 +179,10 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
             )}
           </div>
 
-          <form onSubmit={handleSubmit} className="border-t border-gray-200 p-3 shrink-0">
+          <form
+            onSubmit={handleSubmit}
+            className="border-t border-gray-200 p-3 shrink-0"
+          >
             <div className="flex items-end gap-2">
               <textarea
                 value={input}
@@ -180,9 +205,39 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                 className="shrink-0 h-[40px] w-[40px] rounded-xl bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white flex items-center justify-center transition-colors"
               >
                 {isLoading ? (
-                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>
+                  <svg
+                    className="h-4 w-4 animate-spin"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      opacity="0.25"
+                    />
+                    <path
+                      d="M4 12a8 8 0 018-8"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                    />
+                  </svg>
                 ) : (
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  <svg
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
                 )}
               </button>
             </div>
@@ -205,7 +260,9 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
           <div className="w-9 h-9 rounded-full bg-orange-500 flex items-center justify-center">
             <MessageSquare className="w-4 h-4 text-white" />
           </div>
-          <span className="text-[10px] text-gray-400 text-center px-1 leading-tight">AI</span>
+          <span className="text-[10px] text-gray-400 text-center px-1 leading-tight">
+            AI
+          </span>
         </div>
       )}
     </aside>

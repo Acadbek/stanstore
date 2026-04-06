@@ -12,14 +12,21 @@ import {
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Loader2, PlusCircle, Eye, EyeOff, Trash2, Pencil } from 'lucide-react';
-import { createProduct, updateProduct, deleteProduct, toggleProductPublish } from './actions';
+import {
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  toggleProductPublish,
+} from './actions';
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { Product, User } from '@/lib/db/schema';
 import useSWR, { mutate } from 'swr';
 import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
 
-const RichEditor = dynamic(() => import('@/components/editor/rich-editor'), { ssr: false });
+const RichEditor = dynamic(() => import('@/components/editor/rich-editor'), {
+  ssr: false,
+});
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -40,26 +47,30 @@ function ProductForm({
   onSuccess?: () => void;
   onCancel?: () => void;
 }) {
-  const [descriptionHtml, setDescriptionHtml] = useState(initialData?.description || '');
+  const [descriptionHtml, setDescriptionHtml] = useState(
+    initialData?.description || ''
+  );
 
-  const [state, formAction, isPending] = useActionState<
-    ActionState,
-    FormData
-  >(async (prevState: ActionState, formData: FormData) => {
-    const action = mode === 'create' ? createProduct : updateProduct;
-    formData.set('description', descriptionHtml);
-    const result = await action(prevState, formData);
-    if ('success' in result && result.success) {
-      mutate('/api/products');
-      onSuccess?.();
-    }
-    return result;
-  }, {});
+  const [state, formAction, isPending] = useActionState<ActionState, FormData>(
+    async (prevState: ActionState, formData: FormData) => {
+      const action = mode === 'create' ? createProduct : updateProduct;
+      formData.set('description', descriptionHtml);
+      const result = await action(prevState, formData);
+      if ('success' in result && result.success) {
+        mutate('/api/products');
+        onSuccess?.();
+      }
+      return result;
+    },
+    {}
+  );
 
   return (
     <Card className="border-2 border-orange-100">
       <CardHeader>
-        <CardTitle>{mode === 'create' ? 'Add New Product' : 'Edit Product'}</CardTitle>
+        <CardTitle>
+          {mode === 'create' ? 'Add New Product' : 'Edit Product'}
+        </CardTitle>
         <CardDescription>
           {mode === 'create'
             ? 'Add a digital product, link, or booking to your store.'
@@ -73,7 +84,9 @@ function ProductForm({
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
-              <Label htmlFor="title" className="mb-2">Title</Label>
+              <Label htmlFor="title" className="mb-2">
+                Title
+              </Label>
               <Input
                 id="title"
                 name="title"
@@ -91,7 +104,9 @@ function ProductForm({
               />
             </div>
             <div>
-              <Label htmlFor="price" className="mb-2">Price ($)</Label>
+              <Label htmlFor="price" className="mb-2">
+                Price ($)
+              </Label>
               <Input
                 id="price"
                 name="price"
@@ -99,12 +114,18 @@ function ProductForm({
                 step="0.01"
                 min="0"
                 placeholder="0.00"
-                defaultValue={initialData?.price ? (initialData.price / 100).toFixed(2) : ''}
+                defaultValue={
+                  initialData?.price ? (initialData.price / 100).toFixed(2) : ''
+                }
               />
-              <p className="text-xs text-muted-foreground mt-1">Leave empty for free</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Leave empty for free
+              </p>
             </div>
             <div>
-              <Label htmlFor="type" className="mb-2">Type</Label>
+              <Label htmlFor="type" className="mb-2">
+                Type
+              </Label>
               <select
                 id="type"
                 name="type"
@@ -117,7 +138,9 @@ function ProductForm({
               </select>
             </div>
             <div className="sm:col-span-2">
-              <Label htmlFor="productUrl" className="mb-2">Product URL</Label>
+              <Label htmlFor="productUrl" className="mb-2">
+                Product URL
+              </Label>
               <Input
                 id="productUrl"
                 name="productUrl"
@@ -127,7 +150,9 @@ function ProductForm({
               />
             </div>
             <div className="sm:col-span-2">
-              <Label htmlFor="imageUrl" className="mb-2">Cover Image URL</Label>
+              <Label htmlFor="imageUrl" className="mb-2">
+                Cover Image URL
+              </Label>
               <Input
                 id="imageUrl"
                 name="imageUrl"
@@ -164,7 +189,9 @@ function ProductForm({
             )}
           </div>
           {state.error && <p className="text-red-500 text-sm">{state.error}</p>}
-          {state.success && <p className="text-green-500 text-sm">{state.success}</p>}
+          {state.success && (
+            <p className="text-green-500 text-sm">{state.success}</p>
+          )}
         </form>
       </CardContent>
     </Card>
@@ -211,39 +238,69 @@ function TogglePublishButton({ product }: { product: Product }) {
       type="button"
       variant="ghost"
       size="icon"
-      className={product.isPublished ? 'text-green-500' : 'text-gray-400 hover:text-orange-500'}
+      className={
+        product.isPublished
+          ? 'text-green-500'
+          : 'text-gray-400 hover:text-orange-500'
+      }
       onClick={handleToggle}
       disabled={isLoading}
     >
-      {product.isPublished ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+      {product.isPublished ? (
+        <Eye className="h-4 w-4" />
+      ) : (
+        <EyeOff className="h-4 w-4" />
+      )}
     </Button>
   );
 }
 
-function ProductCard({ product, onEdit }: { product: Product; onEdit: (product: Product) => void }) {
+function ProductCard({
+  product,
+  onEdit,
+}: {
+  product: Product;
+  onEdit: (product: Product) => void;
+}) {
   return (
     <Card className={product.isPublished ? '' : 'opacity-60'}>
       <CardContent className="p-4">
         <div className="flex items-start gap-4">
           {product.imageUrl ? (
             <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 shrink-0">
-              <img src={product.imageUrl} alt={product.title} className="w-full h-full object-cover" />
+              <img
+                src={product.imageUrl}
+                alt={product.title}
+                className="w-full h-full object-cover"
+              />
             </div>
           ) : (
             <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-orange-400 to-orange-500 shrink-0 flex items-center justify-center">
-              <span className="text-white text-xl font-bold">{product.title[0]?.toUpperCase()}</span>
+              <span className="text-white text-xl font-bold">
+                {product.title[0]?.toUpperCase()}
+              </span>
             </div>
           )}
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <h3 className="font-semibold text-sm text-gray-900 truncate">{product.title}</h3>
+                <h3 className="font-semibold text-sm text-gray-900 truncate">
+                  {product.title}
+                </h3>
                 {product.description && (
-                  <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{product.description}</p>
+                  <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">
+                    {product.description}
+                  </p>
                 )}
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <Button type="button" variant="ghost" size="icon" className="text-gray-400 hover:text-gray-700" onClick={() => onEdit(product)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="text-gray-400 hover:text-gray-700"
+                  onClick={() => onEdit(product)}
+                >
                   <Pencil className="h-4 w-4" />
                 </Button>
                 <TogglePublishButton product={product} />
@@ -252,9 +309,13 @@ function ProductCard({ product, onEdit }: { product: Product; onEdit: (product: 
             </div>
             <div className="flex items-center gap-2 mt-2">
               <span className="text-xs font-medium text-gray-900">
-                {product.price ? `$${(product.price / 100).toFixed(2)}` : 'Free'}
+                {product.price
+                  ? `$${(product.price / 100).toFixed(2)}`
+                  : 'Free'}
               </span>
-              <span className="text-xs text-gray-400 uppercase">{product.type}</span>
+              <span className="text-xs text-gray-400 uppercase">
+                {product.type}
+              </span>
               {product.productUrl && (
                 <a
                   href={product.productUrl}
@@ -311,8 +372,8 @@ export default function ProductsPage() {
   const isFormOpen = showForm || !!editingProduct;
 
   return (
-    <div className="flex flex-1 overflow-hidden">
-      <section className="flex-1 lg:p-8 overflow-y-auto min-w-0 pr-[380px]">
+    <div className="flex flex-1 min-w-0">
+      <section className="flex-1 min-w-0 overflow-y-auto lg:p-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-lg lg:text-2xl font-medium text-gray-900">
             Products
@@ -353,10 +414,8 @@ export default function ProductsPage() {
       </section>
 
       {isFormOpen && (
-        <div className="flex shrink-0 lg:w-[380px] lg:pl-4">
-          <div className="lg:sticky lg:top-4 lg:self-start">
-            <ChatPanel isOpen onClose={() => {}} />
-          </div>
+        <div className="hidden lg:block lg:w-[380px] lg:shrink-0 lg:p-4 lg:pl-0">
+          <ChatPanel isOpen onClose={() => {}} />
         </div>
       )}
     </div>
