@@ -356,21 +356,6 @@ export const SlashCommandExtension = Extension.create({
         },
         items: ({ query }: { query: string }) => {
           const normalizedQuery = query.trim().toLowerCase()
-<<<<<<< HEAD
-
-          if (!normalizedQuery) {
-            return commandItems
-          }
-
-          return commandItems.filter((item) => {
-            const title = item.title.toLowerCase()
-            const description = item.description.toLowerCase()
-
-            return (
-              title.includes(normalizedQuery) ||
-              description.includes(normalizedQuery)
-            )
-=======
           if (!normalizedQuery) return commandItems
 
           return commandItems.filter((item) => {
@@ -378,7 +363,6 @@ export const SlashCommandExtension = Extension.create({
               .join(' ')
               .toLowerCase()
             return searchable.includes(normalizedQuery)
->>>>>>> b13642c857194bd84efdee9fad33ee04a1747a9b
           })
         },
         render: () => {
