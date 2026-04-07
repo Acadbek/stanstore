@@ -13,8 +13,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Loader2, PlusCircle, Eye, EyeOff, Trash2, Pencil } from 'lucide-react';
 import { createProduct, updateProduct, deleteProduct, toggleProductPublish } from './actions';
-import { ChatPanel } from '@/components/chat/chat-panel';
-import { Product, User } from '@/lib/db/schema';
+import { Product } from '@/lib/db/schema';
 import useSWR, { mutate } from 'swr';
 import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
@@ -308,11 +307,10 @@ function ProductSkeleton() {
 export default function ProductsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const isFormOpen = showForm || !!editingProduct;
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      <section className="flex-1 lg:p-8 overflow-y-auto min-w-0 pr-[380px]">
+      <section className="flex-1 lg:p-8 overflow-y-auto min-w-0">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-lg lg:text-2xl font-medium text-gray-900">
             Products
@@ -351,10 +349,6 @@ export default function ProductsPage() {
           </div>
         </Suspense>
       </section>
-
-      {isFormOpen && (
-        <ChatPanel isOpen onClose={() => {}} />
-      )}
     </div>
   );
 }
