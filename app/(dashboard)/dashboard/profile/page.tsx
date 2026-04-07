@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { Button } from "@/components/ui/button";
-import { Loader2, Pencil } from "lucide-react";
-import Link from "next/link";
-import useSWR from "swr";
-import { Profile, Product } from "@/lib/db/schema";
-import StorePage from "@/app/[username]/store-page";
+import { Button } from '@/components/ui/button';
+import { Loader2, Pencil } from 'lucide-react';
+import Link from 'next/link';
+import useSWR from 'swr';
+import { Profile, Product } from '@/lib/db/schema';
+import StorePage from '@/app/[username]/store-page';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -20,13 +20,13 @@ type StoreData = {
 };
 
 export default function ProfilePage() {
-  const {
-    data: profileData,
-    error: profileError,
-  } = useSWR<ProfileData>("/api/profile", fetcher);
+  const { data: profileData, error: profileError } = useSWR<ProfileData>(
+    '/api/profile',
+    fetcher
+  );
   const { data: productsData, error: productsError } = useSWR<Product[]>(
-    "/api/products",
-    fetcher,
+    '/api/products',
+    fetcher
   );
 
   if (profileError || productsError) {
@@ -68,7 +68,9 @@ export default function ProfilePage() {
     );
   }
 
-  const publishedProducts = productsData.filter((product) => product.isPublished);
+  const publishedProducts = productsData.filter(
+    (product) => product.isPublished
+  );
 
   const storeData: StoreData = {
     profile,
@@ -79,16 +81,12 @@ export default function ProfilePage() {
     <section className="flex-1 min-h-screen px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-lg lg:text-2xl font-medium text-gray-900">Profile</h1>
-          <p className="text-sm text-muted-foreground">
-            This is how your storefront looks to visitors.
-          </p>
+          <h1 className="text-lg lg:text-2xl font-medium text-gray-900">
+            Profile
+          </h1>
         </div>
         <Link href="/dashboard/profile/config">
-          <Button
-            variant="secondary"
-            className="flex items-center gap-2"
-          >
+          <Button variant="secondary" className="flex items-center gap-2">
             <Pencil className="h-4 w-4" />
             Edit Profile
           </Button>
