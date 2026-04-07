@@ -59,7 +59,7 @@ export default function DashboardLayout({
             <Menu className="h-6 w-6" />
           </Button>
         </div>
-        <div className="hidden lg:flex items-center h-12 border-b border-gray-200 px-2">
+        <div className="hidden lg:flex items-center h-12 pt-4 px-2">
           <div className="ml-1">
             <Button
               variant="ghost"

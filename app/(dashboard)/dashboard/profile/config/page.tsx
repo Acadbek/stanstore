@@ -1053,27 +1053,6 @@ function ProfileForm({
           />
         </CardContent>
       </Card>
-
-      <div className="flex items-center gap-4">
-        <Button
-          type="submit"
-          className="bg-orange-500 hover:bg-orange-600 text-white"
-          disabled={isPending}
-        >
-          {isPending ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            'Save Changes'
-          )}
-        </Button>
-        {state.error && <p className="text-red-500 text-sm">{state.error}</p>}
-        {state.success && (
-          <p className="text-green-500 text-sm">{state.success}</p>
-        )}
-      </div>
     </form>
   );
 }
@@ -1485,16 +1464,19 @@ export default function ProfileConfigPage() {
 
   return (
     <section className="flex-1 lg:p-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-lg lg:text-2xl font-medium text-gray-900">
-          Edit Profile
-        </h1>
-        <Button variant="ghost" size="sm" onClick={() => window.history.back()}>
-          Back to Profile
-        </Button>
+      <div className="fixed top-0 left-0 right-0 z-10 border-b bg-white/80 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+          <h1 className="text-xl font-bold">Edit Profile</h1>
+          <div className="flex items-center gap-4">
+            <Button className="bg-orange-500 hover:bg-orange-600">
+              Save Changes
+            </Button>
+            <Button variant="ghost">Back to Profile</Button>
+          </div>
+        </div>
       </div>
       <Suspense fallback={<ProfileSkeleton />}>
-        <div className="space-y-6">
+        <div className="space-y-6 pt-16">
           <AvatarSection />
 
           {isReady && (
