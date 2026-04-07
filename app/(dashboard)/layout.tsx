@@ -8,7 +8,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { signOut } from '@/app/(login)/actions';
@@ -79,11 +79,7 @@ function UserMenu() {
 }
 
 function Header() {
-  return (
-    <header className="border-b border-gray-200">
-    
-    </header>
-  );
+  return <header></header>;
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {

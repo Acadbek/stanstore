@@ -1,6 +1,12 @@
 'use client';
 
-import { useActionState, useState, useEffect, useCallback, useRef } from 'react';
+import {
+  useActionState,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -12,21 +18,36 @@ import {
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, Trash2, AtSign, Link2, Globe, Palette, Check, RectangleHorizontal, MousePointerClick, GalleryHorizontal, Eye, Plus } from 'lucide-react';
+import {
+  Loader2,
+  Trash2,
+  AtSign,
+  Link2,
+  Globe,
+  Palette,
+  Check,
+  RectangleHorizontal,
+  MousePointerClick,
+  LayoutGrid,
+  Eye,
+  Plus,
+  GalleryHorizontal,
+} from 'lucide-react';
 import Cropper from 'react-easy-crop';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import {
-  Dialog,
-  DialogContent,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { updateProfile, updateAvatar, deleteAvatar } from '../actions';
 import { Profile, User } from '@/lib/db/schema';
-import { themes, getTheme, getThemeCategories, type ThemeConfig } from '@/lib/themes';
+import {
+  themes,
+  getTheme,
+  getThemeCategories,
+  type ThemeConfig,
+} from '@/lib/themes';
 import useSWR, { mutate } from 'swr';
 import { Suspense } from 'react';
 import { generateReactHelpers } from '@uploadthing/react';
@@ -62,8 +83,10 @@ const btnRadiusOptions = [
   { id: 'full', label: 'Full', css: '9999px' },
 ] as const;
 
-const getRadiusCss = (id: string) => borderRadiusOptions.find(r => r.id === id)?.css ?? '6px';
-const getBtnRadiusCss = (id: string) => btnRadiusOptions.find(r => r.id === id)?.css ?? '6px';
+const getRadiusCss = (id: string) =>
+  borderRadiusOptions.find((r) => r.id === id)?.css ?? '6px';
+const getBtnRadiusCss = (id: string) =>
+  btnRadiusOptions.find((r) => r.id === id)?.css ?? '6px';
 
 function SocialLinkInput({
   platform,
@@ -108,7 +131,7 @@ function createImage(url: string): Promise<HTMLImageElement> {
 
 async function getCroppedImg(
   imageSrc: string,
-  pixelCrop: { x: number; y: number; width: number; height: number },
+  pixelCrop: { x: number; y: number; width: number; height: number }
 ): Promise<Blob> {
   const image = await createImage(imageSrc);
   const canvas = document.createElement('canvas');
@@ -117,7 +140,17 @@ async function getCroppedImg(
   canvas.width = pixelCrop.width;
   canvas.height = pixelCrop.height;
 
-  ctx.drawImage(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, 0, 0, pixelCrop.width, pixelCrop.height);
+  ctx.drawImage(
+    image,
+    pixelCrop.x,
+    pixelCrop.y,
+    pixelCrop.width,
+    pixelCrop.height,
+    0,
+    0,
+    pixelCrop.width,
+    pixelCrop.height
+  );
 
   return new Promise((resolve) => {
     canvas.toBlob((blob) => {
@@ -137,7 +170,12 @@ function AvatarSection() {
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<{ width: number; height: number; x: number; y: number } | null>(null);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<{
+    width: number;
+    height: number;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const { startUpload, isUploading } = useUploadThing('avatarUploader', {
     onClientUploadComplete: async (res) => {
@@ -211,9 +249,17 @@ function AvatarSection() {
                   <DialogTrigger asChild>
                     <div className="cursor-pointer">
                       <Avatar className="h-24 w-24">
-                        <AvatarImage src={profile?.avatarUrl || ''} alt={profile?.displayName || user?.name || ''} />
+                        <AvatarImage
+                          src={profile?.avatarUrl || ''}
+                          alt={profile?.displayName || user?.name || ''}
+                        />
                         <AvatarFallback className="text-lg">
-                          {(profile?.displayName || user?.name || user?.email || 'U')
+                          {(
+                            profile?.displayName ||
+                            user?.name ||
+                            user?.email ||
+                            'U'
+                          )
                             .split(' ')
                             .map((n) => n[0])
                             .join('')
@@ -235,14 +281,20 @@ function AvatarSection() {
                 <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 pointer-events-none">
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); setPreviewOpen(true); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPreviewOpen(true);
+                    }}
                     className="pointer-events-auto p-1.5 rounded-full bg-white/90 hover:bg-white text-gray-700 transition-colors"
                   >
                     <Eye className="h-4 w-4" />
                   </button>
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); handleAvatarDelete(); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAvatarDelete();
+                    }}
                     className="pointer-events-auto p-1.5 rounded-full bg-white/90 hover:bg-red-50 hover:text-red-500 text-gray-700 transition-colors"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -272,7 +324,9 @@ function AvatarSection() {
                   ) : (
                     <>
                       <Plus className="h-5 w-5 text-white" />
-                      <span className="text-[10px] font-medium text-white">Upload</span>
+                      <span className="text-[10px] font-medium text-white">
+                        Upload
+                      </span>
                     </>
                   )}
                 </div>
@@ -289,7 +343,16 @@ function AvatarSection() {
           </div>
         </div>
 
-        <Dialog open={cropOpen} onOpenChange={(open: boolean) => { if (!open) { URL.revokeObjectURL(cropImageSrc || ''); setCropImageSrc(null); } setCropOpen(open); }}>
+        <Dialog
+          open={cropOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              URL.revokeObjectURL(cropImageSrc || '');
+              setCropImageSrc(null);
+            }
+            setCropOpen(open);
+          }}
+        >
           <DialogContent className="max-w-lg p-0 overflow-hidden gap-0">
             <div className="relative w-full h-[350px] bg-black">
               {cropImageSrc && (
@@ -300,13 +363,29 @@ function AvatarSection() {
                   aspect={1}
                   cropShape="round"
                   onCropChange={setCrop}
-                  onCropComplete={(_: { width: number; height: number; x: number; y: number }, pixels: { width: number; height: number; x: number; y: number }) => setCroppedAreaPixels(pixels)}
+                  onCropComplete={(
+                    _: { width: number; height: number; x: number; y: number },
+                    pixels: {
+                      width: number;
+                      height: number;
+                      x: number;
+                      y: number;
+                    }
+                  ) => setCroppedAreaPixels(pixels)}
                   onZoomChange={setZoom}
                 />
               )}
             </div>
             <div className="flex items-center justify-between p-4 border-t">
-              <Button variant="ghost" size="sm" onClick={() => { URL.revokeObjectURL(cropImageSrc || ''); setCropImageSrc(null); setCropOpen(false); }}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  URL.revokeObjectURL(cropImageSrc || '');
+                  setCropImageSrc(null);
+                  setCropOpen(false);
+                }}
+              >
                 Cancel
               </Button>
               <Button
@@ -347,7 +426,7 @@ function ThemePickerCard({
       onClick={onClick}
       className={`group relative rounded-xl border-2 p-1 transition-all text-left w-full ${
         isSelected
-          ? 'border-orange-500 ring-2 ring-orange-200'
+          ? 'border-orange-500 '
           : 'border-gray-200 hover:border-gray-300'
       }`}
     >
@@ -384,7 +463,9 @@ function ThemePickerCard({
       </div>
 
       <div className="px-2 py-1.5">
-        <p className="text-xs font-medium text-gray-900 truncate">{theme.name}</p>
+        <p className="text-xs font-medium text-gray-900 truncate">
+          {theme.name}
+        </p>
       </div>
 
       {isSelected && (
@@ -418,7 +499,7 @@ function RadiusPickerRow({
             onClick={() => onSelect(opt.id)}
             className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${
               isActive
-                ? 'border-orange-500 ring-2 ring-orange-200 bg-orange-50'
+                ? 'border-orange-500  bg-orange-50'
                 : 'border-gray-200 hover:border-gray-300'
             }`}
           >
@@ -430,7 +511,9 @@ function RadiusPickerRow({
                 borderColor: isActive ? accentColor : '#d1d5db',
               }}
             />
-            <span className="text-[10px] font-medium text-gray-600">{opt.label}</span>
+            <span className="text-[10px] font-medium text-gray-600">
+              {opt.label}
+            </span>
           </button>
         );
       })}
@@ -439,58 +522,137 @@ function RadiusPickerRow({
 }
 
 function ProductCardStandard({
-  title, price, type, s, cr,
-}: { title: string; price: string; type: string; s: ThemeConfig['styles']; cr: string }) {
+  title,
+  price,
+  type,
+  s,
+  cr,
+}: {
+  title: string;
+  price: string;
+  type: string;
+  s: ThemeConfig['styles'];
+  cr: string;
+}) {
   return (
     <div
       className="border p-3 flex flex-col"
-      style={{ background: s.cardBg, borderColor: s.cardBorder, borderRadius: cr }}
+      style={{
+        background: s.cardBg,
+        borderColor: s.cardBorder,
+        borderRadius: cr,
+      }}
     >
-      <div className="w-full h-16 mb-2 flex items-center justify-center" style={{ background: s.productBadge, borderRadius: cr }}>
-        <span className="text-xl font-bold" style={{ color: s.productBadgeText }}>{title[0]}</span>
+      <div
+        className="w-full h-16 mb-2 flex items-center justify-center"
+        style={{ background: s.productBadge, borderRadius: cr }}
+      >
+        <span
+          className="text-xl font-bold"
+          style={{ color: s.productBadgeText }}
+        >
+          {title[0]}
+        </span>
       </div>
-      <p className="text-xs font-semibold truncate" style={{ color: s.headingColor }}>{title}</p>
-      <p className="text-[10px] mt-0.5" style={{ color: s.mutedColor }}>{type}</p>
-      <div className="flex items-center justify-between mt-auto pt-2" style={{ borderTop: `1px solid ${s.cardBorder}` }}>
-        <span className="text-xs font-bold" style={{ color: s.priceColor }}>{price}</span>
+      <p
+        className="text-xs font-semibold truncate"
+        style={{ color: s.headingColor }}
+      >
+        {title}
+      </p>
+      <p className="text-[10px] mt-0.5" style={{ color: s.mutedColor }}>
+        {type}
+      </p>
+      <div
+        className="flex items-center justify-between mt-auto pt-2"
+        style={{ borderTop: `1px solid ${s.cardBorder}` }}
+      >
+        <span className="text-xs font-bold" style={{ color: s.priceColor }}>
+          {price}
+        </span>
       </div>
     </div>
   );
 }
 
 function ProductCardCompact({
-  title, price, s, cr,
-}: { title: string; price: string; s: ThemeConfig['styles']; cr: string }) {
+  title,
+  price,
+  s,
+  cr,
+}: {
+  title: string;
+  price: string;
+  s: ThemeConfig['styles'];
+  cr: string;
+}) {
   return (
     <div
       className="border p-2.5 flex items-center gap-3"
-      style={{ background: s.cardBg, borderColor: s.cardBorder, borderRadius: cr }}
+      style={{
+        background: s.cardBg,
+        borderColor: s.cardBorder,
+        borderRadius: cr,
+      }}
     >
-      <div className="w-12 h-12 shrink-0 flex items-center justify-center" style={{ background: s.productBadge, borderRadius: cr }}>
-        <span className="text-sm font-bold" style={{ color: s.productBadgeText }}>{title[0]}</span>
+      <div
+        className="w-12 h-12 shrink-0 flex items-center justify-center"
+        style={{ background: s.productBadge, borderRadius: cr }}
+      >
+        <span
+          className="text-sm font-bold"
+          style={{ color: s.productBadgeText }}
+        >
+          {title[0]}
+        </span>
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[11px] font-semibold truncate" style={{ color: s.headingColor }}>{title}</p>
-        <p className="text-[11px] font-bold" style={{ color: s.priceColor }}>{price}</p>
+        <p
+          className="text-[11px] font-semibold truncate"
+          style={{ color: s.headingColor }}
+        >
+          {title}
+        </p>
+        <p className="text-[11px] font-bold" style={{ color: s.priceColor }}>
+          {price}
+        </p>
       </div>
     </div>
   );
 }
 
 function ProductCardOverlay({
-  title, price, type, s, cr,
-}: { title: string; price: string; type: string; s: ThemeConfig['styles']; cr: string }) {
+  title,
+  price,
+  type,
+  s,
+  cr,
+}: {
+  title: string;
+  price: string;
+  type: string;
+  s: ThemeConfig['styles'];
+  cr: string;
+}) {
   return (
     <div
       className="relative overflow-hidden"
       style={{ background: s.productBadge, borderRadius: cr }}
     >
       <div className="h-28 flex items-center justify-center">
-        <span className="text-3xl font-bold" style={{ color: s.productBadgeText }}>{title[0]}</span>
+        <span
+          className="text-3xl font-bold"
+          style={{ color: s.productBadgeText }}
+        >
+          {title[0]}
+        </span>
       </div>
       <div
         className="absolute inset-x-0 bottom-0 p-2.5"
-        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)', borderRadius: `0 0 ${cr} ${cr}` }}
+        style={{
+          background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)',
+          borderRadius: `0 0 ${cr} ${cr}`,
+        }}
       >
         <p className="text-[11px] font-semibold truncate text-white">{title}</p>
         <div className="flex items-center justify-between mt-0.5">
@@ -503,37 +665,79 @@ function ProductCardOverlay({
 }
 
 function ProductCardMinimal({
-  title, price, type, s, cr,
-}: { title: string; price: string; type: string; s: ThemeConfig['styles']; cr: string }) {
+  title,
+  price,
+  type,
+  s,
+  cr,
+}: {
+  title: string;
+  price: string;
+  type: string;
+  s: ThemeConfig['styles'];
+  cr: string;
+}) {
   return (
     <div
       className="border p-3"
-      style={{ background: s.cardBg, borderColor: s.cardBorder, borderRadius: cr }}
+      style={{
+        background: s.cardBg,
+        borderColor: s.cardBorder,
+        borderRadius: cr,
+      }}
     >
-      <p className="text-xs font-semibold truncate" style={{ color: s.headingColor }}>{title}</p>
-      <p className="text-[10px] mt-0.5" style={{ color: s.mutedColor }}>{type}</p>
+      <p
+        className="text-xs font-semibold truncate"
+        style={{ color: s.headingColor }}
+      >
+        {title}
+      </p>
+      <p className="text-[10px] mt-0.5" style={{ color: s.mutedColor }}>
+        {type}
+      </p>
       <div className="mt-2" style={{ borderTop: `1px solid ${s.cardBorder}` }}>
-        <span className="text-xs font-bold" style={{ color: s.priceColor }}>{price}</span>
+        <span className="text-xs font-bold" style={{ color: s.priceColor }}>
+          {price}
+        </span>
       </div>
     </div>
   );
 }
 
 function ProductCardsGrid({
-  s, cr, columns, cardTemplate,
-}: { s: ThemeConfig['styles']; cr: string; columns: number; cardTemplate: string }) {
+  s,
+  cr,
+  columns,
+  cardTemplate,
+}: {
+  s: ThemeConfig['styles'];
+  cr: string;
+  columns: number;
+  cardTemplate: string;
+}) {
   const items = [
     { title: 'E-book Template', price: '$29.00', type: 'Digital' },
     { title: 'Design Course', price: '$49.00', type: 'Course' },
     { title: 'Icon Pack', price: '$9.00', type: 'Digital' },
   ];
 
-  const colClass = columns === 1 ? 'grid-cols-1' : columns === 2 ? 'grid-cols-2' : columns === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3';
+  const colClass =
+    columns === 1
+      ? 'grid-cols-1'
+      : columns === 2
+        ? 'grid-cols-2'
+        : columns === 4
+          ? 'grid-cols-2 sm:grid-cols-4'
+          : 'grid-cols-3';
 
-  const CardComponent = cardTemplate === 'compact' ? ProductCardCompact
-    : cardTemplate === 'overlay' ? ProductCardOverlay
-      : cardTemplate === 'minimal' ? ProductCardMinimal
-        : ProductCardStandard;
+  const CardComponent =
+    cardTemplate === 'compact'
+      ? ProductCardCompact
+      : cardTemplate === 'overlay'
+        ? ProductCardOverlay
+        : cardTemplate === 'minimal'
+          ? ProductCardMinimal
+          : ProductCardStandard;
 
   return (
     <div className={`grid ${colClass} gap-3`}>
@@ -572,16 +776,31 @@ function StorePreview({
         <div className="flex flex-col sm:flex-row gap-4 max-w-full">
           <div
             className="shrink-0 border p-4 flex flex-col items-center text-center sm:w-[140px]"
-            style={{ background: s.cardBg, borderColor: s.cardBorder, borderRadius: cr }}
+            style={{
+              background: s.cardBg,
+              borderColor: s.cardBorder,
+              borderRadius: cr,
+            }}
           >
             <div
               className="w-14 h-14 flex items-center justify-center text-sm font-bold"
-              style={{ borderRadius: cr, background: s.avatarFallback, color: s.avatarFallbackText }}
+              style={{
+                borderRadius: cr,
+                background: s.avatarFallback,
+                color: s.avatarFallbackText,
+              }}
             >
               {(profile?.displayName || profile?.username || 'U')
-                .split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
+                .split(' ')
+                .map((n) => n[0])
+                .join('')
+                .toUpperCase()
+                .slice(0, 2)}
             </div>
-            <p className="text-sm font-bold mt-2" style={{ color: s.headingColor }}>
+            <p
+              className="text-sm font-bold mt-2"
+              style={{ color: s.headingColor }}
+            >
               {profile?.displayName || profile?.username || 'Your Name'}
             </p>
             <p className="text-[10px] mt-0.5" style={{ color: s.mutedColor }}>
@@ -589,26 +808,59 @@ function StorePreview({
             </p>
             <div className="flex gap-1.5 mt-3">
               {['t', 'i', 'g'].map((_, i) => (
-                <div key={i} className="w-4 h-4" style={{ color: s.socialIconColor, opacity: 0.6 }}>
-                  <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><circle cx="12" cy="12" r="10" /></svg>
+                <div
+                  key={i}
+                  className="w-4 h-4"
+                  style={{ color: s.socialIconColor, opacity: 0.6 }}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    className="w-full h-full"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                  </svg>
                 </div>
               ))}
             </div>
           </div>
 
           <div className="flex-1 min-w-0 space-y-3">
-            <ProductCardsGrid s={s} cr={cr} columns={productColumns} cardTemplate={cardTemplate} />
+            <ProductCardsGrid
+              s={s}
+              cr={cr}
+              columns={productColumns}
+              cardTemplate={cardTemplate}
+            />
 
             <div className="flex gap-2 pt-2">
-              <button className="px-4 py-2 text-xs font-medium transition-colors" style={{ background: s.buttonBg, color: s.buttonText, borderRadius: br }}>
+              <button
+                className="px-4 py-2 text-xs font-medium transition-colors"
+                style={{
+                  background: s.buttonBg,
+                  color: s.buttonText,
+                  borderRadius: br,
+                }}
+              >
                 Buy Now
               </button>
-              <button className="px-4 py-2 text-xs font-medium border transition-colors" style={{ background: 'transparent', color: s.buttonBg, borderColor: s.cardBorder, borderRadius: br }}>
+              <button
+                className="px-4 py-2 text-xs font-medium border transition-colors"
+                style={{
+                  background: 'transparent',
+                  color: s.buttonBg,
+                  borderColor: s.cardBorder,
+                  borderRadius: br,
+                }}
+              >
                 View Details
               </button>
             </div>
 
-            <p className="text-center text-[10px] pt-2" style={{ color: s.footerColor }}>
+            <p
+              className="text-center text-[10px] pt-2"
+              style={{ color: s.footerColor }}
+            >
               Powered by ACME
             </p>
           </div>
@@ -630,7 +882,10 @@ function ProfileForm({
   isPending: boolean;
 }) {
   const profile = initialData?.profile;
-  const socialLinks = profile?.socialLinks as Record<string, string | null> | null;
+  const socialLinks = profile?.socialLinks as Record<
+    string,
+    string | null
+  > | null;
 
   return (
     <form className="space-y-8" action={formAction}>
@@ -657,7 +912,10 @@ function ProfileForm({
               title="Only letters, numbers, underscores, and hyphens. 3-30 characters."
             />
             <p className="text-xs text-muted-foreground mt-1.5">
-              Your page URL: <span className="font-medium text-foreground">/{profile?.username || 'your-username'}</span>
+              Your page URL:{' '}
+              <span className="font-medium text-foreground">
+                /{profile?.username || 'your-username'}
+              </span>
             </p>
           </div>
           <div>
@@ -718,28 +976,71 @@ function ProfileForm({
           <SocialLinkInput
             platform="twitter"
             label="Twitter / X"
-            icon={() => <svg className="h-4 w-4 text-muted-foreground" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>}
+            icon={() => (
+              <svg
+                className="h-4 w-4 text-muted-foreground"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+            )}
             placeholder="https://x.com/username"
             defaultValue={socialLinks?.twitter || ''}
           />
           <SocialLinkInput
             platform="instagram"
             label="Instagram"
-            icon={() => <svg className="h-4 w-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>}
+            icon={() => (
+              <svg
+                className="h-4 w-4 text-muted-foreground"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+              </svg>
+            )}
             placeholder="https://instagram.com/username"
             defaultValue={socialLinks?.instagram || ''}
           />
           <SocialLinkInput
             platform="youtube"
             label="YouTube"
-            icon={() => <svg className="h-4 w-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/><path d="m10 15 5-3-5-3z"/></svg>}
+            icon={() => (
+              <svg
+                className="h-4 w-4 text-muted-foreground"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17" />
+                <path d="m10 15 5-3-5-3z" />
+              </svg>
+            )}
             placeholder="https://youtube.com/@channel"
             defaultValue={socialLinks?.youtube || ''}
           />
           <SocialLinkInput
             platform="tiktok"
             label="TikTok"
-            icon={() => <svg className="h-4 w-4 text-muted-foreground" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.88-2.88 2.89 2.89 0 0 1 2.88-2.88c.28 0 .56.04.82.11V9.02a6.34 6.34 0 0 0-.82-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.75a8.18 8.18 0 0 0 4.76 1.52V6.8a4.84 4.84 0 0 1-1-.11z"/></svg>}
+            icon={() => (
+              <svg
+                className="h-4 w-4 text-muted-foreground"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.88-2.88 2.89 2.89 0 0 1 2.88-2.88c.28 0 .56.04.82.11V9.02a6.34 6.34 0 0 0-.82-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.75a8.18 8.18 0 0 0 4.76 1.52V6.8a4.84 4.84 0 0 1-1-.11z" />
+              </svg>
+            )}
             placeholder="https://tiktok.com/@username"
             defaultValue={socialLinks?.tiktok || ''}
           />
@@ -752,29 +1053,6 @@ function ProfileForm({
           />
         </CardContent>
       </Card>
-
-      <div className="flex items-center gap-4">
-        <Button
-          type="submit"
-          className="bg-orange-500 hover:bg-orange-600 text-white"
-          disabled={isPending}
-        >
-          {isPending ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            'Save Changes'
-          )}
-        </Button>
-        {state.error && (
-          <p className="text-red-500 text-sm">{state.error}</p>
-        )}
-        {state.success && (
-          <p className="text-green-500 text-sm">{state.success}</p>
-        )}
-      </div>
     </form>
   );
 }
@@ -809,10 +1087,24 @@ function ProfileFormWithData({
       formData.append('cardTemplate', cardTemplate);
       formAction(formData);
     },
-    [formAction, selectedTheme, selectedRadius, selectedBtnRadius, productColumns, cardTemplate]
+    [
+      formAction,
+      selectedTheme,
+      selectedRadius,
+      selectedBtnRadius,
+      productColumns,
+      cardTemplate,
+    ]
   );
 
-  return <ProfileForm state={state} initialData={data} formAction={wrappedFormAction} isPending={isPending} />;
+  return (
+    <ProfileForm
+      state={state}
+      initialData={data}
+      formAction={wrappedFormAction}
+      isPending={isPending}
+    />
+  );
 }
 
 function ProfileSkeleton() {
@@ -870,8 +1162,15 @@ function ThemeCardWithPopover({
           </div>
         </div>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-2" side="top" align="center" sideOffset={8}>
-        <p className="text-[10px] font-semibold text-gray-500 mb-1.5 px-1">{category?.label}</p>
+      <PopoverContent
+        className="w-auto p-2"
+        side="top"
+        align="center"
+        sideOffset={8}
+      >
+        <p className="text-[10px] font-semibold text-gray-500 mb-1.5 px-1">
+          {category?.label}
+        </p>
         <div className="flex gap-1.5">
           {variants.map((v) => {
             const isThis = selectedTheme === v.id;
@@ -885,12 +1184,32 @@ function ThemeCardWithPopover({
                 }`}
               >
                 <div className="flex gap-0.5">
-                  <div className="w-5 h-5 rounded" style={{ background: v.preview.bg, border: '1px solid #e5e7eb' }} />
-                  <div className="w-5 h-5 rounded" style={{ background: v.preview.card, border: '1px solid #e5e7eb' }} />
-                  <div className="w-5 h-5 rounded" style={{ background: v.preview.accent }} />
-                  <div className="w-5 h-5 rounded" style={{ background: v.preview.text }} />
+                  <div
+                    className="w-5 h-5 rounded"
+                    style={{
+                      background: v.preview.bg,
+                      border: '1px solid #e5e7eb',
+                    }}
+                  />
+                  <div
+                    className="w-5 h-5 rounded"
+                    style={{
+                      background: v.preview.card,
+                      border: '1px solid #e5e7eb',
+                    }}
+                  />
+                  <div
+                    className="w-5 h-5 rounded"
+                    style={{ background: v.preview.accent }}
+                  />
+                  <div
+                    className="w-5 h-5 rounded"
+                    style={{ background: v.preview.text }}
+                  />
                 </div>
-                <span className={`text-[9px] leading-tight font-medium text-center w-14 truncate ${isThis ? 'text-orange-600' : 'text-gray-600'}`}>
+                <span
+                  className={`text-[9px] leading-tight font-medium text-center w-14 truncate ${isThis ? 'text-orange-600' : 'text-gray-600'}`}
+                >
                   {v.name}
                 </span>
                 {isThis && (
@@ -966,12 +1285,16 @@ function ThemeConfigSection({
       </CardHeader>
       <CardContent className="space-y-5">
         <div>
-          <h3 className="text-sm font-medium text-gray-900 mb-3">Store Theme</h3>
+          <h3 className="text-sm font-medium text-gray-900 mb-3">
+            Store Theme
+          </h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {cards.map((t) => {
               const categories = getThemeCategories();
               const cat = categories.find((c) => c.id === t.category);
-              const isCategorySelected = cat?.variants.some((v) => v.id === selectedTheme);
+              const isCategorySelected = cat?.variants.some(
+                (v) => v.id === selectedTheme
+              );
               return (
                 <ThemeCardWithPopover
                   key={t.id}
@@ -1000,7 +1323,7 @@ function ThemeConfigSection({
                   onClick={() => onColumnsChange(n)}
                   className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${
                     isActive
-                      ? 'border-orange-500 ring-2 ring-orange-200 bg-orange-50'
+                      ? 'border-orange-500  bg-orange-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
@@ -1010,7 +1333,14 @@ function ThemeConfigSection({
                         key={i}
                         className="h-4 border border-current"
                         style={{
-                          width: n === 1 ? '24px' : n === 2 ? '12px' : n === 3 ? '8px' : '6px',
+                          width:
+                            n === 1
+                              ? '24px'
+                              : n === 2
+                                ? '12px'
+                                : n === 3
+                                  ? '8px'
+                                  : '6px',
                           borderColor: isActive ? '#f97316' : '#d1d5db',
                           background: isActive ? '#f97316' : 'transparent',
                           opacity: isActive ? 1 : 0.4,
@@ -1018,7 +1348,9 @@ function ThemeConfigSection({
                       />
                     ))}
                   </div>
-                  <span className="text-[10px] font-medium text-gray-600">{n}</span>
+                  <span className="text-[10px] font-medium text-gray-600">
+                    {n}
+                  </span>
                 </button>
               );
             })}
@@ -1026,7 +1358,9 @@ function ThemeConfigSection({
         </div>
 
         <div>
-          <h3 className="text-sm font-medium text-gray-900 mb-3">Card Template</h3>
+          <h3 className="text-sm font-medium text-gray-900 mb-3">
+            Card Template
+          </h3>
           <div className="grid grid-cols-4 gap-2">
             {cardTemplates.map((t) => {
               const isActive = cardTemplate === t.id;
@@ -1037,7 +1371,7 @@ function ThemeConfigSection({
                   onClick={() => onCardTemplateChange(t.id)}
                   className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${
                     isActive
-                      ? 'border-orange-500 ring-2 ring-orange-200 bg-orange-50'
+                      ? 'border-orange-500 bg-orange-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
@@ -1048,7 +1382,9 @@ function ThemeConfigSection({
                       background: isActive ? '#fed7aa' : '#f9fafb',
                     }}
                   />
-                  <span className="text-[10px] font-medium text-gray-600">{t.label}</span>
+                  <span className="text-[10px] font-medium text-gray-600">
+                    {t.label}
+                  </span>
                 </button>
               );
             })}
@@ -1086,16 +1422,18 @@ function ThemeConfigSection({
 }
 
 export default function ProfileConfigPage() {
-  const [state, formAction, isPending] = useActionState<
-    ActionState,
-    FormData
-  >(async (prevState: ActionState, formData: FormData) => {
-    return await updateProfile(prevState, formData);
-  }, {});
+  const [state, formAction, isPending] = useActionState<ActionState, FormData>(
+    async (prevState: ActionState, formData: FormData) => {
+      return await updateProfile(prevState, formData);
+    },
+    {}
+  );
 
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
   const [selectedRadius, setSelectedRadius] = useState<string | null>(null);
-  const [selectedBtnRadius, setSelectedBtnRadius] = useState<string | null>(null);
+  const [selectedBtnRadius, setSelectedBtnRadius] = useState<string | null>(
+    null
+  );
   const [productColumns, setProductColumns] = useState<number>(3);
   const [cardTemplate, setCardTemplate] = useState<string>('standard');
 
@@ -1119,20 +1457,26 @@ export default function ProfileConfigPage() {
 
   const profile = data?.profile;
 
-  const isReady = selectedTheme !== null && selectedRadius !== null && selectedBtnRadius !== null;
+  const isReady =
+    selectedTheme !== null &&
+    selectedRadius !== null &&
+    selectedBtnRadius !== null;
 
   return (
     <section className="flex-1 lg:p-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-lg lg:text-2xl font-medium text-gray-900">
-          Edit Profile
-        </h1>
-        <Button variant="ghost" size="sm" onClick={() => window.history.back()}>
-          Back to Profile
-        </Button>
+      <div className="fixed top-0 left-0 right-0 z-10 border-b bg-white/80 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+          <h1 className="text-xl font-bold">Edit Profile</h1>
+          <div className="flex items-center gap-4">
+            <Button className="bg-orange-500 hover:bg-orange-600">
+              Save Changes
+            </Button>
+            <Button variant="ghost">Back to Profile</Button>
+          </div>
+        </div>
       </div>
       <Suspense fallback={<ProfileSkeleton />}>
-        <div className="space-y-6">
+        <div className="space-y-6 pt-16">
           <AvatarSection />
 
           {isReady && (
