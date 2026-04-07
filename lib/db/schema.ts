@@ -8,6 +8,7 @@ import {
   boolean,
   jsonb,
   smallint,
+  bigint,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -89,10 +90,16 @@ export const profiles = pgTable('profiles', {
   bio: text('bio'),
   avatarUrl: text('avatar_url'),
   theme: varchar('theme', { length: 30 }).notNull().default('default'),
-  borderRadius: varchar('border_radius', { length: 10 }).notNull().default('md'),
-  buttonBorderRadius: varchar('button_border_radius', { length: 10 }).notNull().default('md'),
+  borderRadius: varchar('border_radius', { length: 10 })
+    .notNull()
+    .default('md'),
+  buttonBorderRadius: varchar('button_border_radius', { length: 10 })
+    .notNull()
+    .default('md'),
   productColumns: smallint('product_columns').notNull().default(3),
-  cardTemplate: varchar('card_template', { length: 20 }).notNull().default('standard'),
+  cardTemplate: varchar('card_template', { length: 20 })
+    .notNull()
+    .default('standard'),
   socialLinks: jsonb('social_links').$type<{
     instagram: string | null;
     twitter: string | null;
@@ -119,6 +126,28 @@ export const products = pgTable('products', {
   isPublished: boolean('is_published').notNull().default(false),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const pageviews = pgTable('pageviews', {
+  id: serial('id').primaryKey(),
+  profileId: integer('profile_id')
+    .notNull()
+    .references(() => profiles.id),
+  sessionId: varchar('session_id', { length: 100 }).notNull(),
+  pageName: varchar('page_name', { length: 50 }).notNull(),
+  referrer: text('referrer'),
+  utmSource: varchar('utm_source', { length: 200 }),
+  utmMedium: varchar('utm_medium', { length: 200 }),
+  utmCampaign: varchar('utm_campaign', { length: 200 }),
+  utmTerm: varchar('utm_term', { length: 200 }),
+  utmContent: varchar('utm_content', { length: 200 }),
+  country: varchar('country', { length: 100 }),
+  city: varchar('city', { length: 100 }),
+  deviceType: varchar('device_type', { length: 20 }),
+  browser: varchar('browser', { length: 50 }),
+  os: varchar('os', { length: 50 }),
+  duration: integer('duration'),
+  visitedAt: timestamp('visited_at').notNull().defaultNow(),
 });
 
 export const usersRelations = relations(users, ({ many, one }) => ({
@@ -192,6 +221,8 @@ export type Profile = typeof profiles.$inferSelect;
 export type NewProfile = typeof profiles.$inferInsert;
 export type Product = typeof products.$inferSelect;
 export type NewProduct = typeof products.$inferInsert;
+export type Pageview = typeof pageviews.$inferSelect;
+export type NewPageview = typeof pageviews.$inferInsert;
 export type TeamDataWithMembers = Team & {
   teamMembers: (TeamMember & {
     user: Pick<User, 'id' | 'name' | 'email'>;

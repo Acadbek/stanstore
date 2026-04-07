@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
+import PageviewTracker from '@/components/analytics/pageview-tracker';
 
 const radiusMap: Record<string, string> = {
   none: '0px',
@@ -104,6 +105,7 @@ export default function ProductDetailClient({ profile, product }: Props) {
       className="min-h-screen transition-colors duration-300"
       style={{ background: s.pageBgGradient || s.pageBg }}
     >
+      <PageviewTracker profileId={profile.id} page="product" />
       <div className="max-w-md mx-auto px-4 py-8 sm:py-12">
         {/* Back link */}
         <Link
@@ -119,7 +121,10 @@ export default function ProductDetailClient({ profile, product }: Props) {
         {product.imageUrl ? (
           <div
             className="overflow-hidden mb-6 shadow-lg"
-            style={{ borderRadius: cr, boxShadow: '0 8px 30px rgba(0,0,0,0.12)' }}
+            style={{
+              borderRadius: cr,
+              boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+            }}
           >
             <img
               src={product.imageUrl}
@@ -132,7 +137,10 @@ export default function ProductDetailClient({ profile, product }: Props) {
             className="h-56 sm:h-72 mb-6 flex items-center justify-center shadow-lg"
             style={{ background: s.productBadge, borderRadius: cr }}
           >
-            <span className="text-6xl font-bold" style={{ color: s.productBadgeText }}>
+            <span
+              className="text-6xl font-bold"
+              style={{ color: s.productBadgeText }}
+            >
               {product.title[0]?.toUpperCase()}
             </span>
           </div>
@@ -154,12 +162,20 @@ export default function ProductDetailClient({ profile, product }: Props) {
           )}
 
           <div className="flex items-center gap-3 pt-2">
-            <span className="text-2xl font-bold" style={{ color: s.priceColor }}>
+            <span
+              className="text-2xl font-bold"
+              style={{ color: s.priceColor }}
+            >
               {formatPrice(product.price)}
             </span>
             <span
               className="text-xs font-medium uppercase px-2.5 py-1"
-              style={{ background: s.cardBg, color: s.mutedColor, border: `1px solid ${s.cardBorder}`, borderRadius: br }}
+              style={{
+                background: s.cardBg,
+                color: s.mutedColor,
+                border: `1px solid ${s.cardBorder}`,
+                borderRadius: br,
+              }}
             >
               {product.type}
             </span>
@@ -202,8 +218,17 @@ export default function ProductDetailClient({ profile, product }: Props) {
         >
           <Link href={`/${profile.username}`}>
             <Avatar className="h-10 w-10">
-              <AvatarImage src={profile.avatarUrl || undefined} alt={profile.displayName || profile.username || ''} />
-              <AvatarFallback className="text-sm" style={{ background: s.avatarFallback, color: s.avatarFallbackText }}>
+              <AvatarImage
+                src={profile.avatarUrl || undefined}
+                alt={profile.displayName || profile.username || ''}
+              />
+              <AvatarFallback
+                className="text-sm"
+                style={{
+                  background: s.avatarFallback,
+                  color: s.avatarFallbackText,
+                }}
+              >
                 {(profile.displayName || profile.username || 'U')
                   .split(' ')
                   .map((n) => n[0])
@@ -222,13 +247,18 @@ export default function ProductDetailClient({ profile, product }: Props) {
               {profile.displayName || profile.username}
             </Link>
             {profile.headline && (
-              <p className="text-xs" style={{ color: s.mutedColor }}>{profile.headline}</p>
+              <p className="text-xs" style={{ color: s.mutedColor }}>
+                {profile.headline}
+              </p>
             )}
           </div>
         </div>
 
         {/* Footer */}
-        <p className="text-center text-xs mt-16" style={{ color: s.footerColor }}>
+        <p
+          className="text-center text-xs mt-16"
+          style={{ color: s.footerColor }}
+        >
           Powered by ACME
         </p>
       </div>
