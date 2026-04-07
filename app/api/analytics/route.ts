@@ -1,13 +1,52 @@
-import { db } from '@/lib/db/drizzle';
-import { pageviews, profiles, users } from '@/lib/db/schema';
-import { getUser } from '@/lib/db/queries';
-import { eq, and, count, gte, sql } from 'drizzle-orm';
 import { NextRequest } from 'next/server';
+import { getUser } from '@/lib/db/queries';
+
+type PostHogResponse = {
+  results?: Array<{
+    data?: Array<{ [key: string]: string | number }>;
+  }>;
+};
+
+async function posthogQuery(query: {
+  query_kind: string;
+  event?: string;
+  properties?: Record<string, any>;
+  formula?: string;
+  breakdown_query?: {
+    breakdown: string;
+    breakdown_type?: string;
+    sort_key?: string;
+    limit?: number;
+  };
+  date_range?: { date_from: string; date_to: string };
+  intervals?: string;
+  limit?: number;
+}) {
+  const token = process.env.NEXT_PUBLIC_POSTHOG_TOKEN;
+  const host =
+    process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com';
+
+  const res = await fetch(`${host}/api/projects/@current/insights/query/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(query),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`PostHog API error ${res.status}: ${text}`);
+  }
+
+  return res.json() as Promise<PostHogResponse>;
+}
 
 function getDaysAgo(days: number) {
   const date = new Date();
   date.setDate(date.getDate() - days);
-  return date;
+  return date.toISOString().split('T')[0];
 }
 
 export async function GET(request: NextRequest) {
@@ -17,194 +56,185 @@ export async function GET(request: NextRequest) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const profile = await db.query.profiles.findFirst({
-      where: eq(profiles.userId, user.id),
-    });
-
-    if (!profile) {
-      return Response.json({
-        totalPageviews: 0,
-        uniqueVisitors: 0,
-        avgTimeOnPage: 0,
-        referrers: [],
-        utmParams: [],
-        locations: [],
-        deviceTypes: [],
-        browsers: [],
-        dailyViews: [],
-      });
-    }
-
     const url = new URL(request.url);
     const days = parseInt(url.searchParams.get('days') || '30');
-    const since = getDaysAgo(days);
+    const dateFrom = getDaysAgo(days);
+    const dateTo = new Date().toISOString().split('T')[0];
 
-    const condition = and(
-      eq(pageviews.profileId, profile.id),
-      gte(pageviews.visitedAt, since)
-    );
+    const baseUrlPattern = `/%/${user.name || user.email}`;
+    const storePageFilter = {
+      key: '$current_url',
+      value: process.env.BASE_URL || 'http://localhost:3000',
+      operator: 'regex',
+      type: 'event',
+    };
 
-    const [totalResult] = await db
-      .select({ value: count() })
-      .from(pageviews)
-      .where(condition);
+    const dateRange = { date_from: dateFrom, date_to: dateTo };
 
-    const [visitorsResult] = await db
-      .select({ value: count(sql`DISTINCT ${pageviews.sessionId}`) })
-      .from(pageviews)
-      .where(condition);
+    const [
+      totalViews,
+      uniqueVisitors,
+      dailyViewsRes,
+      referrersRes,
+      countriesRes,
+      devicesRes,
+      browsersRes,
+      utmSourceRes,
+    ] = await Promise.allSettled([
+      posthogQuery({
+        query_kind: 'TrendsQuery',
+        event: '$pageview',
+        properties: { type: 'AND', values: [storePageFilter] },
+        formula: 'count()',
+        date_range: dateRange,
+      }),
+      posthogQuery({
+        query_kind: 'TrendsQuery',
+        event: '$pageview',
+        properties: { type: 'AND', values: [storePageFilter] },
+        formula: 'count()',
+        date_range: dateRange,
+      }),
+      posthogQuery({
+        query_kind: 'TrendsQuery',
+        event: '$pageview',
+        properties: { type: 'AND', values: [storePageFilter] },
+        formula: 'count()',
+        date_range: dateRange,
+        intervals: 'day',
+      }),
+      posthogQuery({
+        query_kind: 'TrendsQuery',
+        event: '$pageview',
+        properties: { type: 'AND', values: [storePageFilter] },
+        formula: 'count()',
+        breakdown_query: {
+          breakdown: '$referrer',
+          breakdown_type: 'event',
+          sort_key: '-count()',
+          limit: 10,
+        },
+        date_range: dateRange,
+      }),
+      posthogQuery({
+        query_kind: 'TrendsQuery',
+        event: '$pageview',
+        properties: { type: 'AND', values: [storePageFilter] },
+        formula: 'count()',
+        breakdown_query: {
+          breakdown: '$geoip_country_name',
+          breakdown_type: 'event',
+          sort_key: '-count()',
+          limit: 10,
+        },
+        date_range: dateRange,
+      }),
+      posthogQuery({
+        query_kind: 'TrendsQuery',
+        event: '$pageview',
+        properties: { type: 'AND', values: [storePageFilter] },
+        formula: 'count()',
+        breakdown_query: {
+          breakdown: '$device_type',
+          breakdown_type: 'event',
+          sort_key: '-count()',
+          limit: 10,
+        },
+        date_range: dateRange,
+      }),
+      posthogQuery({
+        query_kind: 'TrendsQuery',
+        event: '$pageview',
+        properties: { type: 'AND', values: [storePageFilter] },
+        formula: 'count()',
+        breakdown_query: {
+          breakdown: '$browser',
+          breakdown_type: 'event',
+          sort_key: '-count()',
+          limit: 10,
+        },
+        date_range: dateRange,
+      }),
+      posthogQuery({
+        query_kind: 'TrendsQuery',
+        event: '$pageview',
+        properties: { type: 'AND', values: [storePageFilter] },
+        formula: 'count()',
+        breakdown_query: {
+          breakdown: 'utm_source',
+          breakdown_type: 'event',
+          sort_key: '-count()',
+          limit: 10,
+        },
+        date_range: dateRange,
+      }),
+    ]);
 
-    const [avgDurationResult] = await db
-      .select({
-        value: sql<number>`COALESCE(AVG(${pageviews.duration}), 0)`,
-      })
-      .from(pageviews)
-      .where(and(condition, sql`${pageviews.duration} IS NOT NULL`));
+    const parseTrend = (
+      result: PromiseSettledResult<PostHogResponse>
+    ): number => {
+      if (result.status !== 'fulfilled') return 0;
+      const val = result.value?.results?.[0]?.data?.[0]?.count;
+      return Number(val) || 0;
+    };
 
-    const referrers = await db
-      .select({
-        name: pageviews.referrer,
-        count: count(),
-      })
-      .from(pageviews)
-      .where(
-        and(
-          condition,
-          sql`${pageviews.referrer} IS NOT NULL AND ${pageviews.referrer} != ''`
-        )
-      )
-      .groupBy(pageviews.referrer)
-      .orderBy(sql`${count()} DESC`)
-      .limit(10);
+    const parseBreakdown = (
+      result: PromiseSettledResult<PostHogResponse>
+    ): { name: string; count: number }[] => {
+      if (result.status !== 'fulfilled') return [];
+      return (result.value?.results || []).map((r: any) => {
+        const d = r?.data?.[0] || r;
+        return {
+          name: d.breakdown_value || d.label || 'Unknown',
+          count: Number(d.count) || 0,
+        };
+      });
+    };
 
-    const utmSources = await db
-      .select({
-        source: pageviews.utmSource,
-        medium: pageviews.utmMedium,
-        campaign: pageviews.utmCampaign,
-        term: pageviews.utmTerm,
-        content: pageviews.utmContent,
-        count: count(),
-      })
-      .from(pageviews)
-      .where(
-        and(
-          condition,
-          sql`${pageviews.utmSource} IS NOT NULL AND ${pageviews.utmSource} != ''`
-        )
-      )
-      .groupBy(
-        pageviews.utmSource,
-        pageviews.utmMedium,
-        pageviews.utmCampaign,
-        pageviews.utmTerm,
-        pageviews.utmContent
-      )
-      .orderBy(sql`${count()} DESC`)
-      .limit(10);
+    const parseDaily = (
+      result: PromiseSettledResult<PostHogResponse>
+    ): { date: string; views: number }[] => {
+      if (result.status !== 'fulfilled') return [];
+      return (result.value?.results?.[0]?.data || []).map((d: any) => ({
+        date: d.date || d.label,
+        views: Number(d.count) || 0,
+      }));
+    };
 
-    const locations = await db
-      .select({
-        country: pageviews.country,
-        city: pageviews.city,
-        count: count(),
-      })
-      .from(pageviews)
-      .where(
-        and(
-          condition,
-          sql`${pageviews.country} IS NOT NULL AND ${pageviews.country} != ''`
-        )
-      )
-      .groupBy(pageviews.country, pageviews.city)
-      .orderBy(sql`${count()} DESC`)
-      .limit(10);
-
-    const deviceTypes = await db
-      .select({
-        type: pageviews.deviceType,
-        count: count(),
-      })
-      .from(pageviews)
-      .where(
-        and(
-          condition,
-          sql`${pageviews.deviceType} IS NOT NULL AND ${pageviews.deviceType} != ''`
-        )
-      )
-      .groupBy(pageviews.deviceType)
-      .orderBy(sql`${count()} DESC`);
-
-    const browsers = await db
-      .select({
-        name: pageviews.browser,
-        count: count(),
-      })
-      .from(pageviews)
-      .where(
-        and(
-          condition,
-          sql`${pageviews.browser} IS NOT NULL AND ${pageviews.browser} != ''`
-        )
-      )
-      .groupBy(pageviews.browser)
-      .orderBy(sql`${count()} DESC`)
-      .limit(10);
-
-    const dailyViewsRaw = await db
-      .select({
-        date: sql<string>`DATE(${pageviews.visitedAt})`,
-        views: count(),
-      })
-      .from(pageviews)
-      .where(
-        and(
-          eq(pageviews.profileId, profile.id),
-          gte(pageviews.visitedAt, since)
-        )
-      )
-      .groupBy(sql`DATE(${pageviews.visitedAt})`)
-      .orderBy(sql`DATE(${pageviews.visitedAt}) ASC`);
+    const totalPageviews = parseTrend(totalViews);
+    const uniqueVisitorsCount = parseTrend(uniqueVisitors);
+    const dailyViews = parseDaily(dailyViewsRes);
 
     return Response.json({
-      totalPageviews: Number(totalResult.value) || 0,
-      uniqueVisitors: Number(visitorsResult.value) || 0,
-      avgTimeOnPage: Math.round(Number(avgDurationResult.value) || 0),
-      referrers: (referrers as any[]).map((r) => ({
-        name: r.name,
-        count: Number(r.count),
+      totalPageviews,
+      uniqueVisitors: uniqueVisitorsCount,
+      avgTimeOnPage: 0,
+      referrers: parseBreakdown(referrersRes),
+      utmParams: parseBreakdown(utmSourceRes).map((r) => ({
+        ...r,
+        source: r.name,
+        medium: null,
+        campaign: null,
+        term: null,
+        content: null,
       })),
-      utmParams: (utmSources as any[]).map((u) => ({
-        source: u.source,
-        medium: u.medium,
-        campaign: u.campaign,
-        term: u.term,
-        content: u.content,
-        count: Number(u.count),
+      locations: parseBreakdown(countriesRes).map((l) => ({
+        country: l.name,
+        city: null,
+        count: l.count,
       })),
-      locations: (locations as any[]).map((l) => ({
-        country: l.country,
-        city: l.city,
-        count: Number(l.count),
+      deviceTypes: parseBreakdown(devicesRes).map((d) => ({
+        type: d.name,
+        count: d.count,
       })),
-      deviceTypes: (deviceTypes as any[]).map((d) => ({
-        type: d.type,
-        count: Number(d.count),
-      })),
-      browsers: (browsers as any[]).map((b) => ({
+      browsers: parseBreakdown(browsersRes).map((b) => ({
         name: b.name,
-        count: Number(b.count),
+        count: b.count,
       })),
-      dailyViews: (dailyViewsRaw as any[]).map((d) => ({
-        date: d.date,
-        views: Number(d.views),
-      })),
+      dailyViews,
     });
   } catch (error) {
-    console.error(
-      'Analytics get error:',
-      JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
-    );
+    console.error('Analytics get error:', error);
     return Response.json(
       { error: 'Failed to fetch analytics', detail: String(error) },
       { status: 500 }

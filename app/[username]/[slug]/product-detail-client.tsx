@@ -7,7 +7,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
-import PageviewTracker from '@/components/analytics/pageview-tracker';
 
 const radiusMap: Record<string, string> = {
   none: '0px',
@@ -105,7 +104,6 @@ export default function ProductDetailClient({ profile, product }: Props) {
       className="min-h-screen transition-colors duration-300"
       style={{ background: s.pageBgGradient || s.pageBg }}
     >
-      <PageviewTracker profileId={profile.id} page="product" />
       <div className="max-w-md mx-auto px-4 py-8 sm:py-12">
         {/* Back link */}
         <Link

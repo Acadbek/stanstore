@@ -4,7 +4,6 @@ import { Profile, Product } from '@/lib/db/schema';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
 import { getTheme } from '@/lib/themes';
-import PageviewTracker from '@/components/analytics/pageview-tracker';
 
 const radiusMap: Record<string, string> = {
   none: '0px',
@@ -186,7 +185,6 @@ export default function StorePage({ data }: { data: StoreData }) {
       className="min-h-screen transition-colors duration-300"
       style={{ background: s.pageBgGradient || s.pageBg }}
     >
-      <PageviewTracker profileId={profile.id} page="store" />
       <div className="max-w-5xl mx-auto px-4 py-8 sm:py-0 sm:min-h-screen sm:flex sm:gap-6 sm:items-stretch">
         {/* Profile - fixed center, doesn't scroll */}
         <div
