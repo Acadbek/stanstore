@@ -78,20 +78,16 @@ export default function ProfilePage() {
   };
 
   return (
-    <section className="flex-1 min-h-screen px-4 py-8">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-lg lg:text-2xl font-medium text-gray-900">
-            Profile
-          </h1>
-        </div>
-        <Link href="/dashboard/profile/config">
-          <Button variant="secondary" className="flex items-center gap-2">
-            <Pencil className="h-4 w-4" />
-            Edit Profile
-          </Button>
-        </Link>
-      </div>
+    <section className="flex-1 min-h-screen">
+      <Link href="/dashboard/profile/config">
+        <Button
+          variant="secondary"
+          className="flex items-center gap-2 fixed right-10 top-5"
+        >
+          <Pencil className="h-4 w-4" />
+          Edit Profile
+        </Button>
+      </Link>
       <StorePage data={storeData} />
     </section>
   );

@@ -1465,8 +1465,7 @@ export default function ProfileConfigPage() {
   return (
     <section className="flex-1 lg:p-8">
       <div className="fixed top-0 left-0 right-0 z-10 border-b bg-white/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <h1 className="text-xl font-bold">Edit Profile</h1>
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-end">
           <div className="flex items-center gap-4">
             <Button className="bg-orange-500 hover:bg-orange-600">
               Save Changes
