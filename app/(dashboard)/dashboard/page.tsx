@@ -1,7 +1,5 @@
 'use client';
 
-import useSWR from 'swr';
-import { useState, Suspense } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Eye,
@@ -13,29 +11,6 @@ import {
   Link2,
   MapPin,
 } from 'lucide-react';
-import posthog from 'posthog-js'
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
-type AnalyticsData = {
-  error?: string;
-  totalPageviews: number;
-  uniqueVisitors: number;
-  avgTimeOnPage: number;
-  referrers: { name: string; count: number }[];
-  utmParams: {
-    source: string;
-    medium: string;
-    campaign: string;
-    term: string;
-    content: string;
-    count: number;
-  }[];
-  locations: { country: string; city: string; count: number }[];
-  deviceTypes: { type: string; count: number }[];
-  browsers: { name: string; count: number }[];
-  dailyViews: { date: string; views: number }[];
-};
 
 const dayOptions = [
   { label: '7 kun', value: '7' },
@@ -48,42 +23,6 @@ function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}m ${s}s`;
-}
-
-function SkeletonCard() {
-  return (
-    <Card>
-      <CardContent className="p-6">
-        <div className="animate-pulse space-y-3">
-          <div className="h-4 w-20 bg-gray-200 rounded" />
-          <div className="h-8 w-24 bg-gray-200 rounded" />
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function SkeletonList() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">
-          <div className="animate-pulse h-5 w-32 bg-gray-200 rounded" />
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="animate-pulse space-y-3">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div
-              key={i}
-              className="h-4 bg-gray-200 rounded"
-              style={{ width: `${100 - i * 10}%` }}
-            />
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
 }
 
 function StatCard({
@@ -293,100 +232,25 @@ function UtmCard({
   );
 }
 
-function AnalyticsContent({ days }: { days: string }) {
-  const { data } = useSWR<AnalyticsData>(
-    `/api/analytics?days=${days}`,
-    fetcher,
-    { refreshInterval: 30000 }
-  );
-
-  if (!data || data.error) {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <SkeletonCard key={i} />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {[1, 2, 3, 4].map((i) => (
-            <SkeletonList key={i} />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <button onClick={() => posthog.capture('test_event')}>
-          Click me for an event
-        </button>
-        <StatCard
-          icon={Eye}
-          label="Jami ko'rishlar"
-          value={data.totalPageviews.toLocaleString()}
-        />
-        <StatCard
-          icon={Users}
-          label="Noyob tashriflar"
-          value={data.uniqueVisitors.toLocaleString()}
-        />
-        <StatCard
-          icon={Clock}
-          label="O'rtacha vaqt"
-          value={formatDuration(data.avgTimeOnPage)}
-          subtext="sahifada"
-        />
-        <StatCard
-          icon={Globe}
-          label="Referrers"
-          value={data.referrers.length}
-          subtext="manbalar"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard dailyViews={data.dailyViews} />
-        <UtmCard utmParams={data.utmParams} />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ListCard
-          title="Referrers"
-          icon={Link2}
-          items={data.referrers}
-          renderLabel={(r) => r.name || 'Direct'}
-        />
-        <ListCard
-          title="Davlat va Shahar"
-          icon={MapPin}
-          items={data.locations}
-          renderLabel={(l) => `${l.country}${l.city ? `, ${l.city}` : ''}`}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ListCard
-          title="Qurilma turi"
-          icon={Monitor}
-          items={data.deviceTypes}
-          renderLabel={(d) => d.type}
-        />
-        <ListCard
-          title="Brauzer"
-          icon={Globe}
-          items={data.browsers}
-          renderLabel={(b) => b.name}
-        />
-      </div>
-    </div>
-  );
-}
-
 export default function DashboardPage() {
-  const [days, setDays] = useState('30');
+  const emptyData = {
+    totalPageviews: 0,
+    uniqueVisitors: 0,
+    avgTimeOnPage: 0,
+    referrers: [] as { name: string; count: number }[],
+    utmParams: [] as {
+      source: string;
+      medium: string;
+      campaign: string;
+      term: string;
+      content: string;
+      count: number;
+    }[],
+    locations: [] as { country: string; city: string; count: number }[],
+    deviceTypes: [] as { type: string; count: number }[],
+    browsers: [] as { name: string; count: number }[],
+    dailyViews: [] as { date: string; views: number }[],
+  };
 
   return (
     <section className="flex-1 lg:p-8">
@@ -398,11 +262,7 @@ export default function DashboardPage() {
           {dayOptions.map((opt) => (
             <button
               key={opt.value}
-              onClick={() => setDays(opt.value)}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${days === opt.value
-                  ? 'bg-white text-gray-900 shadow-sm font-medium'
-                  : 'text-gray-500 hover:text-gray-700'
-                }`}
+              className="px-3 py-1.5 text-sm rounded-md transition-colors text-gray-500 hover:text-gray-700"
             >
               {opt.label}
             </button>
@@ -410,9 +270,67 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <Suspense fallback={null}>
-        <AnalyticsContent days={days} />
-      </Suspense>
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            icon={Eye}
+            label="Jami ko'rishlar"
+            value={emptyData.totalPageviews.toLocaleString()}
+          />
+          <StatCard
+            icon={Users}
+            label="Noyob tashriflar"
+            value={emptyData.uniqueVisitors.toLocaleString()}
+          />
+          <StatCard
+            icon={Clock}
+            label="O'rtacha vaqt"
+            value={formatDuration(emptyData.avgTimeOnPage)}
+            subtext="sahifada"
+          />
+          <StatCard
+            icon={Globe}
+            label="Referrers"
+            value={emptyData.referrers.length}
+            subtext="manbalar"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ChartCard dailyViews={emptyData.dailyViews} />
+          <UtmCard utmParams={emptyData.utmParams} />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ListCard
+            title="Referrers"
+            icon={Link2}
+            items={emptyData.referrers}
+            renderLabel={(r) => r.name || 'Direct'}
+          />
+          <ListCard
+            title="Davlat va Shahar"
+            icon={MapPin}
+            items={emptyData.locations}
+            renderLabel={(l) => `${l.country}${l.city ? `, ${l.city}` : ''}`}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ListCard
+            title="Qurilma turi"
+            icon={Monitor}
+            items={emptyData.deviceTypes}
+            renderLabel={(d) => d.type}
+          />
+          <ListCard
+            title="Brauzer"
+            icon={Globe}
+            items={emptyData.browsers}
+            renderLabel={(b) => b.name}
+          />
+        </div>
+      </div>
     </section>
   );
 }
