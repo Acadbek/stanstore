@@ -3,21 +3,22 @@ import type { Metadata, Viewport } from 'next';
 import { Manrope } from 'next/font/google';
 import { getUser, getTeamForUser } from '@/lib/db/queries';
 import { SWRConfig } from 'swr';
-import { TooltipProvider } from "@/components/ui/tooltip"
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { PostHogProvider } from './providers';
 
 export const metadata: Metadata = {
   title: 'Next.js SaaS Starter',
-  description: 'Get started quickly with Next.js, Postgres, and Stripe.'
+  description: 'Get started quickly with Next.js, Postgres, and Stripe.',
 };
 
 export const viewport: Viewport = {
-  maximumScale: 1
+  maximumScale: 1,
 };
 
 const manrope = Manrope({ subsets: ['latin'] });
 
 export default function RootLayout({
-  children
+  children,
 }: {
   children: React.ReactNode;
 }) {
@@ -27,18 +28,20 @@ export default function RootLayout({
       className={`bg-white dark:bg-gray-950 text-black dark:text-white ${manrope.className}`}
     >
       <body className="bg-gray-50 h-full">
-        <SWRConfig
-          value={{
-            fallback: {
-              // We do NOT await here
-              // Only components that read this data will suspend
-              '/api/user': getUser(),
-              '/api/team': getTeamForUser()
-            }
-          }}
-        >
-          <TooltipProvider>{children}</TooltipProvider>
-        </SWRConfig>
+        <PostHogProvider>
+          <SWRConfig
+            value={{
+              fallback: {
+                // We do NOT await here
+                // Only components that read this data will suspend
+                '/api/user': getUser(),
+                '/api/team': getTeamForUser(),
+              },
+            }}
+          >
+            <TooltipProvider>{children}</TooltipProvider>
+          </SWRConfig>
+        </PostHogProvider>
       </body>
     </html>
   );
