@@ -22,15 +22,19 @@ async function posthogQuery(query: {
   intervals?: string;
   limit?: number;
 }) {
-  const token = process.env.NEXT_PUBLIC_POSTHOG_TOKEN;
+  const apiKey = process.env.POSTHOG_PERSONAL_API_KEY;
   const host =
     process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com';
+
+  if (!apiKey) {
+    throw new Error('POSTHOG_PERSONAL_API_KEY is not set');
+  }
 
   const res = await fetch(`${host}/api/projects/@current/insights/query/`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(query),
   });

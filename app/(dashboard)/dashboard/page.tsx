@@ -13,6 +13,7 @@ import {
   Link2,
   MapPin,
 } from 'lucide-react';
+import posthog from 'posthog-js'
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -319,6 +320,9 @@ function AnalyticsContent({ days }: { days: string }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <button onClick={() => posthog.capture('test_event')}>
+          Click me for an event
+        </button>
         <StatCard
           icon={Eye}
           label="Jami ko'rishlar"
@@ -395,11 +399,10 @@ export default function DashboardPage() {
             <button
               key={opt.value}
               onClick={() => setDays(opt.value)}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                days === opt.value
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${days === opt.value
                   ? 'bg-white text-gray-900 shadow-sm font-medium'
                   : 'text-gray-500 hover:text-gray-700'
-              }`}
+                }`}
             >
               {opt.label}
             </button>
