@@ -48,8 +48,10 @@ import {
   Trash2,
   ChevronDown,
   GalleryHorizontal,
+  Sparkles,
+  X,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { generateReactHelpers } from '@uploadthing/react';
 import type { OurFileRouter } from '@/lib/uploadthing';
 
@@ -62,6 +64,20 @@ type RichEditorProps = {
 };
 
 type QuoteStyle = 'line' | 'double';
+
+type SelectionHint = {
+  from: number;
+  to: number;
+  text: string;
+  x: number;
+  y: number;
+};
+
+type AiSuggestion = {
+  id: string;
+  label: string;
+  text: string;
+};
 
 function ToolbarButton({
   onClick,
@@ -100,6 +116,34 @@ function normalizeLinkHref(href: string) {
   return `https://${trimmed}`;
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function toSentenceCase(value: string) {
+  if (!value) return value;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function buildAiSuggestions(selectedText: string): AiSuggestion[] {
+  const compact = selectedText.replace(/\s+/g, ' ').trim();
+  const short =
+    compact.length > 120 ? `${compact.slice(0, 117).trimEnd()}...` : compact;
+  const benefit = toSentenceCase(
+    `perfect for customers who want ${short.charAt(0).toLowerCase()}${short.slice(1)}`
+  );
+  const cta = short.endsWith('.')
+    ? `${short} Grab it now.`
+    : `${short}. Grab it now.`;
+
+  return [
+    { id: 'original', label: 'Original', text: compact },
+    { id: 'short', label: 'Short', text: short },
+    { id: 'benefit', label: 'Benefit Focus', text: benefit },
+    { id: 'cta', label: 'CTA', text: cta },
+  ];
+}
+
 export default function RichEditor({
   content,
   onChange,
@@ -121,6 +165,9 @@ export default function RichEditor({
     wasLinkActive: boolean;
     selectedText: string;
   } | null>(null);
+  const editorRootRef = useRef<HTMLDivElement>(null);
+  const [selectionHint, setSelectionHint] = useState<SelectionHint | null>(null);
+  const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -291,6 +338,98 @@ export default function RichEditor({
     return () => window.removeEventListener('tiptap-open-link-modal', onOpen);
   }, [openLinkModal]);
 
+  const updateSelectionHint = useCallback(() => {
+    if (!editor || !editorRootRef.current) return;
+
+    const { from, to, empty } = editor.state.selection;
+    if (empty || from === to) {
+      setSelectionHint(null);
+      setIsAiPanelOpen(false);
+      return;
+    }
+
+    const selectedText = editor.state.doc
+      .textBetween(from, to, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!selectedText) {
+      setSelectionHint(null);
+      setIsAiPanelOpen(false);
+      return;
+    }
+
+    const rootRect = editorRootRef.current.getBoundingClientRect();
+    const start = editor.view.coordsAtPos(from);
+    const end = editor.view.coordsAtPos(to);
+    const centerX = (start.left + end.right) / 2;
+    const topY = Math.min(start.top, end.top);
+
+    setSelectionHint({
+      from,
+      to,
+      text: selectedText,
+      x: centerX - rootRect.left,
+      y: topY - rootRect.top - 10,
+    });
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleSelectionUpdate = () => {
+      setIsAiPanelOpen(false);
+      updateSelectionHint();
+    };
+
+    editor.on('selectionUpdate', handleSelectionUpdate);
+    editor.on('blur', handleSelectionUpdate);
+
+    return () => {
+      editor.off('selectionUpdate', handleSelectionUpdate);
+      editor.off('blur', handleSelectionUpdate);
+    };
+  }, [editor, updateSelectionHint]);
+
+  useEffect(() => {
+    if (!selectionHint) return;
+
+    const updatePosition = () => updateSelectionHint();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [selectionHint, updateSelectionHint]);
+
+  const aiSuggestions = useMemo(
+    () => (selectionHint ? buildAiSuggestions(selectionHint.text) : []),
+    [selectionHint]
+  );
+
+  const openAiPanel = useCallback(() => {
+    if (!selectionHint) return;
+    setIsAiPanelOpen(true);
+  }, [selectionHint]);
+
+  const applyAiSuggestion = useCallback(
+    (suggestion: string) => {
+      if (!editor || !selectionHint) return;
+
+      editor
+        .chain()
+        .focus()
+        .insertContentAt({ from: selectionHint.from, to: selectionHint.to }, suggestion)
+        .run();
+
+      setIsAiPanelOpen(false);
+      setSelectionHint(null);
+    },
+    [editor, selectionHint]
+  );
+
   const addHorizontalRule = useCallback(() => {
     if (!editor) return;
     editor.chain().focus().setHorizontalRule().run();
@@ -321,8 +460,22 @@ export default function RichEditor({
 
   if (!editor) return null;
 
+  const rootWidth = editorRootRef.current?.clientWidth ?? 560;
+  const aiPanelWidth = Math.min(420, Math.max(280, rootWidth - 16));
+  const aiHintX = selectionHint
+    ? clamp(selectionHint.x, 30, Math.max(30, rootWidth - 30))
+    : 30;
+  const aiPanelLeft = selectionHint
+    ? clamp(
+        aiHintX - aiPanelWidth / 2,
+        8,
+        Math.max(8, rootWidth - aiPanelWidth - 8)
+      )
+    : 8;
+  const aiPanelTop = selectionHint ? Math.max(selectionHint.y + 26, 56) : 56;
+
   return (
-    <div className="rounded-xl border border-gray-200 bg-white relative">
+    <div ref={editorRootRef} className="rounded-xl border border-gray-200 bg-white relative">
       <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-gray-100 bg-gray-50/80 sticky top-0 z-10">
         <div className="flex items-center gap-0.5">
           <ToolbarButton
@@ -590,6 +743,79 @@ export default function RichEditor({
         </DragHandle>
         <EditorContent editor={editor} />
       </div>
+
+      {selectionHint && (
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={openAiPanel}
+          className="absolute z-30 inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-white px-3 py-1 text-xs font-medium text-orange-600 shadow-sm hover:bg-orange-50"
+          style={{
+            left: `${aiHintX}px`,
+            top: `${Math.max(selectionHint.y, 42)}px`,
+            transform: 'translate(-50%, -100%)',
+          }}
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          AI
+        </button>
+      )}
+
+      {selectionHint && isAiPanelOpen && (
+        <div
+          className="absolute z-30 rounded-xl border border-orange-100 bg-white p-3 shadow-lg"
+          style={{
+            top: `${aiPanelTop}px`,
+            left: `${aiPanelLeft}px`,
+            width: `${aiPanelWidth}px`,
+          }}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-gray-900">AI Suggestions</p>
+              <p className="text-xs text-gray-500 truncate">{selectionHint.text}</p>
+            </div>
+            <button
+              type="button"
+              aria-label="Close AI panel"
+              className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              onClick={() => setIsAiPanelOpen(false)}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="overflow-hidden rounded-lg border border-gray-200">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-gray-50 text-gray-500">
+                <tr>
+                  <th className="px-2.5 py-2 font-medium">Style</th>
+                  <th className="px-2.5 py-2 font-medium">Preview</th>
+                  <th className="px-2.5 py-2 font-medium text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {aiSuggestions.map((suggestion) => (
+                  <tr key={suggestion.id} className="border-t border-gray-100 align-top">
+                    <td className="px-2.5 py-2 text-gray-800">{suggestion.label}</td>
+                    <td className="px-2.5 py-2 text-gray-600">{suggestion.text}</td>
+                    <td className="px-2.5 py-2 text-right">
+                      <button
+                        type="button"
+                        className="rounded-md border border-orange-200 px-2 py-1 text-[11px] font-medium text-orange-600 hover:bg-orange-50"
+                        onClick={() => applyAiSuggestion(suggestion.text)}
+                      >
+                        Use
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {isLinkModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

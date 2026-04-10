@@ -5,14 +5,11 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
-  Users,
-  Shield,
-  Activity,
+  LayoutDashboard,
+  Settings,
   Menu,
   UserCircle,
   Package,
-  ChevronLeft,
-  ChevronRight,
   PanelLeft,
 } from 'lucide-react';
 import {
@@ -22,7 +19,8 @@ import {
 } from '@/components/ui/tooltip';
 
 const navItems = [
-  { href: '/dashboard', icon: Users, label: 'Team' },
+  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
   {
     href: '/dashboard/profile',
     icon: UserCircle,
@@ -30,9 +28,6 @@ const navItems = [
     matchPrefix: true,
   },
   { href: '/dashboard/products', icon: Package, label: 'Products' },
-  { href: '/dashboard/general', icon: Shield, label: 'General' },
-  { href: '/dashboard/activity', icon: Activity, label: 'Activity' },
-  { href: '/dashboard/security', icon: Shield, label: 'Security' },
 ];
 
 export default function DashboardLayout({
