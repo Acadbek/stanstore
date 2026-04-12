@@ -1,9 +1,11 @@
 'use client';
 
+import { useEffect } from 'react';
 import { Profile, Product } from '@/lib/db/schema';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
 import { getTheme } from '@/lib/themes';
+import posthog from 'posthog-js';
 
 const radiusMap: Record<string, string> = {
   none: '0px',
@@ -120,6 +122,16 @@ function ProductLink({
   username: string | null;
   children: React.ReactNode;
 }) {
+  function handleClick() {
+    posthog.capture('product_click', {
+      productId: product.id,
+      productTitle: product.title,
+      productType: product.type,
+      productPrice: product.price,
+      username,
+    });
+  }
+
   if (product.type === 'link' && product.productUrl) {
     return (
       <a
@@ -127,13 +139,18 @@ function ProductLink({
         target="_blank"
         rel="noopener noreferrer"
         className="block"
+        onClick={handleClick}
       >
         {children}
       </a>
     );
   }
   return (
-    <Link href={`/${username}/${product.slug}`} className="block">
+    <Link
+      href={`/${username}/${product.slug}`}
+      className="block"
+      onClick={handleClick}
+    >
       {children}
     </Link>
   );
@@ -146,6 +163,13 @@ export default function StorePage({ data }: { data: StoreData }) {
   const r = getRadius(profile.borderRadius);
   const br = getRadius(profile.buttonBorderRadius);
   const socialLinks = profile.socialLinks as SocialLinks | null;
+
+  useEffect(() => {
+    posthog.capture('store_visit', {
+      username: profile.username,
+      displayName: profile.displayName,
+    });
+  }, [profile.username, profile.displayName]);
 
   const socialItems: {
     url: string | null | undefined;

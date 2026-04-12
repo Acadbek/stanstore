@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
+import posthog from 'posthog-js';
 
 const radiusMap: Record<string, string> = {
   none: '0px',
@@ -30,6 +31,22 @@ export default function ProductDetailClient({ profile, product }: Props) {
   const cr = getRadius(profile.borderRadius);
   const br = getRadius(profile.buttonBorderRadius);
   const descriptionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    posthog.capture('product_view', {
+      productId: product.id,
+      productTitle: product.title,
+      productType: product.type,
+      productPrice: product.price,
+      username: profile.username,
+    });
+  }, [
+    product.id,
+    product.title,
+    product.type,
+    product.price,
+    profile.username,
+  ]);
 
   useEffect(() => {
     const root = descriptionRef.current;
@@ -91,6 +108,32 @@ export default function ProductDetailClient({ profile, product }: Props) {
       shell.appendChild(nextButton);
 
       carousel.dataset.carouselReady = 'true';
+    });
+  }, [product.description]);
+
+  useEffect(() => {
+    const root = descriptionRef.current;
+    if (!root) return;
+
+    const embeds = Array.from(
+      root.querySelectorAll<HTMLElement>('[data-youtube-embed]')
+    );
+
+    embeds.forEach((el) => {
+      if (el.dataset.ytReady === 'true') return;
+      const src = el.getAttribute('src') || el.getAttribute('data-src');
+      if (!src) return;
+
+      const iframe = document.createElement('iframe');
+      iframe.src = src;
+      iframe.allow =
+        'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+      iframe.allowFullscreen = true;
+      iframe.loading = 'lazy';
+
+      el.innerHTML = '';
+      el.appendChild(iframe);
+      el.dataset.ytReady = 'true';
     });
   }, [product.description]);
 
@@ -192,6 +235,15 @@ export default function ProductDetailClient({ profile, product }: Props) {
               color: s.buttonText,
               borderRadius: br,
             }}
+            onClick={() => {
+              posthog.capture('product_get', {
+                productId: product.id,
+                productTitle: product.title,
+                productType: product.type,
+                productPrice: product.price,
+                username: profile.username,
+              });
+            }}
           >
             Get this product
             <ExternalLink className="h-4 w-4" />
@@ -203,6 +255,15 @@ export default function ProductDetailClient({ profile, product }: Props) {
               background: s.buttonBg,
               color: s.buttonText,
               borderRadius: br,
+            }}
+            onClick={() => {
+              posthog.capture('product_get', {
+                productId: product.id,
+                productTitle: product.title,
+                productType: product.type,
+                productPrice: product.price,
+                username: profile.username,
+              });
             }}
           >
             Get this product

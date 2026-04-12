@@ -11,13 +11,8 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Loader2, PlusCircle, Eye, EyeOff, Trash2, Pencil } from 'lucide-react';
-import {
-  createProduct,
-  updateProduct,
-  deleteProduct,
-  toggleProductPublish,
-} from './actions';
+import { Loader2, PlusCircle, Eye, EyeOff, Trash2, Pencil, LayoutGrid, List } from 'lucide-react';
+import { createProduct, updateProduct, deleteProduct, toggleProductPublish } from './actions';
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { Product } from '@/lib/db/schema';
 import useSWR, { mutate } from 'swr';
@@ -334,7 +329,70 @@ function ProductCard({
   );
 }
 
-function ProductList({ onEdit }: { onEdit: (product: Product) => void }) {
+function ProductGridCard({
+  product,
+  onEdit,
+}: {
+  product: Product;
+  onEdit: (product: Product) => void;
+}) {
+  return (
+    <Card className={`group ${product.isPublished ? '' : 'opacity-60'}`}>
+      <div className="relative aspect-video overflow-hidden rounded-t-xl bg-gray-100">
+        {product.imageUrl ? (
+          <img
+            src={product.imageUrl}
+            alt={product.title}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center">
+            <span className="text-white text-4xl font-bold">
+              {product.title[0]?.toUpperCase()}
+            </span>
+          </div>
+        )}
+        <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="bg-white/80 hover:bg-white text-gray-400 hover:text-gray-700 h-7 w-7"
+            onClick={() => onEdit(product)}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <TogglePublishButton product={product} />
+          <DeleteProductButton productId={product.id} />
+        </div>
+      </div>
+      <CardContent className="p-4">
+        <h3 className="font-semibold text-sm text-gray-900 truncate">
+          {product.title}
+        </h3>
+        {product.description && (
+          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+            {product.description}
+          </p>
+        )}
+        <div className="flex items-center gap-2 mt-2">
+          <span className="text-xs font-medium text-gray-900">
+            {product.price ? `$${(product.price / 100).toFixed(2)}` : 'Free'}
+          </span>
+          <span className="text-xs text-gray-400 uppercase">{product.type}</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProductList({
+  onEdit,
+  viewMode,
+}: {
+  onEdit: (product: Product) => void;
+  viewMode: 'list' | 'grid';
+}) {
   const { data: products } = useSWR<Product[]>('/api/products', fetcher);
 
   if (!products?.length) {
@@ -342,6 +400,16 @@ function ProductList({ onEdit }: { onEdit: (product: Product) => void }) {
       <div className="text-center py-12 text-muted-foreground">
         <p className="text-lg font-medium mb-2">No products yet</p>
         <p className="text-sm">Add your first product to start selling.</p>
+      </div>
+    );
+  }
+
+  if (viewMode === 'grid') {
+    return (
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        {products.map((product) => (
+          <ProductGridCard key={product.id} product={product} onEdit={onEdit} />
+        ))}
       </div>
     );
   }
@@ -369,6 +437,7 @@ function ProductSkeleton() {
 export default function ProductsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
   const isFormOpen = showForm || editingProduct !== null;
 
   return (
@@ -378,15 +447,37 @@ export default function ProductsPage() {
           <h1 className="text-lg lg:text-2xl font-medium text-gray-900">
             Products
           </h1>
-          {!showForm && !editingProduct && (
-            <Button
-              onClick={() => setShowForm(true)}
-              className="bg-orange-500 hover:bg-orange-600 text-white"
-            >
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Add Product
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center border rounded-lg overflow-hidden">
+              <Button
+                type="button"
+                variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                size="icon"
+                className={`h-8 w-8 rounded-none ${viewMode === 'grid' ? 'bg-orange-500 hover:bg-orange-600 text-white' : ''}`}
+                onClick={() => setViewMode('grid')}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="icon"
+                className={`h-8 w-8 rounded-none ${viewMode === 'list' ? 'bg-orange-500 hover:bg-orange-600 text-white' : ''}`}
+                onClick={() => setViewMode('list')}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+            {!showForm && !editingProduct && (
+              <Button
+                onClick={() => setShowForm(true)}
+                className="bg-orange-500 hover:bg-orange-600 text-white"
+              >
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add Product
+              </Button>
+            )}
+          </div>
         </div>
 
         <Suspense fallback={<ProductSkeleton />}>
@@ -408,7 +499,7 @@ export default function ProductsPage() {
               />
             )}
 
-            <ProductList onEdit={(product) => setEditingProduct(product)} />
+            <ProductList onEdit={(product) => setEditingProduct(product)} viewMode={viewMode} />
           </div>
         </Suspense>
       </section>
