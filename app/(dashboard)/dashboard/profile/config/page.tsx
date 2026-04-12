@@ -6,6 +6,7 @@ import {
   useEffect,
   useCallback,
   useRef,
+  type RefObject,
 } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,6 +53,7 @@ import useSWR, { mutate } from 'swr';
 import { Suspense } from 'react';
 import { generateReactHelpers } from '@uploadthing/react';
 import type { OurFileRouter } from '@/lib/uploadthing';
+import Link from 'next/link';
 
 const { useUploadThing } = generateReactHelpers<OurFileRouter>();
 
@@ -66,6 +68,8 @@ type ActionState = {
   error?: string;
   success?: string;
 };
+
+const PROFILE_FORM_ID = 'profile-config-form';
 
 const borderRadiusOptions = [
   { id: 'none', label: 'None', css: '0px' },
@@ -875,11 +879,15 @@ function ProfileForm({
   initialData,
   formAction,
   isPending,
+  formRef,
+  formId,
 }: {
   state: ActionState;
   initialData?: ProfileData;
   formAction: (formData: FormData) => void;
   isPending: boolean;
+  formRef: RefObject<HTMLFormElement | null>;
+  formId: string;
 }) {
   const profile = initialData?.profile;
   const socialLinks = profile?.socialLinks as Record<
@@ -888,7 +896,12 @@ function ProfileForm({
   > | null;
 
   return (
-    <form className="space-y-8" action={formAction}>
+    <form
+      id={formId}
+      ref={formRef}
+      className="space-y-8"
+      action={formAction}
+    >
       <Card>
         <CardHeader>
           <CardTitle>Basic Information</CardTitle>
@@ -1066,6 +1079,8 @@ function ProfileFormWithData({
   state,
   formAction,
   isPending,
+  formRef,
+  formId,
 }: {
   selectedTheme: string;
   selectedRadius: string;
@@ -1075,6 +1090,8 @@ function ProfileFormWithData({
   state: ActionState;
   formAction: (formData: FormData) => void;
   isPending: boolean;
+  formRef: RefObject<HTMLFormElement | null>;
+  formId: string;
 }) {
   const { data } = useSWR<ProfileData>('/api/profile', fetcher);
 
@@ -1103,6 +1120,8 @@ function ProfileFormWithData({
       initialData={data}
       formAction={wrappedFormAction}
       isPending={isPending}
+      formRef={formRef}
+      formId={formId}
     />
   );
 }
@@ -1428,6 +1447,7 @@ export default function ProfileConfigPage() {
     },
     {}
   );
+  const profileFormRef = useRef<HTMLFormElement>(null);
 
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
   const [selectedRadius, setSelectedRadius] = useState<string | null>(null);
@@ -1438,6 +1458,12 @@ export default function ProfileConfigPage() {
   const [cardTemplate, setCardTemplate] = useState<string>('standard');
 
   const { data } = useSWR<ProfileData>('/api/profile', fetcher);
+
+  useEffect(() => {
+    if (state.success) {
+      mutate('/api/profile');
+    }
+  }, [state.success]);
 
   useEffect(() => {
     if (data?.profile) {
@@ -1467,15 +1493,39 @@ export default function ProfileConfigPage() {
       <div className="fixed top-0 left-0 right-0 z-10 border-b bg-white/80 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-end">
           <div className="flex items-center gap-4">
-            <Button className="bg-orange-500 hover:bg-orange-600">
-              Save Changes
+            <Button
+              type="button"
+              className="bg-orange-500 hover:bg-orange-600"
+              disabled={isPending || !isReady}
+              onClick={() => profileFormRef.current?.requestSubmit()}
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
             </Button>
-            <Button variant="ghost">Back to Profile</Button>
+            <Button variant="ghost" asChild>
+              <Link href="/dashboard/profile">Back to Profile</Link>
+            </Button>
           </div>
         </div>
       </div>
       <Suspense fallback={<ProfileSkeleton />}>
         <div className="space-y-6 pt-16">
+          {state.error && (
+            <p className="text-sm text-red-600" aria-live="polite">
+              {state.error}
+            </p>
+          )}
+          {state.success && (
+            <p className="text-sm text-green-600" aria-live="polite">
+              {state.success}
+            </p>
+          )}
           <AvatarSection />
 
           {isReady && (
@@ -1515,6 +1565,8 @@ export default function ProfileConfigPage() {
             state={state}
             formAction={formAction}
             isPending={isPending}
+            formRef={profileFormRef}
+            formId={PROFILE_FORM_ID}
           />
         </div>
       </Suspense>

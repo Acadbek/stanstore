@@ -73,6 +73,12 @@ type SelectionHint = {
   y: number;
 };
 
+type InlineCompletion = {
+  text: string;
+  from: number;
+  contextKey: string;
+};
+
 type AiSuggestion = {
   id: string;
   label: string;
@@ -144,6 +150,66 @@ function buildAiSuggestions(selectedText: string): AiSuggestion[] {
   ];
 }
 
+function normalizeWhitespace(value: string) {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function buildLocalContinuation(currentBlock: string, contextBefore: string) {
+  const source = normalizeWhitespace(currentBlock || contextBefore);
+  if (!source) return '';
+
+  const lower = source.toLowerCase();
+
+  if (lower.includes('perfect for') || lower.includes('ideal for')) {
+    return ' and helps your customers get results faster.';
+  }
+
+  if (lower.includes('template')) {
+    return ' with a ready-to-use structure you can customize in minutes.';
+  }
+
+  if (lower.includes('guide') || lower.includes('course')) {
+    return ' with clear steps that make it easy to follow and apply.';
+  }
+
+  if (lower.includes('checklist')) {
+    return ' so nothing important gets missed along the way.';
+  }
+
+  if (/[.!?]$/.test(source)) {
+    return ' Designed to save time and keep things simple.';
+  }
+
+  return ' that saves time and makes the next step easier.';
+}
+
+function getCompletionContext(editor: NonNullable<ReturnType<typeof useEditor>>) {
+  const { from, empty } = editor.state.selection;
+  if (!empty) return null;
+
+  const fullText = normalizeWhitespace(
+    editor.state.doc.textBetween(0, from, '\n', '\n')
+  );
+  const currentBlock = normalizeWhitespace(
+    editor.state.selection.$from.parent.textBetween(
+      0,
+      editor.state.selection.$from.parent.content.size,
+      ' ',
+      ' '
+    )
+  );
+
+  if (fullText.length < 8) return null;
+
+  const recentContext = fullText.slice(-900);
+  return {
+    from,
+    contextBefore: recentContext,
+    currentBlock: currentBlock.slice(-240),
+    contextKey: `${from}:${recentContext.slice(-120)}:${currentBlock.slice(-80)}`,
+  };
+}
+
 export default function RichEditor({
   content,
   onChange,
@@ -168,6 +234,16 @@ export default function RichEditor({
   const editorRootRef = useRef<HTMLDivElement>(null);
   const [selectionHint, setSelectionHint] = useState<SelectionHint | null>(null);
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
+  const [inlineCompletion, setInlineCompletion] = useState<InlineCompletion | null>(null);
+  const [isInlineCompletionLoading, setIsInlineCompletionLoading] = useState(false);
+  const [inlineCompletionError, setInlineCompletionError] = useState<string | null>(null);
+  const [inlineCompletionSource, setInlineCompletionSource] = useState<'local' | 'ai' | null>(null);
+  const [editorText, setEditorText] = useState('');
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const inlineCompletionRef = useRef<InlineCompletion | null>(null);
+  const completionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completionAbortRef = useRef<AbortController | null>(null);
+  const completionRequestIdRef = useRef(0);
 
   const editor = useEditor({
     extensions: [
@@ -211,6 +287,10 @@ export default function RichEditor({
     ],
     content,
     onUpdate: ({ editor }) => {
+      setEditorText(
+        normalizeWhitespace(editor.state.doc.textBetween(0, editor.state.doc.content.size, '\n', '\n'))
+      );
+      setCursorPosition(editor.state.selection.from);
       onChange(editor.getHTML());
     },
     editorProps: {
@@ -248,6 +328,23 @@ export default function RichEditor({
     window.addEventListener('tiptap-open-image-picker', onOpenImagePicker);
     return () => window.removeEventListener('tiptap-open-image-picker', onOpenImagePicker);
   }, [addImage]);
+
+  const clearInlineCompletion = useCallback(() => {
+    if (completionTimerRef.current) {
+      clearTimeout(completionTimerRef.current);
+      completionTimerRef.current = null;
+    }
+    completionAbortRef.current?.abort();
+    completionAbortRef.current = null;
+    setIsInlineCompletionLoading(false);
+    setInlineCompletionError(null);
+    setInlineCompletionSource(null);
+    setInlineCompletion(null);
+  }, []);
+
+  useEffect(() => {
+    inlineCompletionRef.current = inlineCompletion;
+  }, [inlineCompletion]);
 
   const closeLinkModal = useCallback(() => {
     linkModalContextRef.current = null;
@@ -430,6 +527,19 @@ export default function RichEditor({
     [editor, selectionHint]
   );
 
+  const applyInlineCompletion = useCallback(() => {
+    const completion = inlineCompletionRef.current;
+    if (!editor || !completion) return;
+
+    editor
+      .chain()
+      .focus()
+      .insertContent(completion.text)
+      .run();
+
+    clearInlineCompletion();
+  }, [clearInlineCompletion, editor]);
+
   const addHorizontalRule = useCallback(() => {
     if (!editor) return;
     editor.chain().focus().setHorizontalRule().run();
@@ -458,6 +568,150 @@ export default function RichEditor({
     [editor]
   );
 
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleSelectionUpdate = () => {
+      if (!editor.state.selection.empty) {
+        clearInlineCompletion();
+        return;
+      }
+
+      setCursorPosition(editor.state.selection.from);
+    };
+
+    editor.on('selectionUpdate', handleSelectionUpdate);
+
+    const dom = editor.view.dom;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Tab' && inlineCompletionRef.current) {
+        event.preventDefault();
+        applyInlineCompletion();
+      }
+
+      if (event.key === 'Escape' && inlineCompletionRef.current) {
+        event.preventDefault();
+        clearInlineCompletion();
+      }
+    };
+
+    dom.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      editor.off('selectionUpdate', handleSelectionUpdate);
+      dom.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [applyInlineCompletion, clearInlineCompletion, editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+    if (!editor.isFocused || !editor.state.selection.empty) return;
+
+    const context = getCompletionContext(editor);
+    if (!context) {
+      clearInlineCompletion();
+      return;
+    }
+
+    if (inlineCompletion?.contextKey === context.contextKey) {
+      return;
+    }
+
+    if (completionTimerRef.current) {
+      clearTimeout(completionTimerRef.current);
+    }
+
+    completionAbortRef.current?.abort();
+    setInlineCompletionError(null);
+
+    completionTimerRef.current = setTimeout(async () => {
+      const requestId = completionRequestIdRef.current + 1;
+      completionRequestIdRef.current = requestId;
+
+      const fallback = buildLocalContinuation(
+        context.currentBlock,
+        context.contextBefore
+      );
+
+      const applySuggestion = (
+        suggestion: string,
+        source: 'local' | 'ai',
+        error?: string
+      ) => {
+        if (completionRequestIdRef.current !== requestId) return;
+        if (!suggestion) {
+          setInlineCompletion(null);
+          setInlineCompletionError(error || 'No continuation available yet.');
+          setInlineCompletionSource(null);
+          setIsInlineCompletionLoading(false);
+          return;
+        }
+
+        setInlineCompletion({
+          text:
+            suggestion.startsWith('.') || suggestion.startsWith(',')
+              ? suggestion
+              : ` ${suggestion}`,
+          from: context.from,
+          contextKey: context.contextKey,
+        });
+        setInlineCompletionSource(source);
+        setInlineCompletionError(error || null);
+      };
+
+      applySuggestion(fallback, 'local');
+      setIsInlineCompletionLoading(true);
+
+      const controller = new AbortController();
+      completionAbortRef.current = controller;
+
+      try {
+        const response = await fetch('/api/editor/continue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contextBefore: context.contextBefore,
+            currentBlock: context.currentBlock,
+          }),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          applySuggestion(
+            fallback,
+            'local',
+            'AI unavailable, showing local suggestion.'
+          );
+          setIsInlineCompletionLoading(false);
+          return;
+        }
+
+        const data = (await response.json()) as { suggestion?: string; source?: 'local' | 'ai' };
+        const remoteSuggestion = normalizeWhitespace(data.suggestion || '');
+        applySuggestion(
+          remoteSuggestion || fallback,
+          data.source === 'ai' && remoteSuggestion ? 'ai' : 'local',
+          remoteSuggestion ? undefined : 'Using local continuation.'
+        );
+        setIsInlineCompletionLoading(false);
+      } catch (error) {
+        if ((error as Error).name === 'AbortError') return;
+        applySuggestion(
+          fallback,
+          'local',
+          'AI unavailable, showing local suggestion.'
+        );
+        setIsInlineCompletionLoading(false);
+      }
+    }, 900);
+  }, [
+    clearInlineCompletion,
+    cursorPosition,
+    editor,
+    editorText,
+    inlineCompletion?.contextKey,
+  ]);
+
   if (!editor) return null;
 
   const rootWidth = editorRootRef.current?.clientWidth ?? 560;
@@ -473,6 +727,8 @@ export default function RichEditor({
       )
     : 8;
   const aiPanelTop = selectionHint ? Math.max(selectionHint.y + 26, 56) : 56;
+  const shouldShowInlineBar =
+    Boolean(inlineCompletion) || isInlineCompletionLoading || Boolean(inlineCompletionError);
 
   return (
     <div ref={editorRootRef} className="rounded-xl border border-gray-200 bg-white relative">
@@ -743,6 +999,49 @@ export default function RichEditor({
         </DragHandle>
         <EditorContent editor={editor} />
       </div>
+
+      {shouldShowInlineBar && (
+        <div className="flex items-center gap-2 border-t border-orange-100 bg-orange-50/70 px-3 py-2 text-xs">
+          <Sparkles className="h-3.5 w-3.5 shrink-0 text-orange-500" />
+          <div className="min-w-0 flex-1 text-gray-600">
+            {inlineCompletion ? (
+              <span className="truncate">
+                Suggestion:
+                <span className="ml-1 text-gray-500">{inlineCompletion.text}</span>
+                {inlineCompletionSource && (
+                  <span className="ml-2 rounded-full border border-orange-200 bg-white px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-orange-600">
+                    {inlineCompletionSource}
+                  </span>
+                )}
+              </span>
+            ) : isInlineCompletionLoading ? (
+              <span>AI is generating a continuation...</span>
+            ) : (
+              <span>{inlineCompletionError}</span>
+            )}
+          </div>
+          {inlineCompletion && (
+            <>
+              <button
+                type="button"
+                className="rounded-md border border-orange-200 bg-white px-2 py-1 font-medium text-orange-600 hover:bg-orange-50"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={applyInlineCompletion}
+              >
+                Accept Tab
+              </button>
+              <button
+                type="button"
+                className="rounded-md px-2 py-1 text-gray-500 hover:bg-white"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={clearInlineCompletion}
+              >
+                Dismiss
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {selectionHint && (
         <button

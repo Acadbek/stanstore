@@ -12,7 +12,12 @@ import {
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Loader2, PlusCircle, Eye, EyeOff, Trash2, Pencil } from 'lucide-react';
-import { createProduct, updateProduct, deleteProduct, toggleProductPublish } from './actions';
+import {
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  toggleProductPublish,
+} from './actions';
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { Product } from '@/lib/db/schema';
 import useSWR, { mutate } from 'swr';
@@ -367,8 +372,8 @@ export default function ProductsPage() {
   const isFormOpen = showForm || editingProduct !== null;
 
   return (
-    <div className="flex flex-1 min-w-0">
-      <section className="flex-1 min-w-0 overflow-y-auto lg:p-8">
+    <div className="flex flex-1">
+      <section className="flex-1 overflow-y-auto lg:p-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-lg lg:text-2xl font-medium text-gray-900">
             Products
