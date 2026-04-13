@@ -111,6 +111,32 @@ export default function ProductDetailClient({ profile, product }: Props) {
     });
   }, [product.description]);
 
+  useEffect(() => {
+    const root = descriptionRef.current;
+    if (!root) return;
+
+    const embeds = Array.from(
+      root.querySelectorAll<HTMLElement>('[data-youtube-embed]')
+    );
+
+    embeds.forEach((el) => {
+      if (el.dataset.ytReady === 'true') return;
+      const src = el.getAttribute('src') || el.getAttribute('data-src');
+      if (!src) return;
+
+      const iframe = document.createElement('iframe');
+      iframe.src = src;
+      iframe.allow =
+        'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+      iframe.allowFullscreen = true;
+      iframe.loading = 'lazy';
+
+      el.innerHTML = '';
+      el.appendChild(iframe);
+      el.dataset.ytReady = 'true';
+    });
+  }, [product.description]);
+
   const formatPrice = (price: number | null) => {
     if (!price) return 'Free';
     return `$${(price / 100).toFixed(2)}`;

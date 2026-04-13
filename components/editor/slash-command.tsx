@@ -1,16 +1,16 @@
-'use client'
+'use client';
 
-import { Extension } from '@tiptap/core'
-import { ReactRenderer } from '@tiptap/react'
-import tippy from 'tippy.js'
-import { Suggestion } from '@tiptap/suggestion'
+import { Extension } from '@tiptap/core';
+import { ReactRenderer } from '@tiptap/react';
+import tippy from 'tippy.js';
+import { Suggestion } from '@tiptap/suggestion';
 import {
   forwardRef,
   useEffect,
   useImperativeHandle,
   useRef,
   useState,
-} from 'react'
+} from 'react';
 import {
   Type,
   Heading1,
@@ -37,18 +37,19 @@ import {
   Link as LinkIcon,
   Image as ImageIcon,
   RemoveFormatting,
-} from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+  Youtube,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Editor = any
+type Editor = any;
 
 interface CommandItem {
-  title: string
-  description: string
-  keywords?: string[]
-  icon: LucideIcon
-  command: (editor: Editor) => void
+  title: string;
+  description: string;
+  keywords?: string[];
+  icon: LucideIcon;
+  command: (editor: Editor) => void;
 }
 
 const commandItems: CommandItem[] = [
@@ -116,14 +117,10 @@ const commandItems: CommandItem[] = [
           .chain()
           .focus()
           .updateAttributes('blockquote', { quoteStyle: 'double' })
-          .run()
-        return
+          .run();
+        return;
       }
-      editor
-        .chain()
-        .focus()
-        .toggleBlockquote({ quoteStyle: 'double' })
-        .run()
+      editor.chain().focus().toggleBlockquote({ quoteStyle: 'double' }).run();
     },
   },
   {
@@ -233,83 +230,134 @@ const commandItems: CommandItem[] = [
     },
   },
   {
+    title: 'YouTube',
+    description: 'Embed a YouTube video',
+    keywords: ['youtube', 'video', 'embed'],
+    icon: Youtube,
+    command: () => {
+      window.dispatchEvent(new Event('tiptap-open-youtube-modal'));
+    },
+  },
+  {
+    title: 'Geist Sans',
+    description: 'Apply Geist Sans font',
+    keywords: ['font', 'geist', 'sans'],
+    icon: Type,
+    command: (editor) =>
+      editor.chain().focus().setFontFamily("'Geist Sans'").run(),
+  },
+  {
+    title: 'Geist Mono',
+    description: 'Apply Geist Mono font',
+    keywords: ['font', 'geist', 'mono', 'code'],
+    icon: Type,
+    command: (editor) =>
+      editor.chain().focus().setFontFamily("'Geist Mono'").run(),
+  },
+  {
+    title: 'Hedvig Sans',
+    description: 'Apply Hedvig Sans font',
+    keywords: ['font', 'hedvig', 'sans'],
+    icon: Type,
+    command: (editor) =>
+      editor.chain().focus().setFontFamily("'Hedvig Sans'").run(),
+  },
+  {
+    title: 'Hedvig Serif',
+    description: 'Apply Hedvig Serif font',
+    keywords: ['font', 'hedvig', 'serif'],
+    icon: Type,
+    command: (editor) =>
+      editor.chain().focus().setFontFamily("'Hedvig Serif'").run(),
+  },
+  {
     title: 'Clear Formatting',
     description: 'Remove all styles',
     icon: RemoveFormatting,
-    command: (editor) => editor.chain().focus().unsetAllMarks().clearNodes().run(),
+    command: (editor) =>
+      editor.chain().focus().unsetAllMarks().clearNodes().run(),
   },
-]
+  {
+    title: 'Reset Font',
+    description: 'Reset to default font',
+    keywords: ['font', 'reset', 'default', 'manrope'],
+    icon: RemoveFormatting,
+    command: (editor) => editor.chain().focus().unsetFontFamily().run(),
+  },
+];
 
 interface CommandListRef {
-  onKeyDown: (props: { event: KeyboardEvent }) => boolean
+  onKeyDown: (props: { event: KeyboardEvent }) => boolean;
 }
 
 interface CommandListProps {
-  items: CommandItem[]
-  command: (item: CommandItem) => void
-  editor: Editor
+  items: CommandItem[];
+  command: (item: CommandItem) => void;
+  editor: Editor;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let component: any
+let component: any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let popup: any
+let popup: any;
 
 const CommandList = forwardRef<CommandListRef, CommandListProps>(
   ({ items, command }, ref) => {
-    const [selectedIndex, setSelectedIndex] = useState(0)
-    const containerRef = useRef<HTMLDivElement>(null)
+    const [selectedIndex, setSelectedIndex] = useState(0);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-      setSelectedIndex(0)
-    }, [items])
+      setSelectedIndex(0);
+    }, [items]);
 
     useEffect(() => {
       if (containerRef.current) {
-        const item = containerRef.current.querySelector('.is-selected') as HTMLElement
+        const item = containerRef.current.querySelector(
+          '.is-selected'
+        ) as HTMLElement;
         if (item) {
-          item.scrollIntoView({ block: 'nearest' })
+          item.scrollIntoView({ block: 'nearest' });
         }
       }
-    }, [selectedIndex])
+    }, [selectedIndex]);
 
     useImperativeHandle(ref, () => ({
       onKeyDown: ({ event }: { event: KeyboardEvent }) => {
         if (event.key === 'ArrowUp') {
-          event.preventDefault()
-          setSelectedIndex((prev) => (prev + items.length - 1) % items.length)
-          return true
+          event.preventDefault();
+          setSelectedIndex((prev) => (prev + items.length - 1) % items.length);
+          return true;
         }
 
         if (event.key === 'ArrowDown') {
-          event.preventDefault()
-          setSelectedIndex((prev) => (prev + 1) % items.length)
-          return true
+          event.preventDefault();
+          setSelectedIndex((prev) => (prev + 1) % items.length);
+          return true;
         }
 
         if (event.key === 'Enter') {
-          const item = items[selectedIndex]
-          if (item) command(item)
-          return true
+          const item = items[selectedIndex];
+          if (item) command(item);
+          return true;
         }
 
-        return false
+        return false;
       },
-    }))
+    }));
 
     if (items.length === 0) {
       return (
         <div className="slash-command-menu">
           <div className="slash-command-no-results">No results</div>
         </div>
-      )
+      );
     }
 
     return (
       <div ref={containerRef} className="slash-command-menu">
         <div className="slash-command-label">Block type</div>
         {items.map((item, index) => {
-          const Icon = item.icon
+          const Icon = item.icon;
           return (
             <button
               key={item.title}
@@ -326,14 +374,14 @@ const CommandList = forwardRef<CommandListRef, CommandListProps>(
                 </span>
               </div>
             </button>
-          )
+          );
         })}
       </div>
-    )
+    );
   }
-)
+);
 
-CommandList.displayName = 'CommandList'
+CommandList.displayName = 'CommandList';
 
 export const SlashCommandExtension = Extension.create({
   name: 'slashCommand',
@@ -347,16 +395,16 @@ export const SlashCommandExtension = Extension.create({
           range,
           props,
         }: {
-          editor: Editor
-          range: { from: number; to: number }
-          props: CommandItem
+          editor: Editor;
+          range: { from: number; to: number };
+          props: CommandItem;
         }) => {
-          editor.chain().focus().deleteRange(range).run()
-          props.command(editor)
+          editor.chain().focus().deleteRange(range).run();
+          props.command(editor);
         },
         items: ({ query }: { query: string }) => {
-          const normalizedQuery = query.trim().toLowerCase()
-          if (!normalizedQuery) return commandItems
+          const normalizedQuery = query.trim().toLowerCase();
+          if (!normalizedQuery) return commandItems;
 
           return commandItems.filter((item) => {
             const searchable = [
@@ -365,24 +413,24 @@ export const SlashCommandExtension = Extension.create({
               ...(item.keywords ?? []),
             ]
               .join(' ')
-              .toLowerCase()
-            return searchable.includes(normalizedQuery)
-          })
+              .toLowerCase();
+            return searchable.includes(normalizedQuery);
+          });
         },
         render: () => {
           return {
             onStart(props: {
-              editor: Editor
-              clientRect: (() => DOMRect) | null
-              command: (item: CommandItem) => void
-              items: CommandItem[]
+              editor: Editor;
+              clientRect: (() => DOMRect) | null;
+              command: (item: CommandItem) => void;
+              items: CommandItem[];
             }) {
               component = new ReactRenderer(CommandList, {
                 props,
                 editor: props.editor,
-              })
+              });
 
-              if (!props.clientRect) return
+              if (!props.clientRect) return;
 
               popup = tippy('body', {
                 getReferenceClientRect: props.clientRect,
@@ -394,37 +442,37 @@ export const SlashCommandExtension = Extension.create({
                 placement: 'bottom-start',
                 arrow: false,
                 animation: false,
-              })
+              });
             },
             onUpdate(props: {
-              editor: Editor
-              clientRect: (() => DOMRect) | null
-              command: (item: CommandItem) => void
-              items: CommandItem[]
+              editor: Editor;
+              clientRect: (() => DOMRect) | null;
+              command: (item: CommandItem) => void;
+              items: CommandItem[];
             }) {
-              component?.updateProps(props)
+              component?.updateProps(props);
 
               if (props.clientRect && popup) {
                 popup[0].setProps({
                   getReferenceClientRect: props.clientRect,
-                })
+                });
               }
             },
             onKeyDown(props: { event: KeyboardEvent }) {
               if (props.event.key === 'Escape') {
-                popup?.[0].hide()
-                return true
+                popup?.[0].hide();
+                return true;
               }
-              return component?.ref?.onKeyDown(props) ?? false
+              return component?.ref?.onKeyDown(props) ?? false;
             },
             onExit() {
-              popup?.[0].destroy()
-              component?.destroy()
+              popup?.[0].destroy();
+              component?.destroy();
             },
-          }
+          };
         },
       },
-    }
+    };
   },
 
   addProseMirrorPlugins() {
@@ -433,6 +481,6 @@ export const SlashCommandExtension = Extension.create({
         editor: this.editor,
         ...this.options.suggestion,
       }),
-    ]
+    ];
   },
-})
+});
