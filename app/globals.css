@@ -5,6 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @import 'tw-animate-css';
+@import 'locomotive-scroll/locomotive-scroll.css';
 
 @variant dark (&:is(.dark *));
 
@@ -871,6 +872,17 @@
   min-width: 82%;
   scroll-snap-align: center;
   scroll-snap-stop: always;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 .product-content .carousel-card {
   border: 1px solid #e5e7eb;

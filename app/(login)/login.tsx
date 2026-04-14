@@ -15,8 +15,18 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
   const redirect = searchParams.get('redirect');
   const priceId = searchParams.get('priceId');
   const inviteId = searchParams.get('inviteId');
+  const isSignUp = mode === 'signup';
+  const authSwitchPath = isSignUp ? '/sign-in' : '/sign-up';
+  const authSwitchParams = new URLSearchParams();
+  if (redirect) authSwitchParams.set('redirect', redirect);
+  if (priceId) authSwitchParams.set('priceId', priceId);
+  if (inviteId) authSwitchParams.set('inviteId', inviteId);
+  const authSwitchHref =
+    authSwitchParams.size > 0
+      ? `${authSwitchPath}?${authSwitchParams.toString()}`
+      : authSwitchPath;
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
-    mode === 'signin' ? signIn : signUp,
+    isSignUp ? signUp : signIn,
     { error: '' }
   );
 
@@ -27,9 +37,7 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
           <CircleIcon className="h-12 w-12 text-orange-500" />
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          {mode === 'signin'
-            ? 'Sign in to your account'
-            : 'Create your account'}
+          {isSignUp ? 'Create your account' : 'Sign in to your account'}
         </h2>
       </div>
 
@@ -85,6 +93,42 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
             </div>
           </div>
 
+          {isSignUp && (
+            <div className="flex items-start gap-2">
+              <input
+                id="termsAccepted"
+                name="termsAccepted"
+                type="checkbox"
+                required
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+              />
+              <Label
+                htmlFor="termsAccepted"
+                className="text-sm leading-5 text-gray-600"
+              >
+                I agree to the{' '}
+                <Link
+                  href="/terms-of-service"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-orange-600 underline hover:text-orange-700"
+                >
+                  Terms of Service
+                </Link>{' '}
+                and{' '}
+                <Link
+                  href="/privacy-policy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-orange-600 underline hover:text-orange-700"
+                >
+                  Privacy Policy
+                </Link>
+                .
+              </Label>
+            </div>
+          )}
+
           {state?.error && (
             <div className="text-red-500 text-sm">{state.error}</div>
           )}
@@ -100,10 +144,10 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
                   <Loader2 className="animate-spin mr-2 h-4 w-4" />
                   Loading...
                 </>
-              ) : mode === 'signin' ? (
-                'Sign in'
-              ) : (
+              ) : isSignUp ? (
                 'Sign up'
+              ) : (
+                'Sign in'
               )}
             </Button>
           </div>
@@ -116,23 +160,17 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="px-2 bg-gray-50 text-gray-500">
-                {mode === 'signin'
-                  ? 'New to our platform?'
-                  : 'Already have an account?'}
+                {isSignUp ? 'Already have an account?' : 'New to our platform?'}
               </span>
             </div>
           </div>
 
           <div className="mt-6">
             <Link
-              href={`${mode === 'signin' ? '/sign-up' : '/sign-in'}${
-                redirect ? `?redirect=${redirect}` : ''
-              }${priceId ? `&priceId=${priceId}` : ''}`}
+              href={authSwitchHref}
               className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-full shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
             >
-              {mode === 'signin'
-                ? 'Create an account'
-                : 'Sign in to existing account'}
+              {isSignUp ? 'Sign in to existing account' : 'Create an account'}
             </Link>
           </div>
         </div>

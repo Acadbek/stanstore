@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Profile, Product } from '@/lib/db/schema';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
 import { getTheme } from '@/lib/themes';
 import posthog from 'posthog-js';
+import type LocomotiveScroll from 'locomotive-scroll';
 
 const radiusMap: Record<string, string> = {
   none: '0px',
@@ -161,8 +162,11 @@ export default function StorePage({ data }: { data: StoreData }) {
   const theme = getTheme(profile.theme || 'default');
   const s = theme.styles;
   const r = getRadius(profile.borderRadius);
-  const br = getRadius(profile.buttonBorderRadius);
   const socialLinks = profile.socialLinks as SocialLinks | null;
+  const serifFont = 'Hedvig Serif, serif';
+  const sansFont = 'Hedvig Sans, Geist Sans, sans-serif';
+  const profileRing = s.avatarRing || 'rgba(255, 255, 255, 0.88)';
+  const smoothScrollRef = useRef<LocomotiveScroll | null>(null);
 
   useEffect(() => {
     posthog.capture('store_visit', {
@@ -170,6 +174,46 @@ export default function StorePage({ data }: { data: StoreData }) {
       displayName: profile.displayName,
     });
   }, [profile.username, profile.displayName]);
+
+  useEffect(() => {
+    let cancelled = false;
+  
+    async function initSmoothScroll() {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        return;
+      }
+
+      const { default: LocomotiveScroll } = await import('locomotive-scroll');
+
+      if (cancelled || smoothScrollRef.current) {
+        return;
+      }
+
+      smoothScrollRef.current = new LocomotiveScroll({
+        lenisOptions: {
+          smoothWheel: true,
+          syncTouch: false,
+          lerp: 0.16,
+          wheelMultiplier: 1.16,
+          touchMultiplier: 1,
+          autoResize: true,
+        },
+        autoStart: true,
+      });
+
+      requestAnimationFrame(() => {
+        smoothScrollRef.current?.resize();
+      });
+    }
+
+    initSmoothScroll();
+
+    return () => {
+      cancelled = true;
+      smoothScrollRef.current?.destroy();
+      smoothScrollRef.current = null;
+    };
+  }, []);
 
   const socialItems: {
     url: string | null | undefined;
@@ -209,413 +253,424 @@ export default function StorePage({ data }: { data: StoreData }) {
       className="min-h-screen transition-colors duration-300"
       style={{ background: s.pageBgGradient || s.pageBg }}
     >
-      <div className="max-w-5xl mx-auto px-4 py-8 sm:py-0 sm:min-h-screen sm:flex sm:gap-6 sm:items-stretch">
-        {/* Profile - fixed center, doesn't scroll */}
-        <div
-          className="shrink-0 border p-6 flex flex-col items-center text-center justify-center sm:w-[220px] mb-6 sm:mb-0 sm:py-16"
-          style={{
-            background: s.cardBg,
-            borderColor: s.cardBorder,
-            borderRadius: r,
-          }}
-        >
-          <Avatar
-            className="h-20 w-20 shrink-0"
-            style={{ boxShadow: `0 0 0 4px ${s.avatarRing}` }}
-          >
-            <AvatarImage
-              src={profile.avatarUrl || undefined}
-              alt={profile.displayName || profile.username || ''}
-            />
-            <AvatarFallback
-              className="text-xl"
-              style={{
-                background: s.avatarFallback,
-                color: s.avatarFallbackText,
-              }}
-            >
-              {(profile.displayName || profile.username || 'U')
-                .split(' ')
-                .map((n) => n[0])
-                .join('')
-                .toUpperCase()
-                .slice(0, 2)}
-            </AvatarFallback>
-          </Avatar>
-
-          <h1
-            className="text-lg font-bold mt-4 mb-1"
-            style={{ color: s.headingColor }}
-          >
-            {profile.displayName || profile.username}
-          </h1>
-
-          {profile.headline && (
-            <p className="text-xs mb-2" style={{ color: s.mutedColor }}>
-              {profile.headline}
-            </p>
-          )}
-
-          {profile.bio && (
-            <p
-              className="text-xs whitespace-pre-wrap mb-3"
-              style={{ color: s.textColor }}
-            >
-              {profile.bio}
-            </p>
-          )}
-
-          {filteredSocials.length > 0 && (
-            <div className="flex items-center gap-2 mt-auto pt-4">
-              {filteredSocials.map((social, i) => (
-                <a
-                  key={i}
-                  href={social.url!}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="transition-colors duration-200"
-                  style={{ color: s.socialIconColor }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.color =
-                      s.socialIconHover;
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.color =
-                      s.socialIconColor;
+      <div className="mx-auto max-w-7xl px-5 py-8 md:px-8 md:py-0 lg:px-10">
+        <div className="grid gap-10 md:min-h-screen md:grid-cols-[minmax(280px,38%)_minmax(0,62%)] md:gap-14 xl:gap-20">
+          <aside className="md:sticky md:top-0 md:flex md:h-screen md:items-center md:py-10">
+            <div className="mx-auto flex w-full max-w-md flex-col items-center text-center md:max-w-sm md:items-start md:text-left">
+              <Avatar
+                className="h-28 w-28 md:h-32 md:w-32"
+                style={{ boxShadow: `0 0 0 8px ${profileRing}` }}
+              >
+                <AvatarImage
+                  src={profile.avatarUrl || undefined}
+                  alt={profile.displayName || profile.username || ''}
+                />
+                <AvatarFallback
+                  className="text-3xl"
+                  style={{
+                    background: s.avatarFallback,
+                    color: s.avatarFallbackText,
+                    fontFamily: serifFont,
                   }}
                 >
-                  {social.icon}
-                </a>
-              ))}
+                  {(profile.displayName || profile.username || 'U')
+                    .split(' ')
+                    .map((n) => n[0])
+                    .join('')
+                    .toUpperCase()
+                    .slice(0, 2)}
+                </AvatarFallback>
+              </Avatar>
+
+              <div className="mt-8 space-y-3">
+                <h1
+                  className="text-4xl leading-none tracking-tight md:text-[3.2rem]"
+                  style={{ color: s.headingColor, fontFamily: serifFont }}
+                >
+                  {profile.displayName || profile.username}
+                </h1>
+
+                {profile.headline && (
+                  <p
+                    className="text-xs uppercase tracking-[0.16em] sm:text-sm sm:tracking-[0.18em]"
+                    style={{ color: s.mutedColor, fontFamily: sansFont }}
+                  >
+                    {profile.headline}
+                  </p>
+                )}
+              </div>
+
+              {profile.bio && (
+                <p
+                  className="mt-6 max-w-md text-sm leading-7 md:text-[0.95rem]"
+                  style={{ color: s.textColor, fontFamily: sansFont }}
+                >
+                  {profile.bio}
+                </p>
+              )}
+
+              {filteredSocials.length > 0 && (
+                <div className="mt-8 flex flex-wrap items-center justify-center gap-3 md:justify-start">
+                  {filteredSocials.map((social, i) => (
+                    <a
+                      key={i}
+                      href={social.url!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex h-11 w-11 items-center justify-center border transition-all duration-200"
+                      style={{
+                        color: s.socialIconColor,
+                        borderColor: s.cardBorder,
+                        borderRadius: '999px',
+                        background: 'rgba(255,255,255,0.48)',
+                        boxShadow: '0 10px 28px rgba(15, 23, 42, 0.05)',
+                      }}
+                      onMouseEnter={(e) => {
+                        const el = e.currentTarget as HTMLElement;
+                        el.style.color = s.socialIconHover;
+                        el.style.transform = 'translateY(-2px)';
+                        el.style.boxShadow = '0 16px 34px rgba(15, 23, 42, 0.10)';
+                      }}
+                      onMouseLeave={(e) => {
+                        const el = e.currentTarget as HTMLElement;
+                        el.style.color = s.socialIconColor;
+                        el.style.transform = 'translateY(0)';
+                        el.style.boxShadow = '0 10px 28px rgba(15, 23, 42, 0.05)';
+                      }}
+                    >
+                      {social.icon}
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </aside>
 
-        {/* Products - scrollable */}
-        <div className="flex-1 min-w-0 sm:overflow-y-auto sm:max-h-screen sm:py-16">
-          {products.length > 0 &&
-            (() => {
-              const cols = profile.productColumns || 3;
-              const tmpl = profile.cardTemplate || 'standard';
-              const colClass =
-                cols === 1
-                  ? 'grid-cols-1'
-                  : cols === 2
-                    ? 'grid-cols-2'
+          <section className="min-w-0 pb-12 pt-6 md:pb-12 md:pt-20 lg:pb-16 lg:pt-24">
+            {products.length > 0 &&
+              (() => {
+                const cols = profile.productColumns || 3;
+                const tmpl = profile.cardTemplate || 'standard';
+                const colClass =
+                  cols === 1
+                    ? 'grid-cols-1'
+                    : cols === 2
+                        ? 'grid-cols-2'
                     : cols === 4
-                      ? 'grid-cols-2 sm:grid-cols-4'
-                      : 'grid-cols-1 sm:grid-cols-3';
+                        ? 'grid-cols-2 sm:grid-cols-4'
+                        : 'grid-cols-1 sm:grid-cols-3';
 
-              if (tmpl === 'compact') {
-                return (
-                  <div className={`grid ${colClass} gap-4`}>
-                    {products.map((product) => (
-                      <ProductLink
-                        key={product.id}
-                        product={product}
-                        username={profile.username}
-                      >
-                        <div
-                          className="group flex items-center gap-3 border p-3 transition-all duration-200"
-                          style={{
-                            background: s.cardBg,
-                            borderColor: s.cardBorder,
-                            borderRadius: r,
-                          }}
-                          onMouseEnter={(e) => {
-                            const el = e.currentTarget as HTMLElement;
-                            el.style.boxShadow = s.cardHoverShadow;
-                            el.style.borderColor = s.cardHoverBorder;
-                          }}
-                          onMouseLeave={(e) => {
-                            const el = e.currentTarget as HTMLElement;
-                            el.style.boxShadow = 'none';
-                            el.style.borderColor = s.cardBorder;
-                          }}
+                if (tmpl === 'compact') {
+                  return (
+                    <div className={`grid ${colClass} gap-4 md:gap-5`}>
+                      {products.map((product) => (
+                        <ProductLink
+                          key={product.id}
+                          product={product}
+                          username={profile.username}
                         >
-                          {product.imageUrl ? (
                             <div
-                              className="w-16 h-16 shrink-0 overflow-hidden"
-                              style={{ borderRadius: r }}
-                            >
-                              <img
-                                src={product.imageUrl}
-                                alt={product.title}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          ) : (
-                            <div
-                              className="w-16 h-16 shrink-0 flex items-center justify-center"
+                              className="group flex items-center gap-3 border p-3 transition-all duration-200"
                               style={{
-                                background: s.productBadge,
+                                background: s.cardBg,
+                                borderColor: s.cardBorder,
                                 borderRadius: r,
                               }}
+                              onMouseEnter={(e) => {
+                                const el = e.currentTarget as HTMLElement;
+                                el.style.boxShadow = s.cardHoverShadow;
+                                el.style.borderColor = s.cardHoverBorder;
+                              }}
+                              onMouseLeave={(e) => {
+                                const el = e.currentTarget as HTMLElement;
+                                el.style.boxShadow = 'none';
+                                el.style.borderColor = s.cardBorder;
+                              }}
                             >
-                              <span
-                                className="text-xl font-bold"
-                                style={{ color: s.productBadgeText }}
-                              >
-                                {(product.title[0] || '').toUpperCase()}
-                              </span>
+                              {product.imageUrl ? (
+                                <div
+                                  className="w-16 h-16 shrink-0 overflow-hidden"
+                                  style={{ borderRadius: r }}
+                                >
+                                  <img
+                                    src={product.imageUrl}
+                                    alt={product.title}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ) : (
+                                <div
+                                  className="w-16 h-16 shrink-0 flex items-center justify-center"
+                                  style={{
+                                    background: s.productBadge,
+                                    borderRadius: r,
+                                  }}
+                                >
+                                  <span
+                                    className="text-xl font-bold"
+                                    style={{ color: s.productBadgeText }}
+                                  >
+                                    {(product.title[0] || '').toUpperCase()}
+                                  </span>
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <h3
+                                  className="font-semibold text-sm mb-1 truncate"
+                                  style={{ color: s.headingColor }}
+                                >
+                                  {product.title}
+                                </h3>
+                                <span
+                                  className="text-sm font-bold"
+                                  style={{ color: s.priceColor }}
+                                >
+                                  {formatPrice(product.price)}
+                                </span>
+                              </div>
                             </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <h3
-                              className="font-semibold text-sm mb-1 truncate"
-                              style={{ color: s.headingColor }}
-                            >
-                              {product.title}
-                            </h3>
-                            <span
-                              className="text-sm font-bold"
-                              style={{ color: s.priceColor }}
-                            >
-                              {formatPrice(product.price)}
-                            </span>
-                          </div>
-                        </div>
-                      </ProductLink>
-                    ))}
-                  </div>
-                );
-              }
+                          </ProductLink>
+                        ))}
+                      </div>
+                    );
+                  }
 
-              if (tmpl === 'overlay') {
-                return (
-                  <div className={`grid ${colClass} gap-4`}>
-                    {products.map((product) => (
-                      <ProductLink
-                        key={product.id}
-                        product={product}
-                        username={profile.username}
-                      >
-                        <div
-                          className="group relative overflow-hidden transition-all duration-200"
-                          style={{ borderRadius: r }}
-                          onMouseEnter={(e) => {
-                            const el = e.currentTarget as HTMLElement;
-                            el.style.boxShadow = s.cardHoverShadow;
-                          }}
-                          onMouseLeave={(e) => {
-                            const el = e.currentTarget as HTMLElement;
-                            el.style.boxShadow = 'none';
-                          }}
-                        >
-                          <div className="h-44">
-                            {product.imageUrl ? (
-                              <img
-                                src={product.imageUrl}
-                                alt={product.title}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
+                  if (tmpl === 'overlay') {
+                    return (
+                      <div className={`grid ${colClass} gap-4 md:gap-5`}>
+                        {products.map((product) => (
+                          <ProductLink
+                            key={product.id}
+                            product={product}
+                            username={profile.username}
+                          >
+                            <div
+                              className="group relative overflow-hidden transition-all duration-200"
+                              style={{ borderRadius: r }}
+                              onMouseEnter={(e) => {
+                                const el = e.currentTarget as HTMLElement;
+                                el.style.boxShadow = s.cardHoverShadow;
+                              }}
+                              onMouseLeave={(e) => {
+                                const el = e.currentTarget as HTMLElement;
+                                el.style.boxShadow = 'none';
+                              }}
+                            >
+                              <div className="h-44">
+                                {product.imageUrl ? (
+                                  <img
+                                    src={product.imageUrl}
+                                    alt={product.title}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div
+                                    className="w-full h-full flex items-center justify-center"
+                                    style={{ background: s.productBadge }}
+                                  >
+                                    <span
+                                      className="text-4xl font-bold"
+                                      style={{ color: s.productBadgeText }}
+                                    >
+                                      {(product.title[0] || '').toUpperCase()}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
                               <div
-                                className="w-full h-full flex items-center justify-center"
-                                style={{ background: s.productBadge }}
+                                className="absolute inset-x-0 bottom-0 p-3"
+                                style={{
+                                  background:
+                                    'linear-gradient(to top, rgba(0,0,0,0.75), transparent)',
+                                }}
+                              >
+                                <h3 className="font-semibold text-sm text-white truncate">
+                                  {product.title}
+                                </h3>
+                                <div className="flex items-center justify-between mt-1">
+                                  <span className="text-xs text-white/70">
+                                    {product.type}
+                                  </span>
+                                  <span className="text-sm font-bold text-white">
+                                    {formatPrice(product.price)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </ProductLink>
+                        ))}
+                      </div>
+                    );
+                  }
+
+                  if (tmpl === 'minimal') {
+                    return (
+                      <div className={`grid ${colClass} gap-4 md:gap-5`}>
+                        {products.map((product) => (
+                          <ProductLink
+                            key={product.id}
+                            product={product}
+                            username={profile.username}
+                          >
+                            <div
+                              className="group border p-4 transition-all duration-200"
+                              style={{
+                                background: s.cardBg,
+                                borderColor: s.cardBorder,
+                                borderRadius: r,
+                              }}
+                              onMouseEnter={(e) => {
+                                const el = e.currentTarget as HTMLElement;
+                                el.style.boxShadow = s.cardHoverShadow;
+                                el.style.borderColor = s.cardHoverBorder;
+                              }}
+                              onMouseLeave={(e) => {
+                                const el = e.currentTarget as HTMLElement;
+                                el.style.boxShadow = 'none';
+                                el.style.borderColor = s.cardBorder;
+                              }}
+                            >
+                              <h3
+                                className="font-semibold text-sm mb-1 truncate"
+                                style={{ color: s.headingColor }}
+                              >
+                                {product.title}
+                              </h3>
+                              {product.description && (
+                                <p
+                                  className="text-xs line-clamp-2 mb-2"
+                                  style={{ color: s.mutedColor }}
+                                >
+                                  {product.description}
+                                </p>
+                              )}
+                              <div
+                                className="pt-2 mt-auto"
+                                style={{ borderTop: `1px solid ${s.cardBorder}` }}
                               >
                                 <span
-                                  className="text-4xl font-bold"
+                                  className="text-sm font-bold"
+                                  style={{ color: s.priceColor }}
+                                >
+                                  {formatPrice(product.price)}
+                                </span>
+                              </div>
+                            </div>
+                          </ProductLink>
+                        ))}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className={`grid ${colClass} gap-4 md:gap-5`}>
+                      {products.map((product) => (
+                        <ProductLink
+                          key={product.id}
+                          product={product}
+                          username={profile.username}
+                        >
+                          <div
+                            className="group border p-4 transition-all duration-200 h-full flex flex-col"
+                            style={{
+                              background: s.cardBg,
+                              borderColor: s.cardBorder,
+                              borderRadius: r,
+                            }}
+                            onMouseEnter={(e) => {
+                              const el = e.currentTarget as HTMLElement;
+                              el.style.boxShadow = s.cardHoverShadow;
+                              el.style.borderColor = s.cardHoverBorder;
+                            }}
+                            onMouseLeave={(e) => {
+                              const el = e.currentTarget as HTMLElement;
+                              el.style.boxShadow = 'none';
+                              el.style.borderColor = s.cardBorder;
+                            }}
+                          >
+                            {product.imageUrl ? (
+                              <div
+                                className="mb-4 h-32 w-full overflow-hidden"
+                                style={{ background: s.pageBg, borderRadius: r }}
+                              >
+                                <img
+                                  src={product.imageUrl}
+                                  alt={product.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <div
+                                className="mb-4 flex h-32 w-full items-center justify-center"
+                                style={{
+                                  background: s.productBadge,
+                                  borderRadius: r,
+                                }}
+                              >
+                                <span
+                                  className="text-3xl font-bold"
                                   style={{ color: s.productBadgeText }}
                                 >
                                   {(product.title[0] || '').toUpperCase()}
                                 </span>
                               </div>
                             )}
-                          </div>
-                          <div
-                            className="absolute inset-x-0 bottom-0 p-3"
-                            style={{
-                              background:
-                                'linear-gradient(to top, rgba(0,0,0,0.75), transparent)',
-                            }}
-                          >
-                            <h3 className="font-semibold text-sm text-white truncate">
-                              {product.title}
-                            </h3>
-                            <div className="flex items-center justify-between mt-1">
-                              <span className="text-xs text-white/70">
-                                {product.type}
-                              </span>
-                              <span className="text-sm font-bold text-white">
+                            <div className="flex-1 min-w-0">
+                              <h3
+                                className="font-semibold text-sm mb-1 truncate"
+                                style={{ color: s.headingColor }}
+                              >
+                                {product.title}
+                              </h3>
+                              {product.description && (
+                                <p
+                                  className="mb-3 text-xs line-clamp-2"
+                                  style={{ color: s.mutedColor }}
+                                >
+                                  {product.description}
+                                </p>
+                              )}
+                            </div>
+                            <div
+                              className="mt-auto flex items-center justify-between pt-3"
+                              style={{ borderTop: `1px solid ${s.cardBorder}` }}
+                            >
+                              <span
+                                className="text-sm font-bold"
+                                style={{ color: s.priceColor }}
+                              >
                                 {formatPrice(product.price)}
+                              </span>
+                              <span
+                                className="text-xs font-medium"
+                                style={{ color: s.mutedColor }}
+                              >
+                                {product.type}
                               </span>
                             </div>
                           </div>
-                        </div>
-                      </ProductLink>
-                    ))}
-                  </div>
-                );
-              }
+                        </ProductLink>
+                      ))}
+                    </div>
+                  );
+                })()}
 
-              if (tmpl === 'minimal') {
-                return (
-                  <div className={`grid ${colClass} gap-4`}>
-                    {products.map((product) => (
-                      <ProductLink
-                        key={product.id}
-                        product={product}
-                        username={profile.username}
-                      >
-                        <div
-                          className="group border p-4 transition-all duration-200"
-                          style={{
-                            background: s.cardBg,
-                            borderColor: s.cardBorder,
-                            borderRadius: r,
-                          }}
-                          onMouseEnter={(e) => {
-                            const el = e.currentTarget as HTMLElement;
-                            el.style.boxShadow = s.cardHoverShadow;
-                            el.style.borderColor = s.cardHoverBorder;
-                          }}
-                          onMouseLeave={(e) => {
-                            const el = e.currentTarget as HTMLElement;
-                            el.style.boxShadow = 'none';
-                            el.style.borderColor = s.cardBorder;
-                          }}
-                        >
-                          <h3
-                            className="font-semibold text-sm mb-1 truncate"
-                            style={{ color: s.headingColor }}
-                          >
-                            {product.title}
-                          </h3>
-                          {product.description && (
-                            <p
-                              className="text-xs line-clamp-2 mb-2"
-                              style={{ color: s.mutedColor }}
-                            >
-                              {product.description}
-                            </p>
-                          )}
-                          <div
-                            className="pt-2 mt-auto"
-                            style={{ borderTop: `1px solid ${s.cardBorder}` }}
-                          >
-                            <span
-                              className="text-sm font-bold"
-                              style={{ color: s.priceColor }}
-                            >
-                              {formatPrice(product.price)}
-                            </span>
-                          </div>
-                        </div>
-                      </ProductLink>
-                    ))}
-                  </div>
-                );
-              }
+              {products.length === 0 && (
+                <p
+                  className="text-center text-sm py-8"
+                  style={{ color: s.mutedColor }}
+                >
+                  No products yet.
+                </p>
+              )}
 
-              return (
-                <div className={`grid ${colClass} gap-4`}>
-                  {products.map((product) => (
-                    <ProductLink
-                      key={product.id}
-                      product={product}
-                      username={profile.username}
-                    >
-                      <div
-                        className="group border p-4 transition-all duration-200 h-full flex flex-col"
-                        style={{
-                          background: s.cardBg,
-                          borderColor: s.cardBorder,
-                          borderRadius: r,
-                        }}
-                        onMouseEnter={(e) => {
-                          const el = e.currentTarget as HTMLElement;
-                          el.style.boxShadow = s.cardHoverShadow;
-                          el.style.borderColor = s.cardHoverBorder;
-                        }}
-                        onMouseLeave={(e) => {
-                          const el = e.currentTarget as HTMLElement;
-                          el.style.boxShadow = 'none';
-                          el.style.borderColor = s.cardBorder;
-                        }}
-                      >
-                        {product.imageUrl ? (
-                          <div
-                            className="w-full h-32 overflow-hidden mb-3"
-                            style={{ background: s.pageBg, borderRadius: r }}
-                          >
-                            <img
-                              src={product.imageUrl}
-                              alt={product.title}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        ) : (
-                          <div
-                            className="w-full h-32 flex items-center justify-center mb-3"
-                            style={{
-                              background: s.productBadge,
-                              borderRadius: r,
-                            }}
-                          >
-                            <span
-                              className="text-3xl font-bold"
-                              style={{ color: s.productBadgeText }}
-                            >
-                              {(product.title[0] || '').toUpperCase()}
-                            </span>
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <h3
-                            className="font-semibold text-sm mb-1 truncate"
-                            style={{ color: s.headingColor }}
-                          >
-                            {product.title}
-                          </h3>
-                          {product.description && (
-                            <p
-                              className="text-xs line-clamp-2 mb-2"
-                              style={{ color: s.mutedColor }}
-                            >
-                              {product.description}
-                            </p>
-                          )}
-                        </div>
-                        <div
-                          className="flex items-center justify-between pt-2 mt-auto"
-                          style={{ borderTop: `1px solid ${s.cardBorder}` }}
-                        >
-                          <span
-                            className="text-sm font-bold"
-                            style={{ color: s.priceColor }}
-                          >
-                            {formatPrice(product.price)}
-                          </span>
-                          <span
-                            className="text-xs font-medium"
-                            style={{ color: s.mutedColor }}
-                          >
-                            {product.type}
-                          </span>
-                        </div>
-                      </div>
-                    </ProductLink>
-                  ))}
-                </div>
-              );
-            })()}
-
-          {products.length === 0 && (
-            <p
-              className="text-center text-sm py-8"
-              style={{ color: s.mutedColor }}
-            >
-              No products yet.
-            </p>
-          )}
-
-          <p
-            className="text-center text-xs mt-16"
-            style={{ color: s.footerColor }}
-          >
-            Powered by ACME
-          </p>
+              <p
+                className="mt-14 pb-8 pt-4 text-center text-xs md:mt-16 md:pb-10 md:pt-6"
+                style={{ color: s.footerColor, fontFamily: sansFont }}
+              >
+                Powered by ACME
+              </p>
+          </section>
         </div>
       </div>
     </div>

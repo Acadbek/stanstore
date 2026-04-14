@@ -39,7 +39,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { updateProfile, updateAvatar, deleteAvatar } from '../actions';
 import { Profile, User } from '@/lib/db/schema';
 import {
@@ -270,6 +275,9 @@ function AvatarSection() {
                     </div>
                   </DialogTrigger>
                   <DialogContent className="max-w-sm p-2" showClose={false}>
+                    <DialogTitle className="sr-only">
+                      Profile photo preview
+                    </DialogTitle>
                     <img
                       src={profile?.avatarUrl || ''}
                       alt={profile?.displayName || user?.name || ''}
@@ -354,6 +362,7 @@ function AvatarSection() {
           }}
         >
           <DialogContent className="max-w-lg p-0 overflow-hidden gap-0">
+            <DialogTitle className="sr-only">Crop profile photo</DialogTitle>
             <div className="relative w-full h-[350px] bg-black">
               {cropImageSrc && (
                 <Cropper
@@ -888,7 +897,7 @@ function ProfileForm({
   > | null;
 
   return (
-    <form className="space-y-8" action={formAction}>
+    <form id="profile-config-form" className="space-y-8" action={formAction}>
       <Card>
         <CardHeader>
           <CardTitle>Basic Information</CardTitle>
@@ -1440,6 +1449,12 @@ export default function ProfileConfigPage() {
   const { data } = useSWR<ProfileData>('/api/profile', fetcher);
 
   useEffect(() => {
+    if (state.success) {
+      mutate('/api/profile');
+    }
+  }, [state.success]);
+
+  useEffect(() => {
     if (data?.profile) {
       if (selectedTheme === null) {
         setSelectedTheme(data.profile.theme || 'default');
@@ -1468,8 +1483,20 @@ export default function ProfileConfigPage() {
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <h1 className="text-xl font-bold">Edit Profile</h1>
           <div className="flex items-center gap-4">
-            <Button className="bg-orange-500 hover:bg-orange-600">
-              Save Changes
+            <Button
+              type="submit"
+              form="profile-config-form"
+              disabled={isPending}
+              className="bg-orange-500 hover:bg-orange-600"
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
             </Button>
             <Button variant="ghost">Back to Profile</Button>
           </div>
@@ -1477,6 +1504,17 @@ export default function ProfileConfigPage() {
       </div>
       <Suspense fallback={<ProfileSkeleton />}>
         <div className="space-y-6 pt-16">
+          {state.error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {state.error}
+            </div>
+          )}
+          {state.success && (
+            <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+              {state.success}
+            </div>
+          )}
+
           <AvatarSection />
 
           {isReady && (
