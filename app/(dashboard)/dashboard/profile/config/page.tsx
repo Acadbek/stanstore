@@ -39,7 +39,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { updateProfile, updateAvatar, deleteAvatar } from '../actions';
 import { Profile, User } from '@/lib/db/schema';
 import {
@@ -270,6 +275,9 @@ function AvatarSection() {
                     </div>
                   </DialogTrigger>
                   <DialogContent className="max-w-sm p-2" showClose={false}>
+                    <DialogTitle className="sr-only">
+                      Profile photo preview
+                    </DialogTitle>
                     <img
                       src={profile?.avatarUrl || ''}
                       alt={profile?.displayName || user?.name || ''}
@@ -354,6 +362,7 @@ function AvatarSection() {
           }}
         >
           <DialogContent className="max-w-lg p-0 overflow-hidden gap-0">
+            <DialogTitle className="sr-only">Crop profile photo</DialogTitle>
             <div className="relative w-full h-[350px] bg-black">
               {cropImageSrc && (
                 <Cropper
