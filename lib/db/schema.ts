@@ -89,10 +89,16 @@ export const profiles = pgTable('profiles', {
   bio: text('bio'),
   avatarUrl: text('avatar_url'),
   theme: varchar('theme', { length: 30 }).notNull().default('default'),
-  borderRadius: varchar('border_radius', { length: 10 }).notNull().default('md'),
-  buttonBorderRadius: varchar('button_border_radius', { length: 10 }).notNull().default('md'),
+  borderRadius: varchar('border_radius', { length: 10 })
+    .notNull()
+    .default('md'),
+  buttonBorderRadius: varchar('button_border_radius', { length: 10 })
+    .notNull()
+    .default('md'),
   productColumns: smallint('product_columns').notNull().default(3),
-  cardTemplate: varchar('card_template', { length: 20 }).notNull().default('standard'),
+  cardTemplate: varchar('card_template', { length: 20 })
+    .notNull()
+    .default('standard'),
   socialLinks: jsonb('social_links').$type<{
     instagram: string | null;
     twitter: string | null;

@@ -1,20 +1,21 @@
 'use client';
 
 import Link from 'next/link';
-import { use, useState, Suspense } from 'react';
+import { use, useState, useEffect, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { CircleIcon, Home, LogOut } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { signOut } from '@/app/(login)/actions';
 import { useRouter } from 'next/navigation';
 import { User } from '@/lib/db/schema';
 import useSWR, { mutate } from 'swr';
+import posthog from 'posthog-js';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -22,6 +23,15 @@ function UserMenu() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { data: user } = useSWR<User>('/api/user', fetcher);
   const router = useRouter();
+
+  useEffect(() => {
+    if (user?.id) {
+      posthog.identify(String(user.id), {
+        email: user.email,
+        name: user.name,
+      });
+    }
+  }, [user?.id, user?.email, user?.name]);
 
   async function handleSignOut() {
     await signOut();
@@ -79,11 +89,7 @@ function UserMenu() {
 }
 
 function Header() {
-  return (
-    <header className="border-b border-gray-200">
-    
-    </header>
-  );
+  return <header></header>;
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {

@@ -11,10 +11,13 @@ import Highlight from '@tiptap/extension-highlight';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import DragHandle from '@tiptap/extension-drag-handle-react';
+import FontFamily from '@tiptap/extension-font-family';
+import { TextStyle } from '@tiptap/extension-text-style';
 import { SlashCommandExtension } from './slash-command';
 import { Callout } from './callout';
 import { Carousel, CarouselItem } from './carousel';
 import { QuoteBlock } from './quote-block';
+import { YoutubeEmbed } from './youtube-embed';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -46,10 +49,13 @@ import {
   Minus,
   GripVertical,
   Trash2,
-  LayoutGrid,
   ChevronDown,
+  GalleryHorizontal,
+  Sparkles,
+  X,
+  Youtube,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { generateReactHelpers } from '@uploadthing/react';
 import type { OurFileRouter } from '@/lib/uploadthing';
 
@@ -62,6 +68,20 @@ type RichEditorProps = {
 };
 
 type QuoteStyle = 'line' | 'double';
+
+type SelectionHint = {
+  from: number;
+  to: number;
+  text: string;
+  x: number;
+  y: number;
+};
+
+type AiSuggestion = {
+  id: string;
+  label: string;
+  text: string;
+};
 
 function ToolbarButton({
   onClick,
@@ -100,6 +120,34 @@ function normalizeLinkHref(href: string) {
   return `https://${trimmed}`;
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function toSentenceCase(value: string) {
+  if (!value) return value;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function buildAiSuggestions(selectedText: string): AiSuggestion[] {
+  const compact = selectedText.replace(/\s+/g, ' ').trim();
+  const short =
+    compact.length > 120 ? `${compact.slice(0, 117).trimEnd()}...` : compact;
+  const benefit = toSentenceCase(
+    `perfect for customers who want ${short.charAt(0).toLowerCase()}${short.slice(1)}`
+  );
+  const cta = short.endsWith('.')
+    ? `${short} Grab it now.`
+    : `${short}. Grab it now.`;
+
+  return [
+    { id: 'original', label: 'Original', text: compact },
+    { id: 'short', label: 'Short', text: short },
+    { id: 'benefit', label: 'Benefit Focus', text: benefit },
+    { id: 'cta', label: 'CTA', text: cta },
+  ];
+}
+
 export default function RichEditor({
   content,
   onChange,
@@ -121,6 +169,37 @@ export default function RichEditor({
     wasLinkActive: boolean;
     selectedText: string;
   } | null>(null);
+  const editorRootRef = useRef<HTMLDivElement>(null);
+  const [selectionHint, setSelectionHint] = useState<SelectionHint | null>(
+    null
+  );
+  const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
+  const [isYoutubeModalOpen, setIsYoutubeModalOpen] = useState(false);
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const youtubeUrlInputRef = useRef<HTMLInputElement>(null);
+
+  const extractYoutubeEmbedUrl = (url: string): string | null => {
+    try {
+      const u = new URL(url);
+      let videoId = '';
+      if (u.hostname === 'youtu.be') {
+        videoId = u.pathname.slice(1);
+      } else if (u.hostname.includes('youtube.com')) {
+        videoId = u.searchParams.get('v') || '';
+        if (!videoId && u.pathname.startsWith('/embed/')) {
+          videoId = u.pathname.replace('/embed/', '');
+        }
+        if (!videoId && u.pathname.startsWith('/shorts/')) {
+          videoId = u.pathname.replace('/shorts/', '');
+        }
+      }
+      if (!videoId) return null;
+      videoId = videoId.split(/[?&]/)[0];
+      return `https://www.youtube.com/embed/${videoId}`;
+    } catch {
+      return null;
+    }
+  };
 
   const editor = useEditor({
     extensions: [
@@ -161,6 +240,9 @@ export default function RichEditor({
       Callout as any,
       CarouselItem,
       Carousel,
+      YoutubeEmbed as any,
+      TextStyle,
+      FontFamily,
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -196,6 +278,13 @@ export default function RichEditor({
     input.click();
   }, [startUpload]);
 
+  useEffect(() => {
+    const onOpenImagePicker = () => addImage();
+    window.addEventListener('tiptap-open-image-picker', onOpenImagePicker);
+    return () =>
+      window.removeEventListener('tiptap-open-image-picker', onOpenImagePicker);
+  }, [addImage]);
+
   const closeLinkModal = useCallback(() => {
     linkModalContextRef.current = null;
     setIsLinkModalOpen(false);
@@ -207,10 +296,19 @@ export default function RichEditor({
 
     const { from, to, empty } = editor.state.selection;
     const wasLinkActive = editor.isActive('link');
-    const selectedText = empty ? '' : editor.state.doc.textBetween(from, to, ' ');
-    const previousUrl = (editor.getAttributes('link').href as string | undefined) || '';
+    const selectedText = empty
+      ? ''
+      : editor.state.doc.textBetween(from, to, ' ');
+    const previousUrl =
+      (editor.getAttributes('link').href as string | undefined) || '';
 
-    linkModalContextRef.current = { from, to, wasEmpty: empty, wasLinkActive, selectedText };
+    linkModalContextRef.current = {
+      from,
+      to,
+      wasEmpty: empty,
+      wasLinkActive,
+      selectedText,
+    };
     setLinkModalContext({ wasEmpty: empty, wasLinkActive, selectedText });
     setLinkUrl(previousUrl);
     setLinkText(selectedText);
@@ -222,7 +320,9 @@ export default function RichEditor({
 
     const context = linkModalContextRef.current;
     const href = normalizeLinkHref(linkUrl);
-    const shouldInsertText = Boolean(context?.wasEmpty && !context.wasLinkActive);
+    const shouldInsertText = Boolean(
+      context?.wasEmpty && !context.wasLinkActive
+    );
 
     let chain = editor.chain().focus();
     if (context) {
@@ -285,10 +385,115 @@ export default function RichEditor({
     return () => window.removeEventListener('tiptap-open-link-modal', onOpen);
   }, [openLinkModal]);
 
+  const updateSelectionHint = useCallback(() => {
+    if (!editor || !editorRootRef.current) return;
+
+    const { from, to, empty } = editor.state.selection;
+    if (empty || from === to) {
+      setSelectionHint(null);
+      setIsAiPanelOpen(false);
+      return;
+    }
+
+    const selectedText = editor.state.doc
+      .textBetween(from, to, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!selectedText) {
+      setSelectionHint(null);
+      setIsAiPanelOpen(false);
+      return;
+    }
+
+    const rootRect = editorRootRef.current.getBoundingClientRect();
+    const start = editor.view.coordsAtPos(from);
+    const end = editor.view.coordsAtPos(to);
+    const centerX = (start.left + end.right) / 2;
+    const topY = Math.min(start.top, end.top);
+
+    setSelectionHint({
+      from,
+      to,
+      text: selectedText,
+      x: centerX - rootRect.left,
+      y: topY - rootRect.top - 10,
+    });
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleSelectionUpdate = () => {
+      setIsAiPanelOpen(false);
+      updateSelectionHint();
+    };
+
+    editor.on('selectionUpdate', handleSelectionUpdate);
+    editor.on('blur', handleSelectionUpdate);
+
+    return () => {
+      editor.off('selectionUpdate', handleSelectionUpdate);
+      editor.off('blur', handleSelectionUpdate);
+    };
+  }, [editor, updateSelectionHint]);
+
+  useEffect(() => {
+    if (!selectionHint) return;
+
+    const updatePosition = () => updateSelectionHint();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [selectionHint, updateSelectionHint]);
+
+  const aiSuggestions = useMemo(
+    () => (selectionHint ? buildAiSuggestions(selectionHint.text) : []),
+    [selectionHint]
+  );
+
+  const openAiPanel = useCallback(() => {
+    if (!selectionHint) return;
+    setIsAiPanelOpen(true);
+  }, [selectionHint]);
+
+  const applyAiSuggestion = useCallback(
+    (suggestion: string) => {
+      if (!editor || !selectionHint) return;
+
+      editor
+        .chain()
+        .focus()
+        .insertContentAt(
+          { from: selectionHint.from, to: selectionHint.to },
+          suggestion
+        )
+        .run();
+
+      setIsAiPanelOpen(false);
+      setSelectionHint(null);
+    },
+    [editor, selectionHint]
+  );
+
   const addHorizontalRule = useCallback(() => {
     if (!editor) return;
     editor.chain().focus().setHorizontalRule().run();
   }, [editor]);
+
+  useEffect(() => {
+    const onOpen = () => {
+      setYoutubeUrl('');
+      setIsYoutubeModalOpen(true);
+    };
+    window.addEventListener('tiptap-open-youtube-modal', onOpen);
+    return () =>
+      window.removeEventListener('tiptap-open-youtube-modal', onOpen);
+  }, []);
 
   const applyQuoteStyle = useCallback(
     (style: QuoteStyle) => {
@@ -313,11 +518,109 @@ export default function RichEditor({
     [editor]
   );
 
+  const closeYoutubeModal = useCallback(() => {
+    setIsYoutubeModalOpen(false);
+    setYoutubeUrl('');
+  }, []);
+
+  useEffect(() => {
+    if (!isYoutubeModalOpen) return;
+    const frame = window.requestAnimationFrame(() => {
+      youtubeUrlInputRef.current?.focus();
+    });
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeYoutubeModal();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isYoutubeModalOpen, closeYoutubeModal]);
+
   if (!editor) return null;
 
+  const applyYoutubeEmbed = () => {
+    if (!youtubeUrl.trim()) return;
+    const embedUrl = extractYoutubeEmbedUrl(youtubeUrl.trim());
+    if (embedUrl) {
+      editor.chain().focus().setYoutubeEmbed(embedUrl).run();
+    }
+    closeYoutubeModal();
+  };
+
+  const rootWidth = editorRootRef.current?.clientWidth ?? 560;
+  const aiPanelWidth = Math.min(420, Math.max(280, rootWidth - 16));
+  const aiHintX = selectionHint
+    ? clamp(selectionHint.x, 30, Math.max(30, rootWidth - 30))
+    : 30;
+  const aiPanelLeft = selectionHint
+    ? clamp(
+        aiHintX - aiPanelWidth / 2,
+        8,
+        Math.max(8, rootWidth - aiPanelWidth - 8)
+      )
+    : 8;
+  const aiPanelTop = selectionHint ? Math.max(selectionHint.y + 26, 56) : 56;
+
   return (
-    <div className="rounded-xl border border-gray-200 bg-white relative">
+    <div
+      ref={editorRootRef}
+      className="rounded-xl border border-gray-200 bg-white relative"
+    >
       <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-gray-100 bg-gray-50/80 sticky top-0 z-10">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              title="Font family"
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-sm hover:bg-gray-100 transition-colors text-gray-700 max-w-[140px] truncate"
+            >
+              <span className="truncate">
+                {editor
+                  .getAttributes('textStyle')
+                  .fontFamily?.replace(/['"]/g, '') || 'Manrope'}
+              </span>
+              <ChevronDown className="h-3 w-3 shrink-0" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-44">
+            <DropdownMenuItem
+              onClick={() => editor.chain().focus().unsetFontFamily().run()}
+            >
+              <span style={{ fontFamily: 'Manrope' }}>Manrope</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() =>
+                editor.chain().focus().setFontFamily("'Geist Sans'").run()
+              }
+            >
+              <span style={{ fontFamily: "'Geist Sans'" }}>Geist Sans</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() =>
+                editor.chain().focus().setFontFamily("'Geist Mono'").run()
+              }
+            >
+              <span style={{ fontFamily: "'Geist Mono'" }}>Geist Mono</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() =>
+                editor.chain().focus().setFontFamily("'Hedvig Sans'").run()
+              }
+            >
+              <span style={{ fontFamily: "'Hedvig Sans'" }}>Hedvig Sans</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() =>
+                editor.chain().focus().setFontFamily("'Hedvig Serif'").run()
+              }
+            >
+              <span style={{ fontFamily: "'Hedvig Serif'" }}>Hedvig Serif</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <ToolbarSeparator />
         <div className="flex items-center gap-0.5">
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBold().run()}
@@ -334,27 +637,21 @@ export default function RichEditor({
             <Italic className="h-4 w-4" />
           </ToolbarButton>
           <ToolbarButton
-            onClick={() =>
-              editor.chain().focus().toggleUnderline().run()
-            }
+            onClick={() => editor.chain().focus().toggleUnderline().run()}
             isActive={editor.isActive('underline')}
             title="Underline"
           >
             <UnderlineIcon className="h-4 w-4" />
           </ToolbarButton>
           <ToolbarButton
-            onClick={() =>
-              editor.chain().focus().toggleStrike().run()
-            }
+            onClick={() => editor.chain().focus().toggleStrike().run()}
             isActive={editor.isActive('strike')}
             title="Strikethrough"
           >
             <Strikethrough className="h-4 w-4" />
           </ToolbarButton>
           <ToolbarButton
-            onClick={() =>
-              editor.chain().focus().toggleCode().run()
-            }
+            onClick={() => editor.chain().focus().toggleCode().run()}
             isActive={editor.isActive('code')}
             title="Code"
           >
@@ -367,11 +664,7 @@ export default function RichEditor({
         <div className="flex items-center gap-0.5">
           <ToolbarButton
             onClick={() =>
-              editor
-                .chain()
-                .focus()
-                .toggleHeading({ level: 1 })
-                .run()
+              editor.chain().focus().toggleHeading({ level: 1 }).run()
             }
             isActive={editor.isActive('heading', { level: 1 })}
             title="Heading 1"
@@ -380,11 +673,7 @@ export default function RichEditor({
           </ToolbarButton>
           <ToolbarButton
             onClick={() =>
-              editor
-                .chain()
-                .focus()
-                .toggleHeading({ level: 2 })
-                .run()
+              editor.chain().focus().toggleHeading({ level: 2 }).run()
             }
             isActive={editor.isActive('heading', { level: 2 })}
             title="Heading 2"
@@ -393,11 +682,7 @@ export default function RichEditor({
           </ToolbarButton>
           <ToolbarButton
             onClick={() =>
-              editor
-                .chain()
-                .focus()
-                .toggleHeading({ level: 3 })
-                .run()
+              editor.chain().focus().toggleHeading({ level: 3 }).run()
             }
             isActive={editor.isActive('heading', { level: 3 })}
             title="Heading 3"
@@ -410,27 +695,21 @@ export default function RichEditor({
 
         <div className="flex items-center gap-0.5">
           <ToolbarButton
-            onClick={() =>
-              editor.chain().focus().toggleBulletList().run()
-            }
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
             isActive={editor.isActive('bulletList')}
             title="Bullet List"
           >
             <List className="h-4 w-4" />
           </ToolbarButton>
           <ToolbarButton
-            onClick={() =>
-              editor.chain().focus().toggleOrderedList().run()
-            }
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
             isActive={editor.isActive('orderedList')}
             title="Ordered List"
           >
             <ListOrdered className="h-4 w-4" />
           </ToolbarButton>
           <ToolbarButton
-            onClick={() =>
-              editor.chain().focus().toggleTaskList().run()
-            }
+            onClick={() => editor.chain().focus().toggleTaskList().run()}
             isActive={editor.isActive('taskList')}
             title="Checkbox"
           >
@@ -447,7 +726,9 @@ export default function RichEditor({
                 type="button"
                 title="Quote style"
                 className={`inline-flex items-center gap-1 rounded-md px-1.5 py-1.5 hover:bg-gray-100 transition-colors ${
-                  editor.isActive('blockquote') ? 'bg-orange-100 text-orange-600' : 'text-gray-500'
+                  editor.isActive('blockquote')
+                    ? 'bg-orange-100 text-orange-600'
+                    : 'text-gray-500'
                 }`}
               >
                 <Quote className="h-4 w-4" />
@@ -469,44 +750,27 @@ export default function RichEditor({
             </DropdownMenuContent>
           </DropdownMenu>
           <ToolbarButton
-            onClick={() =>
-              editor.chain().focus().setTextAlign('left').run()
-            }
+            onClick={() => editor.chain().focus().setTextAlign('left').run()}
             isActive={editor.isActive({ textAlign: 'left' })}
             title="Align Left"
           >
             <AlignLeft className="h-4 w-4" />
           </ToolbarButton>
           <ToolbarButton
-            onClick={() =>
-              editor
-                .chain()
-                .focus()
-                .setTextAlign('center')
-                .run()
-            }
+            onClick={() => editor.chain().focus().setTextAlign('center').run()}
             isActive={editor.isActive({ textAlign: 'center' })}
             title="Align Center"
           >
             <AlignCenter className="h-4 w-4" />
           </ToolbarButton>
           <ToolbarButton
-            onClick={() =>
-              editor
-                .chain()
-                .focus()
-                .setTextAlign('right')
-                .run()
-            }
+            onClick={() => editor.chain().focus().setTextAlign('right').run()}
             isActive={editor.isActive({ textAlign: 'right' })}
             title="Align Right"
           >
             <AlignRight className="h-4 w-4" />
           </ToolbarButton>
-          <ToolbarButton
-            onClick={addHorizontalRule}
-            title="Divider"
-          >
+          <ToolbarButton onClick={addHorizontalRule} title="Divider">
             <Minus className="h-4 w-4" />
           </ToolbarButton>
         </div>
@@ -532,7 +796,16 @@ export default function RichEditor({
             onClick={() => editor.chain().focus().insertCarousel().run()}
             title="Carousel"
           >
-            <LayoutGrid className="h-4 w-4" />
+            <GalleryHorizontal className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => {
+              setYoutubeUrl('');
+              setIsYoutubeModalOpen(true);
+            }}
+            title="YouTube Video"
+          >
+            <Youtube className="h-4 w-4" />
           </ToolbarButton>
         </div>
 
@@ -540,12 +813,7 @@ export default function RichEditor({
 
         <ToolbarButton
           onClick={() =>
-            editor
-              .chain()
-              .focus()
-              .unsetAllMarks()
-              .clearNodes()
-              .run()
+            editor.chain().focus().unsetAllMarks().clearNodes().run()
           }
           title="Clear Formatting"
         >
@@ -585,6 +853,90 @@ export default function RichEditor({
         <EditorContent editor={editor} />
       </div>
 
+      {selectionHint && (
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={openAiPanel}
+          className="absolute z-30 inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-white px-3 py-1 text-xs font-medium text-orange-600 shadow-sm hover:bg-orange-50"
+          style={{
+            left: `${aiHintX}px`,
+            top: `${Math.max(selectionHint.y, 42)}px`,
+            transform: 'translate(-50%, -100%)',
+          }}
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          AI
+        </button>
+      )}
+
+      {selectionHint && isAiPanelOpen && (
+        <div
+          className="absolute z-30 rounded-xl border border-orange-100 bg-white p-3 shadow-lg"
+          style={{
+            top: `${aiPanelTop}px`,
+            left: `${aiPanelLeft}px`,
+            width: `${aiPanelWidth}px`,
+          }}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-gray-900">
+                AI Suggestions
+              </p>
+              <p className="text-xs text-gray-500 truncate">
+                {selectionHint.text}
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label="Close AI panel"
+              className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              onClick={() => setIsAiPanelOpen(false)}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="overflow-hidden rounded-lg border border-gray-200">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-gray-50 text-gray-500">
+                <tr>
+                  <th className="px-2.5 py-2 font-medium">Style</th>
+                  <th className="px-2.5 py-2 font-medium">Preview</th>
+                  <th className="px-2.5 py-2 font-medium text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {aiSuggestions.map((suggestion) => (
+                  <tr
+                    key={suggestion.id}
+                    className="border-t border-gray-100 align-top"
+                  >
+                    <td className="px-2.5 py-2 text-gray-800">
+                      {suggestion.label}
+                    </td>
+                    <td className="px-2.5 py-2 text-gray-600">
+                      {suggestion.text}
+                    </td>
+                    <td className="px-2.5 py-2 text-right">
+                      <button
+                        type="button"
+                        className="rounded-md border border-orange-200 px-2 py-1 text-[11px] font-medium text-orange-600 hover:bg-orange-50"
+                        onClick={() => applyAiSuggestion(suggestion.text)}
+                      >
+                        Use
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {isLinkModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
@@ -622,24 +974,25 @@ export default function RichEditor({
             </div>
 
             <div className="mt-4 space-y-3">
-              {linkModalContext?.wasEmpty && !linkModalContext.wasLinkActive && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="linkText">Text</Label>
-                  <Input
-                    id="linkText"
-                    value={linkText}
-                    onChange={(e) => setLinkText(e.target.value)}
-                    placeholder="Link text"
-                    autoComplete="off"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        applyLinkFromModal();
-                      }
-                    }}
-                  />
-                </div>
-              )}
+              {linkModalContext?.wasEmpty &&
+                !linkModalContext.wasLinkActive && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="linkText">Text</Label>
+                    <Input
+                      id="linkText"
+                      value={linkText}
+                      onChange={(e) => setLinkText(e.target.value)}
+                      placeholder="Link text"
+                      autoComplete="off"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          applyLinkFromModal();
+                        }
+                      }}
+                    />
+                  </div>
+                )}
 
               <div className="space-y-1.5">
                 <Label htmlFor="linkUrl">URL</Label>
@@ -665,7 +1018,11 @@ export default function RichEditor({
                 Cancel
               </Button>
               {linkModalContext?.wasLinkActive && (
-                <Button type="button" variant="outline" onClick={removeLinkFromModal}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={removeLinkFromModal}
+                >
                   Remove
                 </Button>
               )}
@@ -675,6 +1032,80 @@ export default function RichEditor({
                 onClick={applyLinkFromModal}
               >
                 Save
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isYoutubeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/30"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              closeYoutubeModal();
+            }}
+          />
+          <div
+            className="relative w-full max-w-md rounded-xl border border-gray-200 bg-white p-4 shadow-lg"
+            role="dialog"
+            aria-modal="true"
+            aria-label="YouTube Video"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-gray-900 truncate">
+                  YouTube Video
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Paste a YouTube video link
+                </p>
+              </div>
+              <button
+                type="button"
+                className="shrink-0 text-gray-400 hover:text-gray-700 px-2 py-1 rounded-md"
+                onClick={closeYoutubeModal}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="youtubeUrl">Video URL</Label>
+                <Input
+                  id="youtubeUrl"
+                  ref={youtubeUrlInputRef}
+                  value={youtubeUrl}
+                  onChange={(e) => setYoutubeUrl(e.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  autoComplete="off"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      applyYoutubeEmbed();
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={closeYoutubeModal}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="bg-orange-500 hover:bg-orange-600 text-white"
+                onClick={applyYoutubeEmbed}
+              >
+                Add Video
               </Button>
             </div>
           </div>
