@@ -103,7 +103,10 @@ export const signIn = validatedAction(signInSchema, async (data, formData) => {
 const signUpSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
-  inviteId: z.string().optional()
+  inviteId: z.string().optional(),
+  termsAccepted: z.any().refine((value) => value === 'on', {
+    message: 'Please accept the Privacy Policy and Terms of Service.'
+  })
 });
 
 export const signUp = validatedAction(signUpSchema, async (data, formData) => {
