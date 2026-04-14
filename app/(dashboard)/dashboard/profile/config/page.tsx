@@ -40,7 +40,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { updateProfile, updateAvatar, deleteAvatar } from '../actions';
 import { Profile, User } from '@/lib/db/schema';
 import {
@@ -274,6 +279,9 @@ function AvatarSection() {
                     </div>
                   </DialogTrigger>
                   <DialogContent className="max-w-sm p-2" showClose={false}>
+                    <DialogTitle className="sr-only">
+                      Profile photo preview
+                    </DialogTitle>
                     <img
                       src={profile?.avatarUrl || ''}
                       alt={profile?.displayName || user?.name || ''}
@@ -358,6 +366,7 @@ function AvatarSection() {
           }}
         >
           <DialogContent className="max-w-lg p-0 overflow-hidden gap-0">
+            <DialogTitle className="sr-only">Crop profile photo</DialogTitle>
             <div className="relative w-full h-[350px] bg-black">
               {cropImageSrc && (
                 <Cropper
@@ -896,12 +905,7 @@ function ProfileForm({
   > | null;
 
   return (
-    <form
-      id={formId}
-      ref={formRef}
-      className="space-y-8"
-      action={formAction}
-    >
+    <form id="profile-config-form" className="space-y-8" action={formAction}>
       <Card>
         <CardHeader>
           <CardTitle>Basic Information</CardTitle>
@@ -1494,10 +1498,10 @@ export default function ProfileConfigPage() {
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-end">
           <div className="flex items-center gap-4">
             <Button
-              type="button"
+              type="submit"
+              form="profile-config-form"
+              disabled={isPending}
               className="bg-orange-500 hover:bg-orange-600"
-              disabled={isPending || !isReady}
-              onClick={() => profileFormRef.current?.requestSubmit()}
             >
               {isPending ? (
                 <>
@@ -1508,24 +1512,22 @@ export default function ProfileConfigPage() {
                 'Save Changes'
               )}
             </Button>
-            <Button variant="ghost" asChild>
-              <Link href="/dashboard/profile">Back to Profile</Link>
-            </Button>
           </div>
         </div>
       </div>
       <Suspense fallback={<ProfileSkeleton />}>
         <div className="space-y-6 pt-16">
           {state.error && (
-            <p className="text-sm text-red-600" aria-live="polite">
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {state.error}
-            </p>
+            </div>
           )}
           {state.success && (
-            <p className="text-sm text-green-600" aria-live="polite">
+            <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
               {state.success}
-            </p>
+            </div>
           )}
+
           <AvatarSection />
 
           {isReady && (
