@@ -1,6 +1,7 @@
 'use client';
 
 import { useEditor, EditorContent } from '@tiptap/react';
+import type { AnyExtension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
@@ -52,12 +53,25 @@ import {
   ChevronDown,
   GalleryHorizontal,
   Sparkles,
+  Copy,
+  Check,
+  RefreshCw,
+  Loader2,
   X,
   Youtube,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { generateReactHelpers } from '@uploadthing/react';
 import type { OurFileRouter } from '@/lib/uploadthing';
+import {
+  type AiGoal,
+  type AiSuggestion,
+  type AiTone,
+  aiGoalOptions,
+  aiSuggestionResponseSchema,
+  aiToneOptions,
+  buildFallbackAiSuggestions,
+} from '@/lib/editor/ai-suggestions';
 
 const { useUploadThing } = generateReactHelpers<OurFileRouter>();
 
@@ -75,12 +89,6 @@ type SelectionHint = {
   text: string;
   x: number;
   y: number;
-};
-
-type AiSuggestion = {
-  id: string;
-  label: string;
-  text: string;
 };
 
 function ToolbarButton({
@@ -124,28 +132,15 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-function toSentenceCase(value: string) {
-  if (!value) return value;
-  return value.charAt(0).toUpperCase() + value.slice(1);
+function countWords(value: string) {
+  return value.trim() ? value.trim().split(/\s+/).length : 0;
 }
 
-function buildAiSuggestions(selectedText: string): AiSuggestion[] {
-  const compact = selectedText.replace(/\s+/g, ' ').trim();
-  const short =
-    compact.length > 120 ? `${compact.slice(0, 117).trimEnd()}...` : compact;
-  const benefit = toSentenceCase(
-    `perfect for customers who want ${short.charAt(0).toLowerCase()}${short.slice(1)}`
-  );
-  const cta = short.endsWith('.')
-    ? `${short} Grab it now.`
-    : `${short}. Grab it now.`;
-
-  return [
-    { id: 'original', label: 'Original', text: compact },
-    { id: 'short', label: 'Short', text: short },
-    { id: 'benefit', label: 'Benefit Focus', text: benefit },
-    { id: 'cta', label: 'CTA', text: cta },
-  ];
+function getOptionLabel<T extends string>(
+  options: ReadonlyArray<{ value: T; label: string }>,
+  value: T
+) {
+  return options.find((option) => option.value === value)?.label ?? value;
 }
 
 export default function RichEditor({
@@ -170,13 +165,23 @@ export default function RichEditor({
     selectedText: string;
   } | null>(null);
   const editorRootRef = useRef<HTMLDivElement>(null);
-  const [selectionHint, setSelectionHint] = useState<SelectionHint | null>(
-    null
-  );
+  const aiPanelRef = useRef<HTMLDivElement>(null);
+  const aiPanelInteractingRef = useRef(false);
+  const aiBlurFrameRef = useRef<number | null>(null);
+  const copiedSuggestionTimerRef = useRef<number | null>(null);
+  const [selectionHint, setSelectionHint] = useState<SelectionHint | null>(null);
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
   const [isYoutubeModalOpen, setIsYoutubeModalOpen] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const youtubeUrlInputRef = useRef<HTMLInputElement>(null);
+  const [aiGoal, setAiGoal] = useState<AiGoal>('rewrite');
+  const [aiTone, setAiTone] = useState<AiTone>('friendly');
+  const [aiInstruction, setAiInstruction] = useState('');
+  const [aiSuggestions, setAiSuggestions] = useState<AiSuggestion[]>([]);
+  const [aiSuggestionSource, setAiSuggestionSource] = useState<'local' | 'ai'>('local');
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [copiedSuggestionId, setCopiedSuggestionId] = useState<string | null>(null);
 
   const extractYoutubeEmbedUrl = (url: string): string | null => {
     try {
@@ -236,8 +241,8 @@ export default function RichEditor({
       TaskItem.configure({
         nested: true,
       }),
-      SlashCommandExtension as any,
-      Callout as any,
+      SlashCommandExtension as AnyExtension,
+      Callout as AnyExtension,
       CarouselItem,
       Carousel,
       YoutubeEmbed as any,
@@ -425,18 +430,38 @@ export default function RichEditor({
     if (!editor) return;
 
     const handleSelectionUpdate = () => {
+      if (aiPanelInteractingRef.current) return;
       setIsAiPanelOpen(false);
       updateSelectionHint();
     };
 
+    const handleBlur = () => {
+      if (aiBlurFrameRef.current) {
+        window.cancelAnimationFrame(aiBlurFrameRef.current);
+      }
+
+      aiBlurFrameRef.current = window.requestAnimationFrame(() => {
+        aiBlurFrameRef.current = null;
+        if (aiPanelRef.current?.contains(document.activeElement)) return;
+        aiPanelInteractingRef.current = false;
+        setIsAiPanelOpen(false);
+        updateSelectionHint();
+      });
+    };
+
     editor.on('selectionUpdate', handleSelectionUpdate);
-    editor.on('blur', handleSelectionUpdate);
+    editor.on('blur', handleBlur);
 
     return () => {
+      if (aiBlurFrameRef.current) {
+        window.cancelAnimationFrame(aiBlurFrameRef.current);
+        aiBlurFrameRef.current = null;
+      }
+      aiPanelInteractingRef.current = false;
       editor.off('selectionUpdate', handleSelectionUpdate);
-      editor.off('blur', handleSelectionUpdate);
+      editor.off('blur', handleBlur);
     };
-  }, [editor, updateSelectionHint]);
+  }, [editor, isAiPanelOpen, updateSelectionHint]);
 
   useEffect(() => {
     if (!selectionHint) return;
@@ -451,15 +476,38 @@ export default function RichEditor({
     };
   }, [selectionHint, updateSelectionHint]);
 
-  const aiSuggestions = useMemo(
-    () => (selectionHint ? buildAiSuggestions(selectionHint.text) : []),
-    [selectionHint]
+  const selectedText = selectionHint?.text ?? '';
+
+  const localAiSuggestions = useMemo(
+    () =>
+      selectedText
+        ? buildFallbackAiSuggestions({
+            text: selectedText,
+            goal: aiGoal,
+            tone: aiTone,
+            instruction: aiInstruction,
+          })
+        : [],
+    [aiGoal, aiInstruction, aiTone, selectedText]
   );
+
+  useEffect(() => {
+    setAiSuggestions(localAiSuggestions);
+    setAiSuggestionSource('local');
+    setAiError(null);
+    setCopiedSuggestionId(null);
+  }, [localAiSuggestions]);
 
   const openAiPanel = useCallback(() => {
     if (!selectionHint) return;
+    if (aiSuggestionSource !== 'ai') {
+      setAiSuggestions(localAiSuggestions);
+      setAiSuggestionSource('local');
+    }
+    setAiError(null);
+    setCopiedSuggestionId(null);
     setIsAiPanelOpen(true);
-  }, [selectionHint]);
+  }, [aiSuggestionSource, localAiSuggestions, selectionHint]);
 
   const applyAiSuggestion = useCallback(
     (suggestion: string) => {
@@ -479,6 +527,86 @@ export default function RichEditor({
     },
     [editor, selectionHint]
   );
+
+  const generateAiSuggestions = useCallback(async () => {
+    if (!selectedText.trim()) return;
+
+    setIsAiGenerating(true);
+    setAiError(null);
+    try {
+      const response = await fetch('/api/editor/suggestions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: selectedText,
+          goal: aiGoal,
+          tone: aiTone,
+          instruction: aiInstruction,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to generate suggestions.');
+      }
+
+      const parsed = aiSuggestionResponseSchema.safeParse(data);
+      if (!parsed.success) {
+        throw new Error('Unexpected AI response.');
+      }
+
+      setAiSuggestions(parsed.data.suggestions);
+      setAiSuggestionSource(parsed.data.source === 'ai' ? 'ai' : 'local');
+    } catch (error) {
+      setAiSuggestions(localAiSuggestions);
+      setAiSuggestionSource('local');
+      setAiError(
+        error instanceof Error ? error.message : 'Failed to generate suggestions.'
+      );
+    } finally {
+      setIsAiGenerating(false);
+    }
+  }, [aiGoal, aiInstruction, aiTone, localAiSuggestions, selectedText]);
+
+  const copySuggestion = useCallback(async (suggestion: AiSuggestion) => {
+    const text = suggestion.text.trim();
+    if (!text) return;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+
+      setCopiedSuggestionId(suggestion.id);
+      if (copiedSuggestionTimerRef.current) {
+        window.clearTimeout(copiedSuggestionTimerRef.current);
+      }
+      copiedSuggestionTimerRef.current = window.setTimeout(() => {
+        setCopiedSuggestionId(null);
+      }, 1500);
+    } catch {
+      setAiError('Could not copy the suggestion.');
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (copiedSuggestionTimerRef.current) {
+        window.clearTimeout(copiedSuggestionTimerRef.current);
+      }
+    };
+  }, []);
 
   const addHorizontalRule = useCallback(() => {
     if (!editor) return;
@@ -550,7 +678,7 @@ export default function RichEditor({
   };
 
   const rootWidth = editorRootRef.current?.clientWidth ?? 560;
-  const aiPanelWidth = Math.min(420, Math.max(280, rootWidth - 16));
+  const aiPanelWidth = Math.min(480, Math.max(300, rootWidth - 16));
   const aiHintX = selectionHint
     ? clamp(selectionHint.x, 30, Math.max(30, rootWidth - 30))
     : 30;
@@ -872,36 +1000,154 @@ export default function RichEditor({
 
       {selectionHint && isAiPanelOpen && (
         <div
-          className="absolute z-30 rounded-xl border border-orange-100 bg-white p-3 shadow-lg"
+          ref={aiPanelRef}
+          className="absolute z-30 rounded-2xl border border-orange-100 bg-white p-3 shadow-lg"
           style={{
             top: `${aiPanelTop}px`,
             left: `${aiPanelLeft}px`,
             width: `${aiPanelWidth}px`,
           }}
-          onMouseDown={(e) => e.preventDefault()}
+          onPointerDownCapture={() => {
+            aiPanelInteractingRef.current = true;
+          }}
+          onPointerUpCapture={() => {
+            window.requestAnimationFrame(() => {
+              aiPanelInteractingRef.current = false;
+            });
+          }}
+          onPointerCancelCapture={() => {
+            window.requestAnimationFrame(() => {
+              aiPanelInteractingRef.current = false;
+            });
+          }}
         >
-          <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="mb-3 flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-xs font-semibold text-gray-900">
-                AI Suggestions
+                AI Writing Assistant
               </p>
-              <p className="text-xs text-gray-500 truncate">
+              <p className="text-xs text-gray-500">
+                Rewrite selected text, adjust tone, and generate stronger copy.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">
+                  {countWords(selectionHint.text)} words
+                </span>
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">
+                  {selectionHint.text.length} chars
+                </span>
+                <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-medium text-orange-700">
+                  {getOptionLabel(aiGoalOptions, aiGoal)}
+                </span>
+                <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-medium text-orange-700">
+                  {getOptionLabel(aiToneOptions, aiTone)}
+                </span>
+              </div>
+              <p className="mt-2 line-clamp-2 text-xs text-gray-500">
                 {selectionHint.text}
               </p>
             </div>
-            <button
-              type="button"
-              aria-label="Close AI panel"
-              className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-              onClick={() => setIsAiPanelOpen(false)}
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <span
+                className={`rounded-full px-2 py-1 text-[10px] font-medium ${
+                  aiSuggestionSource === 'ai'
+                    ? 'bg-green-50 text-green-700'
+                    : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                {aiSuggestionSource === 'ai' ? 'AI' : 'Local'}
+              </span>
+              <button
+                type="button"
+                aria-label="Close AI panel"
+                className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                onClick={() => setIsAiPanelOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-gray-200">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-medium uppercase tracking-wide text-gray-500">
+                Goal
+              </Label>
+              <select
+                value={aiGoal}
+                onChange={(e) => setAiGoal(e.target.value as AiGoal)}
+                className="h-9 w-full rounded-md border border-gray-200 bg-white px-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
+              >
+                {aiGoalOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-medium uppercase tracking-wide text-gray-500">
+                Tone
+              </Label>
+              <select
+                value={aiTone}
+                onChange={(e) => setAiTone(e.target.value as AiTone)}
+                className="h-9 w-full rounded-md border border-gray-200 bg-white px-2.5 text-sm text-gray-700 outline-none transition-colors focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
+              >
+                {aiToneOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="mt-3 space-y-1.5">
+            <Label
+              htmlFor="aiInstruction"
+              className="text-[11px] font-medium uppercase tracking-wide text-gray-500"
+            >
+              Brief
+            </Label>
+            <Input
+              id="aiInstruction"
+              value={aiInstruction}
+              onChange={(e) => setAiInstruction(e.target.value)}
+              placeholder="More premium, add urgency, write for Instagram..."
+              autoComplete="off"
+            />
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[11px] text-gray-500">
+              Use the controls, then refine the selected text with AI.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              className="bg-orange-500 text-white hover:bg-orange-600"
+              onClick={generateAiSuggestions}
+              disabled={isAiGenerating || !selectedText.trim()}
+            >
+              {isAiGenerating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Generate
+            </Button>
+          </div>
+
+          {aiError && (
+            <p className="mt-2 text-xs text-red-500" role="alert">
+              {aiError}
+            </p>
+          )}
+
+          <div className="mt-3 max-h-[340px] overflow-auto rounded-lg border border-gray-200">
             <table className="w-full text-left text-xs">
-              <thead className="bg-gray-50 text-gray-500">
+              <thead className="sticky top-0 z-10 bg-gray-50 text-gray-500">
                 <tr>
                   <th className="px-2.5 py-2 font-medium">Style</th>
                   <th className="px-2.5 py-2 font-medium">Preview</th>
@@ -912,22 +1158,48 @@ export default function RichEditor({
                 {aiSuggestions.map((suggestion) => (
                   <tr
                     key={suggestion.id}
-                    className="border-t border-gray-100 align-top"
+                    className="border-t border-gray-100 align-top transition-colors hover:bg-orange-50/40"
                   >
-                    <td className="px-2.5 py-2 text-gray-800">
-                      {suggestion.label}
+                    <td className="px-2.5 py-2">
+                      <div className="text-gray-800 font-medium">
+                        {suggestion.label}
+                      </div>
+                      {suggestion.badge && (
+                        <span className="mt-1 inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+                          {suggestion.badge}
+                        </span>
+                      )}
                     </td>
                     <td className="px-2.5 py-2 text-gray-600">
-                      {suggestion.text}
+                      <p className="whitespace-pre-line leading-relaxed">
+                        {suggestion.text}
+                      </p>
+                      <p className="mt-1 text-[11px] text-gray-400">
+                        {suggestion.note}
+                      </p>
                     </td>
                     <td className="px-2.5 py-2 text-right">
-                      <button
-                        type="button"
-                        className="rounded-md border border-orange-200 px-2 py-1 text-[11px] font-medium text-orange-600 hover:bg-orange-50"
-                        onClick={() => applyAiSuggestion(suggestion.text)}
-                      >
-                        Use
-                      </button>
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          title="Copy suggestion"
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 text-gray-500 transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600"
+                          onClick={() => copySuggestion(suggestion)}
+                        >
+                          {copiedSuggestionId === suggestion.id ? (
+                            <Check className="h-3.5 w-3.5" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-md border border-orange-200 px-2 py-1 text-[11px] font-medium text-orange-600 hover:bg-orange-50"
+                          onClick={() => applyAiSuggestion(suggestion.text)}
+                        >
+                          Use
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
