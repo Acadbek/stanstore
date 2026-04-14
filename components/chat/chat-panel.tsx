@@ -151,7 +151,7 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                 ))}
                 {isLoading && (
                   <div className="flex gap-3 px-4 py-3 justify-start">
-                    <div className="shrink-0 w-7 h-7 rounded-full bg-black flex items-center justify-center">
+                    <div className="shrink-0 w-7 h-7 rounded-full bg-orange-500 flex items-center justify-center">
                       <MessageSquare className="w-3.5 h-3.5 text-white" />
                     </div>
                     <div className="bg-white rounded-2xl rounded-bl-md px-4 py-3 border border-gray-200">
@@ -255,7 +255,7 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
         </>
       ) : (
         <div className="flex flex-col items-center py-4 gap-4">
-          <div className="w-9 h-9 rounded-full bg-black flex items-center justify-center">
+          <div className="w-9 h-9 rounded-full bg-orange-500 flex items-center justify-center">
             <MessageSquare className="w-4 h-4 text-white" />
           </div>
           <span className="text-[10px] text-black text-center px-1 leading-tight">
