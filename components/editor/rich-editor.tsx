@@ -187,7 +187,9 @@ function buildLocalContinuation(currentBlock: string, contextBefore: string) {
   return ' that saves time and makes the next step easier.';
 }
 
-function getCompletionContext(editor: NonNullable<ReturnType<typeof useEditor>>) {
+function getCompletionContext(
+  editor: NonNullable<ReturnType<typeof useEditor>>
+) {
   const { from, empty } = editor.state.selection;
   if (!empty) return null;
 
@@ -240,18 +242,23 @@ export default function RichEditor({
     null
   );
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
-<<<<<<< HEAD
-  const [inlineCompletion, setInlineCompletion] = useState<InlineCompletion | null>(null);
-  const [isInlineCompletionLoading, setIsInlineCompletionLoading] = useState(false);
-  const [inlineCompletionError, setInlineCompletionError] = useState<string | null>(null);
-  const [inlineCompletionSource, setInlineCompletionSource] = useState<'local' | 'ai' | null>(null);
+  const [inlineCompletion, setInlineCompletion] =
+    useState<InlineCompletion | null>(null);
+  const [isInlineCompletionLoading, setIsInlineCompletionLoading] =
+    useState(false);
+  const [inlineCompletionError, setInlineCompletionError] = useState<
+    string | null
+  >(null);
+  const [inlineCompletionSource, setInlineCompletionSource] = useState<
+    'local' | 'ai' | null
+  >(null);
   const [editorText, setEditorText] = useState('');
   const [cursorPosition, setCursorPosition] = useState(0);
   const inlineCompletionRef = useRef<InlineCompletion | null>(null);
   const completionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const completionAbortRef = useRef<AbortController | null>(null);
   const completionRequestIdRef = useRef(0);
-=======
+
   const [isYoutubeModalOpen, setIsYoutubeModalOpen] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const youtubeUrlInputRef = useRef<HTMLInputElement>(null);
@@ -278,8 +285,6 @@ export default function RichEditor({
       return null;
     }
   };
->>>>>>> b78beb8992420882724a36c39de9bcecdee79698
-
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -326,7 +331,14 @@ export default function RichEditor({
     content,
     onUpdate: ({ editor }) => {
       setEditorText(
-        normalizeWhitespace(editor.state.doc.textBetween(0, editor.state.doc.content.size, '\n', '\n'))
+        normalizeWhitespace(
+          editor.state.doc.textBetween(
+            0,
+            editor.state.doc.content.size,
+            '\n',
+            '\n'
+          )
+        )
       );
       setCursorPosition(editor.state.selection.from);
       onChange(editor.getHTML());
@@ -584,11 +596,7 @@ export default function RichEditor({
     const completion = inlineCompletionRef.current;
     if (!editor || !completion) return;
 
-    editor
-      .chain()
-      .focus()
-      .insertContent(completion.text)
-      .run();
+    editor.chain().focus().insertContent(completion.text).run();
 
     clearInlineCompletion();
   }, [clearInlineCompletion, editor]);
@@ -630,8 +638,6 @@ export default function RichEditor({
     },
     [editor]
   );
-
-<<<<<<< HEAD
   useEffect(() => {
     if (!editor) return;
 
@@ -750,7 +756,10 @@ export default function RichEditor({
           return;
         }
 
-        const data = (await response.json()) as { suggestion?: string; source?: 'local' | 'ai' };
+        const data = (await response.json()) as {
+          suggestion?: string;
+          source?: 'local' | 'ai';
+        };
         const remoteSuggestion = normalizeWhitespace(data.suggestion || '');
         applySuggestion(
           remoteSuggestion || fallback,
@@ -775,7 +784,7 @@ export default function RichEditor({
     editorText,
     inlineCompletion?.contextKey,
   ]);
-=======
+
   const closeYoutubeModal = useCallback(() => {
     setIsYoutubeModalOpen(false);
     setYoutubeUrl('');
@@ -795,7 +804,6 @@ export default function RichEditor({
       window.removeEventListener('keydown', onKeyDown);
     };
   }, [isYoutubeModalOpen, closeYoutubeModal]);
->>>>>>> b78beb8992420882724a36c39de9bcecdee79698
 
   if (!editor) return null;
 
@@ -822,7 +830,9 @@ export default function RichEditor({
     : 8;
   const aiPanelTop = selectionHint ? Math.max(selectionHint.y + 26, 56) : 56;
   const shouldShowInlineBar =
-    Boolean(inlineCompletion) || isInlineCompletionLoading || Boolean(inlineCompletionError);
+    Boolean(inlineCompletion) ||
+    isInlineCompletionLoading ||
+    Boolean(inlineCompletionError);
 
   return (
     <div
@@ -1121,7 +1131,9 @@ export default function RichEditor({
             {inlineCompletion ? (
               <span className="truncate">
                 Suggestion:
-                <span className="ml-1 text-gray-500">{inlineCompletion.text}</span>
+                <span className="ml-1 text-gray-500">
+                  {inlineCompletion.text}
+                </span>
                 {inlineCompletionSource && (
                   <span className="ml-2 rounded-full border border-orange-200 bg-white px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-orange-600">
                     {inlineCompletionSource}
