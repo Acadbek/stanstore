@@ -1,8 +1,59 @@
-import { desc, and, eq, isNull } from 'drizzle-orm';
+import { desc, and, eq, isNull, sql } from 'drizzle-orm';
 import { db } from './drizzle';
 import { activityLogs, teamMembers, teams, users, profiles, products } from './schema';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/session';
+
+type LegacyProductRow = {
+  id: number;
+  user_id: number;
+  slug: string;
+  title: string;
+  description: string | null;
+  price: number | null;
+  product_url: string | null;
+  image_url: string | null;
+  type: string;
+  is_published: boolean;
+  created_at: Date | string;
+  updated_at: Date | string;
+};
+
+function isMissingFrontStyleColumnsError(error: unknown) {
+  const message = error instanceof Error ? error.message.toLowerCase() : '';
+  return (
+    message.includes('front_style') ||
+    message.includes('front style') ||
+    message.includes('front_style_prompt') ||
+    message.includes('front style prompt')
+  );
+}
+
+function normalizeDate(value: Date | string) {
+  if (value instanceof Date) {
+    return value;
+  }
+  return new Date(value);
+}
+
+function mapLegacyProduct(row: LegacyProductRow) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    slug: row.slug,
+    title: row.title,
+    description: row.description,
+    price: row.price,
+    productUrl: row.product_url,
+    imageUrl: row.image_url,
+    type: row.type,
+    frontStyle: 'inherit',
+    frontStylePrompt: null,
+    isPublished: row.is_published,
+    createdAt: normalizeDate(row.created_at),
+    updatedAt: normalizeDate(row.updated_at),
+  };
+}
 
 export async function getUser() {
   const sessionCookie = (await cookies()).get('session');
@@ -153,39 +204,147 @@ export async function getPublicStoreData(username: string) {
   const profile = await getProfileByUsername(username);
   if (!profile) return null;
 
-  const userProducts = await db
-    .select()
-    .from(products)
-    .where(and(eq(products.userId, profile.userId), eq(products.isPublished, true)))
-    .orderBy(desc(products.createdAt));
+  let userProducts;
+  try {
+    userProducts = await db
+      .select()
+      .from(products)
+      .where(and(eq(products.userId, profile.userId), eq(products.isPublished, true)))
+      .orderBy(desc(products.createdAt));
+  } catch (error) {
+    if (!isMissingFrontStyleColumnsError(error)) {
+      throw error;
+    }
+
+    const rows = await db.execute<LegacyProductRow>(sql`
+      SELECT
+        id,
+        user_id,
+        slug,
+        title,
+        description,
+        price,
+        product_url,
+        image_url,
+        type,
+        is_published,
+        created_at,
+        updated_at
+      FROM products
+      WHERE user_id = ${profile.userId} AND is_published = true
+      ORDER BY created_at DESC
+    `);
+    userProducts = rows.map(mapLegacyProduct);
+  }
 
   return { profile, products: userProducts };
 }
 
 export async function getProductsByUserId(userId: number) {
-  return await db
-    .select()
-    .from(products)
-    .where(eq(products.userId, userId))
-    .orderBy(desc(products.createdAt));
+  try {
+    return await db
+      .select()
+      .from(products)
+      .where(eq(products.userId, userId))
+      .orderBy(desc(products.createdAt));
+  } catch (error) {
+    if (!isMissingFrontStyleColumnsError(error)) {
+      throw error;
+    }
+
+    const rows = await db.execute<LegacyProductRow>(sql`
+      SELECT
+        id,
+        user_id,
+        slug,
+        title,
+        description,
+        price,
+        product_url,
+        image_url,
+        type,
+        is_published,
+        created_at,
+        updated_at
+      FROM products
+      WHERE user_id = ${userId}
+      ORDER BY created_at DESC
+    `);
+
+    return rows.map(mapLegacyProduct);
+  }
 }
 
 export async function getProductById(productId: number) {
-  const result = await db
-    .select()
-    .from(products)
-    .where(eq(products.id, productId))
-    .limit(1);
+  try {
+    const result = await db
+      .select()
+      .from(products)
+      .where(eq(products.id, productId))
+      .limit(1);
 
-  return result.length > 0 ? result[0] : null;
+    return result.length > 0 ? result[0] : null;
+  } catch (error) {
+    if (!isMissingFrontStyleColumnsError(error)) {
+      throw error;
+    }
+
+    const rows = await db.execute<LegacyProductRow>(sql`
+      SELECT
+        id,
+        user_id,
+        slug,
+        title,
+        description,
+        price,
+        product_url,
+        image_url,
+        type,
+        is_published,
+        created_at,
+        updated_at
+      FROM products
+      WHERE id = ${productId}
+      LIMIT 1
+    `);
+
+    return rows.length > 0 ? mapLegacyProduct(rows[0]) : null;
+  }
 }
 
 export async function getProductBySlug(slug: string) {
-  const result = await db
-    .select()
-    .from(products)
-    .where(eq(products.slug, slug))
-    .limit(1);
+  try {
+    const result = await db
+      .select()
+      .from(products)
+      .where(eq(products.slug, slug))
+      .limit(1);
 
-  return result.length > 0 ? result[0] : null;
+    return result.length > 0 ? result[0] : null;
+  } catch (error) {
+    if (!isMissingFrontStyleColumnsError(error)) {
+      throw error;
+    }
+
+    const rows = await db.execute<LegacyProductRow>(sql`
+      SELECT
+        id,
+        user_id,
+        slug,
+        title,
+        description,
+        price,
+        product_url,
+        image_url,
+        type,
+        is_published,
+        created_at,
+        updated_at
+      FROM products
+      WHERE slug = ${slug}
+      LIMIT 1
+    `);
+
+    return rows.length > 0 ? mapLegacyProduct(rows[0]) : null;
+  }
 }

@@ -29,7 +29,7 @@ export default function ProfilePage() {
     fetcher
   );
 
-  if (profileError || productsError) {
+  if (profileError) {
     return (
       <section className="flex-1 p-8">
         <p className="text-sm text-red-500">
@@ -39,7 +39,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (!profileData || !productsData) {
+  if (!profileData || (!productsData && !productsError)) {
     return (
       <section className="flex-1 flex items-center justify-center min-h-[60vh]">
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -68,7 +68,7 @@ export default function ProfilePage() {
     );
   }
 
-  const publishedProducts = productsData.filter(
+  const publishedProducts = (productsData || []).filter(
     (product) => product.isPublished
   );
 
@@ -84,6 +84,11 @@ export default function ProfilePage() {
           <h1 className="text-lg lg:text-2xl font-medium text-gray-900">
             Profile
           </h1>
+          {productsError && (
+            <p className="text-xs text-amber-600 mt-1">
+              Products preview is temporarily unavailable.
+            </p>
+          )}
         </div>
         <Link href="/dashboard/profile/config">
           <Button variant="secondary" className="flex items-center gap-2">
