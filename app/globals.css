@@ -870,6 +870,17 @@
   scroll-snap-align: center;
   scroll-snap-stop: always;
 }
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
 .product-content .carousel-card {
   border: 1px solid #e5e7eb;
   background: #f9fafb;

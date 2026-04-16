@@ -6,23 +6,12 @@ import { Input } from '@/components/ui/input';
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import {
-  Loader2,
-  PlusCircle,
-  Eye,
-  EyeOff,
-  Trash2,
-  Pencil,
-  LayoutGrid,
-  List,
-  ArrowRight,
-  Sparkles,
-} from 'lucide-react';
+import { Loader2, PlusCircle, Eye, EyeOff, Trash2, Pencil, Sparkles, ArrowRight } from 'lucide-react';
 import { createProduct, updateProduct, deleteProduct, toggleProductPublish } from './actions';
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { Product } from '@/lib/db/schema';
@@ -552,11 +541,10 @@ function ProductForm({
                       setFrontStyle(option.id);
                       setIsMoreOpen(false);
                     }}
-                    className={`rounded-md border px-2 py-2 text-left text-xs font-semibold transition-colors ${
-                      isActive
+                    className={`rounded-md border px-2 py-2 text-left text-xs font-semibold transition-colors ${isActive
                         ? 'border-orange-500 bg-orange-50 text-orange-700'
                         : 'border-gray-200 bg-white text-gray-600 hover:border-orange-300 hover:text-orange-600'
-                    }`}
+                      }`}
                   >
                     <div className="space-y-1">
                       {option.id === 'pill' && (
@@ -590,11 +578,10 @@ function ProductForm({
               <button
                 type="button"
                 onClick={() => setIsMoreOpen((prev) => !prev)}
-                className={`rounded-md border px-2 py-2 text-xs font-semibold transition-colors ${
-                  frontStyle === 'custom'
+                className={`rounded-md border px-2 py-2 text-xs font-semibold transition-colors ${frontStyle === 'custom'
                     ? 'border-orange-500 bg-orange-50 text-orange-700'
                     : 'border-gray-200 bg-white text-gray-600 hover:border-orange-300 hover:text-orange-600'
-                }`}
+                  }`}
               >
                 More
               </button>
@@ -655,24 +642,122 @@ function ProductForm({
   }
 
   return (
-    <Card className="border-2 border-orange-100">
-      <CardHeader>
-        <CardTitle>Add New Product</CardTitle>
-        <CardDescription>
-          Add a digital product, link, or booking to your store.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form className="space-y-4" action={formAction}>
-          {formFields}
-          {actionRow}
-          {state.error && <p className="text-red-500 text-sm">{state.error}</p>}
-          {state.success && (
-            <p className="text-green-500 text-sm">{state.success}</p>
+    <div>
+      <form className="space-y-4" action={formAction}>
+        {mode === 'edit' && (
+          <input type="hidden" name="id" value={initialData.id} />
+        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="sm:col-span-2">
+            <RichEditor
+              content={descriptionHtml}
+              onChange={setDescriptionHtml}
+              placeholder="Describe your product in detail..."
+            />
+          </div>
+          <div>
+            <Label htmlFor="price" className="mb-2">
+              Price ($)
+            </Label>
+            <Input
+              id="price"
+              name="price"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              defaultValue={
+                initialData?.price ? (initialData.price / 100).toFixed(2) : ''
+              }
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Leave empty for free
+            </p>
+          </div>
+          <div>
+            <Label htmlFor="type" className="mb-2">
+              Type
+            </Label>
+            <select
+              id="type"
+              name="type"
+              defaultValue={initialData?.type || 'digital'}
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <option value="digital">Digital Product</option>
+              <option value="link">Link</option>
+              <option value="booking">Booking</option>
+            </select>
+          </div>
+          <div className="sm:col-span-2">
+            <Label htmlFor="title" className="mb-2">
+              Title
+            </Label>
+            <Input
+              id="title"
+              name="title"
+              placeholder="My Awesome Product"
+              defaultValue={initialData?.title || ''}
+              required
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <Label htmlFor="productUrl" className="mb-2">
+              Product URL
+            </Label>
+            <Input
+              id="productUrl"
+              name="productUrl"
+              type="url"
+              placeholder="https://example.com/product"
+              defaultValue={initialData?.productUrl || ''}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <Label htmlFor="imageUrl" className="mb-2">
+              Cover Image URL
+            </Label>
+            <Input
+              id="imageUrl"
+              name="imageUrl"
+              type="url"
+              placeholder="https://example.com/image.jpg"
+              defaultValue={initialData?.imageUrl || ''}
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button
+            type="submit"
+            className="bg-orange-500 hover:bg-orange-600 text-white"
+            disabled={isPending}
+          >
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : mode === 'create' ? (
+              <>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add Product
+              </>
+            ) : (
+              'Save Changes'
+            )}
+          </Button>
+          {mode === 'edit' && onCancel && (
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
           )}
-        </form>
-      </CardContent>
-    </Card>
+        </div>
+        {state.error && <p className="text-red-500 text-sm">{state.error}</p>}
+        {state.success && (
+          <p className="text-green-500 text-sm">{state.success}</p>
+        )}
+      </form>
+    </div>
   );
 }
 
@@ -812,69 +897,10 @@ function ProductCard({
   );
 }
 
-function ProductGridCard({
-  product,
-  onEdit,
-}: {
-  product: Product;
-  onEdit: (product: Product) => void;
-}) {
-  return (
-    <Card className={`group ${product.isPublished ? '' : 'opacity-60'}`}>
-      <div className="relative aspect-video overflow-hidden rounded-t-xl bg-gray-100">
-        {product.imageUrl ? (
-          <img
-            src={product.imageUrl}
-            alt={product.title}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center">
-            <span className="text-white text-4xl font-bold">
-              {product.title[0]?.toUpperCase()}
-            </span>
-          </div>
-        )}
-        <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="bg-white/80 hover:bg-white text-gray-400 hover:text-gray-700 h-7 w-7"
-            onClick={() => onEdit(product)}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
-          <TogglePublishButton product={product} />
-          <DeleteProductButton productId={product.id} />
-        </div>
-      </div>
-      <CardContent className="p-4">
-        <h3 className="font-semibold text-sm text-gray-900 truncate">
-          {product.title}
-        </h3>
-        {product.description && (
-          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-            {product.description}
-          </p>
-        )}
-        <div className="flex items-center gap-2 mt-2">
-          <span className="text-xs font-medium text-gray-900">
-            {product.price ? `$${(product.price / 100).toFixed(2)}` : 'Free'}
-          </span>
-          <span className="text-xs text-gray-400 uppercase">{product.type}</span>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 function ProductList({
   onEdit,
-  viewMode,
 }: {
   onEdit: (product: Product) => void;
-  viewMode: 'list' | 'grid';
 }) {
   const { data: products } = useSWR<Product[]>('/api/products', fetcher);
 
@@ -883,16 +909,6 @@ function ProductList({
       <div className="text-center py-12 text-muted-foreground">
         <p className="text-lg font-medium mb-2">No products yet</p>
         <p className="text-sm">Add your first product to start selling.</p>
-      </div>
-    );
-  }
-
-  if (viewMode === 'grid') {
-    return (
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        {products.map((product) => (
-          <ProductGridCard key={product.id} product={product} onEdit={onEdit} />
-        ))}
       </div>
     );
   }
@@ -920,37 +936,13 @@ function ProductSkeleton() {
 export default function ProductsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
   const isFormOpen = showForm || editingProduct !== null;
 
   return (
     <div className="flex flex-1 min-w-0">
-      <section className="flex-1 min-w-0 overflow-y-auto lg:p-8">
+      <section className="flex-1 min-w-0 overflow-y-auto lg:px-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-lg lg:text-2xl font-medium text-gray-900">
-            Products
-          </h1>
           <div className="flex items-center gap-2">
-            <div className="flex items-center border rounded-lg overflow-hidden">
-              <Button
-                type="button"
-                variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                size="icon"
-                className={`h-8 w-8 rounded-none ${viewMode === 'grid' ? 'bg-orange-500 hover:bg-orange-600 text-white' : ''}`}
-                onClick={() => setViewMode('grid')}
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-              <Button
-                type="button"
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
-                size="icon"
-                className={`h-8 w-8 rounded-none ${viewMode === 'list' ? 'bg-orange-500 hover:bg-orange-600 text-white' : ''}`}
-                onClick={() => setViewMode('list')}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-            </div>
             {!showForm && !editingProduct && (
               <Button
                 onClick={() => setShowForm(true)}
@@ -982,14 +974,14 @@ export default function ProductsPage() {
               />
             )}
 
-            <ProductList onEdit={(product) => setEditingProduct(product)} viewMode={viewMode} />
+            <ProductList onEdit={(product) => setEditingProduct(product)} />
           </div>
         </Suspense>
       </section>
 
       {isFormOpen && (
         <div className="hidden lg:block lg:shrink-0">
-          <ChatPanel isOpen onClose={() => {}} />
+          <ChatPanel isOpen onClose={() => { }} />
         </div>
       )}
     </div>
