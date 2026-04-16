@@ -48,7 +48,7 @@ import {
   CheckSquare,
   Minus,
   GripVertical,
-  Trash2,
+  Plus,
   ChevronDown,
   GalleryHorizontal,
   Sparkles,
@@ -317,7 +317,7 @@ export default function RichEditor({
     },
     editorProps: {
       attributes: {
-        class: 'tiptap min-h-[300px] focus:outline-none',
+        class: 'tiptap focus:outline-none',
       },
     },
     immediatelyRender: false,
@@ -633,7 +633,7 @@ export default function RichEditor({
   return (
     <div
       ref={editorRootRef}
-      className="rounded-xl border border-gray-200 bg-white relative overflow-hidden"
+      className="rounded-xl border border-gray-200 bg-white relative overflow-hidden h-screen flex flex-col"
     >
       <button
         type="button"
@@ -939,36 +939,40 @@ export default function RichEditor({
         </div>
       </div>
 
-      <div className="px-8 py-3 pl-12 min-h-[300px] relative">
-        <DragHandle editor={editor}>
-          <div className="drag-handle">
-            <button type="button" className="drag-handle-grip">
-              <GripVertical className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              className="drag-handle-delete"
-              title="Delete block"
-              onPointerDown={(e: React.PointerEvent) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!editor) return;
-                const { from } = editor.state.selection;
-                const $pos = editor.state.doc.resolve(from);
-                const nodeStart = Number($pos.start) - 1;
-                const nodeEnd = nodeStart + Number($pos.parent.nodeSize);
-                editor
-                  .chain()
-                  .focus()
-                  .deleteRange({ from: nodeStart, to: nodeEnd })
-                  .run();
-              }}
-            >
-              <Trash2 className="h-3 w-3" />
-            </button>
-          </div>
-        </DragHandle>
-        <EditorContent editor={editor} />
+      <div className="flex-1 overflow-y-auto">
+        <div className="py-3 relative">
+          <DragHandle editor={editor}>
+            <div className="drag-handle">
+              <button type="button" className="drag-handle-grip">
+                <GripVertical className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                className="drag-handle-add"
+                title="Add block"
+                onPointerDown={(e: React.PointerEvent) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!editor) return;
+                  const { from } = editor.state.selection;
+                  const $pos = editor.state.doc.resolve(from);
+                  const nodeEnd = $pos.end() + 1;
+                  editor
+                    .chain()
+                    .focus()
+                    .insertContentAt(nodeEnd, { type: 'paragraph' })
+                    .setTextSelection(nodeEnd + 1)
+                    .run();
+                  const tr = editor.state.tr.insertText('/');
+                  editor.view.dispatch(tr);
+                }}
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </div>
+          </DragHandle>
+          <EditorContent editor={editor} />
+        </div>
       </div>
 
       {selectionHint && (

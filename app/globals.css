@@ -340,6 +340,9 @@
 /* Tiptap Editor Styles */
 .tiptap {
   outline: none;
+  max-width: 668px;
+  margin-left: auto;
+  margin-right: auto;
 }
 .tiptap p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
@@ -1099,7 +1102,7 @@
 .drag-handle-grip:hover {
   color: #6b7280;
 }
-.drag-handle-delete {
+.drag-handle-add {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1112,9 +1115,9 @@
   border: none;
   outline: none;
 }
-.drag-handle-delete:hover {
-  color: #ef4444;
-  background: #fef2f2;
+.drag-handle-add:hover {
+  color: #f97316;
+  background: #fff7ed;
 }
 
 .tiptap [data-node-view-root] {
