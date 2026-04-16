@@ -54,6 +54,8 @@ import {
   Sparkles,
   X,
   Youtube,
+  Undo2,
+  Redo2,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { generateReactHelpers } from '@uploadthing/react';
@@ -92,11 +94,13 @@ type AiSuggestion = {
 function ToolbarButton({
   onClick,
   isActive,
+  disabled,
   title,
   children,
 }: {
   onClick: () => void;
   isActive?: boolean;
+  disabled?: boolean;
   title: string;
   children: React.ReactNode;
 }) {
@@ -105,9 +109,13 @@ function ToolbarButton({
       type="button"
       onClick={onClick}
       title={title}
-      className={`p-1.5 rounded-md hover:bg-gray-100 transition-colors ${
-        isActive ? 'bg-orange-100 text-orange-600' : 'text-gray-500'
-      }`}
+      disabled={disabled}
+      className={`p-1.5 rounded-md transition-colors ${disabled
+        ? 'text-gray-300 cursor-not-allowed'
+        : isActive
+          ? 'bg-orange-100 text-orange-600 hover:bg-orange-200'
+          : 'text-gray-500 hover:bg-gray-100'
+        }`}
     >
       {children}
     </button>
@@ -823,10 +831,10 @@ export default function RichEditor({
     : 30;
   const aiPanelLeft = selectionHint
     ? clamp(
-        aiHintX - aiPanelWidth / 2,
-        8,
-        Math.max(8, rootWidth - aiPanelWidth - 8)
-      )
+      aiHintX - aiPanelWidth / 2,
+      8,
+      Math.max(8, rootWidth - aiPanelWidth - 8)
+    )
     : 8;
   const aiPanelTop = selectionHint ? Math.max(selectionHint.y + 26, 56) : 56;
   const shouldShowInlineBar =
@@ -840,6 +848,23 @@ export default function RichEditor({
       className="rounded-xl border border-gray-200 bg-white relative"
     >
       <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-gray-100 bg-gray-50/80 sticky top-0 z-10">
+        <div className="flex items-center gap-0.5">
+          <ToolbarButton
+            onClick={() => editor.chain().focus().undo().run()}
+            disabled={!editor.can().undo()}
+            title="Undo"
+          >
+            <Undo2 className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().redo().run()}
+            disabled={!editor.can().redo()}
+            title="Redo"
+          >
+            <Redo2 className="h-4 w-4" />
+          </ToolbarButton>
+        </div>
+        <ToolbarSeparator />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -996,11 +1021,10 @@ export default function RichEditor({
               <button
                 type="button"
                 title="Quote style"
-                className={`inline-flex items-center gap-1 rounded-md px-1.5 py-1.5 hover:bg-gray-100 transition-colors ${
-                  editor.isActive('blockquote')
-                    ? 'bg-orange-100 text-orange-600'
-                    : 'text-gray-500'
-                }`}
+                className={`inline-flex items-center gap-1 rounded-md px-1.5 py-1.5 hover:bg-gray-100 transition-colors ${editor.isActive('blockquote')
+                  ? 'bg-orange-100 text-orange-600'
+                  : 'text-gray-500'
+                  }`}
               >
                 <Quote className="h-4 w-4" />
                 <ChevronDown className="h-3 w-3" />
