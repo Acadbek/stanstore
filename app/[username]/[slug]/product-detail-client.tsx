@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { Profile, Product } from '@/lib/db/schema';
 import { getTheme } from '@/lib/themes';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -21,16 +21,107 @@ const radiusMap: Record<string, string> = {
 
 const getRadius = (id?: string | null) => radiusMap[id || 'md'] || '6px';
 
+type SocialLinks = {
+  instagram?: string | null;
+  twitter?: string | null;
+  youtube?: string | null;
+  tiktok?: string | null;
+  website?: string | null;
+};
+
 type Props = {
   profile: Profile;
   product: Product;
 };
+
+function TwitterIcon({ color }: { color?: string }) {
+  return (
+    <svg
+      className="h-5 w-5"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      style={color ? { color } : undefined}
+    >
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
+
+function InstagramIcon({ color }: { color?: string }) {
+  return (
+    <svg
+      className="h-5 w-5"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={color ? { color } : undefined}
+    >
+      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+    </svg>
+  );
+}
+
+function YouTubeIcon({ color }: { color?: string }) {
+  return (
+    <svg
+      className="h-5 w-5"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={color ? { color } : undefined}
+    >
+      <path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17" />
+      <path d="m10 15 5-3-5-3z" />
+    </svg>
+  );
+}
+
+function TikTokIcon({ color }: { color?: string }) {
+  return (
+    <svg
+      className="h-5 w-5"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      style={color ? { color } : undefined}
+    >
+      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.88-2.88 2.89 2.89 0 0 1 2.88-2.88c.28 0 .56.04.82.11V9.02a6.34 6.34 0 0 0-.82-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.75a8.18 8.18 0 0 0 4.76 1.52V6.8a4.84 4.84 0 0 1-1-.11z" />
+    </svg>
+  );
+}
+
+function GlobeIcon({ color }: { color?: string }) {
+  return (
+    <svg
+      className="h-5 w-5"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={color ? { color } : undefined}
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+      <path d="M2 12h20" />
+    </svg>
+  );
+}
 
 export default function ProductDetailClient({ profile, product }: Props) {
   const theme = getTheme(profile.theme || 'default');
   const s = theme.styles;
   const cr = getRadius(profile.borderRadius);
   const br = getRadius(profile.buttonBorderRadius);
+  const socialLinks = profile.socialLinks as SocialLinks | null;
   const serifFont = 'Hedvig Serif, serif';
   const sansFont = 'Hedvig Sans, Geist Sans, sans-serif';
   const profileRing = s.avatarRing || 'rgba(255, 255, 255, 0.88)';
@@ -38,6 +129,18 @@ export default function ProductDetailClient({ profile, product }: Props) {
   const descriptionRef = useRef<HTMLDivElement>(null);
   const contentScrollRef = useRef<HTMLDivElement>(null);
   const contentInnerRef = useRef<HTMLDivElement>(null);
+
+  const socialItems: {
+    url: string | null | undefined;
+    icon: ReactNode;
+  }[] = [
+    { url: socialLinks?.twitter, icon: <TwitterIcon color={s.socialIconColor} /> },
+    { url: socialLinks?.instagram, icon: <InstagramIcon color={s.socialIconColor} /> },
+    { url: socialLinks?.youtube, icon: <YouTubeIcon color={s.socialIconColor} /> },
+    { url: socialLinks?.tiktok, icon: <TikTokIcon color={s.socialIconColor} /> },
+    { url: socialLinks?.website, icon: <GlobeIcon color={s.socialIconColor} /> },
+  ];
+  const filteredSocials = socialItems.filter((item) => item.url);
 
   useEffect(() => {
     posthog.capture('product_view', {
@@ -189,7 +292,7 @@ export default function ProductDetailClient({ profile, product }: Props) {
           eventsTarget: window,
           smoothWheel: true,
           syncTouch: false,
-          lerp: 0.16,
+          lerp: 0.58,
           wheelMultiplier: 1.16,
           touchMultiplier: 1,
           autoResize: true,
@@ -224,100 +327,185 @@ export default function ProductDetailClient({ profile, product }: Props) {
       className="min-h-screen transition-colors duration-300 lg:h-screen lg:overflow-hidden"
       style={{ background: s.pageBgGradient || s.pageBg }}
     >
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:h-full lg:px-10 lg:py-0">
-        <div className="grid gap-10 lg:h-full lg:grid-cols-[minmax(260px,34%)_minmax(0,66%)] lg:gap-14 xl:gap-20">
+      <div className="mx-auto max-w-7xl px-5 py-8 md:px-8 md:py-0 lg:h-full lg:px-10">
+        <div className="grid gap-10 lg:h-full lg:grid-cols-[minmax(280px,38%)_minmax(0,62%)] lg:gap-14 xl:gap-20">
           <aside className="hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:items-center lg:py-10">
-            <div className="mx-auto flex w-full max-w-sm flex-col items-start text-left">
-              <div>
-                <Link href={`/${profile.username}`} className="inline-block">
-                  <Avatar
-                    className="h-28 w-28"
-                    style={{ boxShadow: `0 0 0 8px ${profileRing}` }}
+            <div className="mx-auto flex w-full max-w-md flex-col items-center text-center md:max-w-sm">
+              <Link href={`/${profile.username}`} className="inline-block">
+                <Avatar
+                  className="h-28 w-28 md:h-32 md:w-32"
+                  style={{ boxShadow: `0 0 0 8px ${profileRing}` }}
+                >
+                  <AvatarImage
+                    src={profile.avatarUrl || undefined}
+                    alt={profile.displayName || profile.username || ''}
+                  />
+                  <AvatarFallback
+                    className="text-3xl"
+                    style={{
+                      background: s.avatarFallback,
+                      color: s.avatarFallbackText,
+                      fontFamily: serifFont,
+                    }}
                   >
-                    <AvatarImage
-                      src={profile.avatarUrl || undefined}
-                      alt={profile.displayName || profile.username || ''}
-                    />
-                    <AvatarFallback
-                      className="text-3xl"
-                      style={{
-                        background: s.avatarFallback,
-                        color: s.avatarFallbackText,
-                        fontFamily: serifFont,
-                      }}
-                    >
-                      {(profile.displayName || profile.username || 'U')
-                        .split(' ')
-                        .map((n) => n[0])
-                        .join('')
-                        .toUpperCase()
-                        .slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
-                </Link>
+                    {(profile.displayName || profile.username || 'U')
+                      .split(' ')
+                      .map((n) => n[0])
+                      .join('')
+                      .toUpperCase()
+                      .slice(0, 2)}
+                  </AvatarFallback>
+                </Avatar>
+              </Link>
 
-                <div className="mt-8 space-y-3">
-                  <Link
-                    href={`/${profile.username}`}
-                    className="block text-4xl leading-none tracking-tight no-underline"
-                    style={{ color: s.headingColor, fontFamily: serifFont }}
-                  >
+              <div className="mt-8 space-y-3">
+                <h1
+                  className="text-4xl leading-none tracking-tight md:text-[3.2rem]"
+                  style={{ color: s.headingColor, fontFamily: serifFont }}
+                >
+                  <Link href={`/${profile.username}`} className="no-underline">
                     {profile.displayName || profile.username}
                   </Link>
+                </h1>
 
-                  {profile.headline && (
-                    <p
-                      className="text-xs uppercase tracking-[0.16em] sm:text-sm sm:tracking-[0.18em]"
-                      style={{ color: s.mutedColor, fontFamily: sansFont }}
-                    >
-                      {profile.headline}
-                    </p>
-                  )}
-                </div>
+                {profile.headline && (
+                  <p
+                    className="text-xs uppercase tracking-[0.16em] sm:text-sm sm:tracking-[0.18em]"
+                    style={{ color: s.mutedColor, fontFamily: sansFont }}
+                  >
+                    {profile.headline}
+                  </p>
+                )}
               </div>
+
+              {profile.bio && (
+                <p
+                  className="mt-6 max-w-md text-sm leading-7 md:text-[0.95rem]"
+                  style={{ color: s.textColor, fontFamily: sansFont }}
+                >
+                  {profile.bio}
+                </p>
+              )}
+
+              {filteredSocials.length > 0 && (
+                <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+                  {filteredSocials.map((social, i) => (
+                    <a
+                      key={i}
+                      href={social.url!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex h-11 w-11 items-center justify-center border transition-all duration-200"
+                      style={{
+                        color: s.socialIconColor,
+                        borderColor: s.cardBorder,
+                        borderRadius: '999px',
+                        background: 'rgba(255,255,255,0.48)',
+                        boxShadow: '0 10px 28px rgba(15, 23, 42, 0.05)',
+                      }}
+                      onMouseEnter={(e) => {
+                        const el = e.currentTarget as HTMLElement;
+                        el.style.color = s.socialIconHover;
+                        el.style.transform = 'translateY(-2px)';
+                        el.style.boxShadow = '0 16px 34px rgba(15, 23, 42, 0.10)';
+                      }}
+                      onMouseLeave={(e) => {
+                        const el = e.currentTarget as HTMLElement;
+                        el.style.color = s.socialIconColor;
+                        el.style.transform = 'translateY(0)';
+                        el.style.boxShadow = '0 10px 28px rgba(15, 23, 42, 0.05)';
+                      }}
+                    >
+                      {social.icon}
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           </aside>
 
-          <section
-            ref={contentScrollRef}
-            className="min-w-0 lg:h-screen lg:overflow-y-auto lg:overscroll-contain hide-scrollbar"
-          >
-            <div
-              ref={contentInnerRef}
-              className="mx-auto max-w-md px-0 pb-12 pt-0 sm:max-w-xl lg:max-w-3xl lg:pb-16 lg:pt-12"
+          <div className="min-w-0 lg:h-screen lg:overflow-hidden">
+            <section
+              ref={contentScrollRef}
+              className="hide-scrollbar lg:-mr-6 lg:h-full lg:overflow-y-auto lg:overscroll-contain lg:pr-6 xl:-mr-8 xl:pr-8"
             >
-              <div className="mb-8 flex justify-start">
-                <Link
-                  href={`/${profile.username}`}
-                  className="inline-flex items-center gap-1.5 text-sm transition-colors duration-200"
-                  style={{ color: s.mutedColor, fontFamily: sansFont }}
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Back to store
-                </Link>
-              </div>
-
+              <div
+                ref={contentInnerRef}
+                className="mx-auto max-w-md px-0 pb-12 pt-0 sm:max-w-xl lg:max-w-3xl lg:pb-16 lg:pt-12"
+              >
               {product.imageUrl ? (
                 <div
-                  className="overflow-hidden mb-6 shadow-lg"
+                  className="relative mb-8 overflow-hidden shadow-lg"
                   style={{
                     borderRadius: cr,
-                    boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+                    boxShadow: '0 18px 50px rgba(0,0,0,0.14)',
                   }}
                 >
+                  <div
+                    className="pointer-events-none absolute inset-0 z-10"
+                    style={{
+                      background:
+                        'linear-gradient(180deg, rgba(15,23,42,0.18) 0%, rgba(15,23,42,0.03) 26%, rgba(15,23,42,0.24) 100%)',
+                    }}
+                  />
+                  <div className="absolute left-4 top-4 z-20">
+                    <Link
+                      href={`/${profile.username}`}
+                      aria-label="Back to store"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border transition-all duration-200"
+                      style={{
+                        color: '#fff',
+                        background: 'rgba(15, 23, 42, 0.26)',
+                        borderColor: 'rgba(255,255,255,0.24)',
+                        backdropFilter: 'blur(14px)',
+                        WebkitBackdropFilter: 'blur(14px)',
+                        boxShadow: '0 10px 30px rgba(15, 23, 42, 0.18)',
+                      }}
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Link>
+                  </div>
                   <img
                     src={product.imageUrl}
                     alt={product.title}
-                    className="w-full h-56 sm:h-72 object-cover"
+                    className="h-64 w-full object-cover sm:h-80 lg:h-[26rem]"
                   />
                 </div>
               ) : (
                 <div
-                  className="h-56 sm:h-72 mb-6 flex items-center justify-center shadow-lg"
-                  style={{ background: s.productBadge, borderRadius: cr }}
+                  className="relative mb-8 flex h-64 items-center justify-center overflow-hidden shadow-lg sm:h-80 lg:h-[26rem]"
+                  style={{
+                    background: s.productBadge,
+                    borderRadius: cr,
+                    boxShadow: '0 18px 50px rgba(0,0,0,0.14)',
+                  }}
                 >
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      background:
+                        'radial-gradient(circle at top left, rgba(255,255,255,0.32), transparent 34%), radial-gradient(circle at bottom right, rgba(15,23,42,0.14), transparent 42%)',
+                    }}
+                  />
+                  <div className="absolute left-4 top-4 z-10">
+                    <Link
+                      href={`/${profile.username}`}
+                      aria-label="Back to store"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border transition-all duration-200"
+                      style={{
+                        color: s.headingColor,
+                        background: 'rgba(255,255,255,0.58)',
+                        borderColor: s.cardBorder,
+                        backdropFilter: 'blur(14px)',
+                        WebkitBackdropFilter: 'blur(14px)',
+                        boxShadow: '0 10px 30px rgba(15, 23, 42, 0.12)',
+                      }}
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Link>
+                  </div>
                   <span
-                    className="text-6xl font-bold"
+                    className="relative z-[1] text-6xl font-bold"
                     style={{ color: s.productBadgeText }}
                   >
                     {product.title[0]?.toUpperCase()}
@@ -457,8 +645,9 @@ export default function ProductDetailClient({ profile, product }: Props) {
               >
                 Powered by ACME
               </p>
-            </div>
-          </section>
+              </div>
+            </section>
+          </div>
         </div>
       </div>
     </div>
