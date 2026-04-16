@@ -1136,3 +1136,10 @@
   pointer-events: none;
   z-index: -1;
 }
+
+/* Force NProgress container to the top so it doesn't fall behind the sidebar during opacity fade-out */
+#nprogress {
+  z-index: 99999 !important;
+  position: relative;
+}
+

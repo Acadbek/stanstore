@@ -699,8 +699,15 @@ export default function RichEditor({
       clearTimeout(completionTimerRef.current);
     }
 
+    if (completionTimerRef.current) {
+      clearTimeout(completionTimerRef.current);
+    }
+
     completionAbortRef.current?.abort();
     setInlineCompletionError(null);
+    setInlineCompletion(null);
+    setInlineCompletionSource(null);
+    setIsInlineCompletionLoading(false);
 
     completionTimerRef.current = setTimeout(async () => {
       const requestId = completionRequestIdRef.current + 1;
@@ -735,9 +742,9 @@ export default function RichEditor({
         });
         setInlineCompletionSource(source);
         setInlineCompletionError(error || null);
+        setIsInlineCompletionLoading(false);
       };
 
-      applySuggestion(fallback, 'local');
       setIsInlineCompletionLoading(true);
 
       const controller = new AbortController();
@@ -774,7 +781,6 @@ export default function RichEditor({
           data.source === 'ai' && remoteSuggestion ? 'ai' : 'local',
           remoteSuggestion ? undefined : 'Using local continuation.'
         );
-        setIsInlineCompletionLoading(false);
       } catch (error) {
         if ((error as Error).name === 'AbortError') return;
         applySuggestion(
@@ -782,7 +788,6 @@ export default function RichEditor({
           'local',
           'AI unavailable, showing local suggestion.'
         );
-        setIsInlineCompletionLoading(false);
       }
     }, 900);
   }, [
