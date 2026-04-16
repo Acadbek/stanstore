@@ -18,6 +18,10 @@ import { Callout } from './callout';
 import { Carousel, CarouselItem } from './carousel';
 import { QuoteBlock } from './quote-block';
 import { YoutubeEmbed } from './youtube-embed';
+import { TocProvider, useToc } from './toc-sidebar';
+import { TocSidebar } from './toc-sidebar';
+import TiptapTableOfContents from '@tiptap/extension-table-of-contents';
+import UniqueId from '@tiptap/extension-unique-id';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -149,11 +153,16 @@ function buildAiSuggestions(selectedText: string): AiSuggestion[] {
   ];
 }
 
-export default function RichEditor({
-  content,
-  onChange,
-  placeholder,
-}: RichEditorProps) {
+export default function RichEditor(props: RichEditorProps) {
+  return (
+    <TocProvider>
+      <RichEditorInner {...props} />
+    </TocProvider>
+  );
+}
+
+function RichEditorInner({ content, onChange, placeholder }: RichEditorProps) {
+  const { setTocContent, activeItem, setActiveItem } = useToc();
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [linkText, setLinkText] = useState('');
@@ -297,6 +306,18 @@ export default function RichEditor({
       YoutubeEmbed as any,
       TextStyle,
       FontFamily,
+      UniqueId.configure({
+        types: ['heading'],
+        attributeName: 'id',
+        generateID: () => `h-${Math.random().toString(36).substr(2, 9)}`,
+      }),
+      TiptapTableOfContents.configure({
+        getId: (textContent: string) =>
+          `h-${textContent.slice(0, 20).replace(/\s+/g, '-').toLowerCase()}-${Math.random().toString(36).substr(2, 5)}`,
+        onUpdate: (content) => {
+          setTocContent(content);
+        },
+      }),
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -939,39 +960,44 @@ export default function RichEditor({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="py-3 relative">
-          <DragHandle editor={editor}>
-            <div className="drag-handle">
-              <button type="button" className="drag-handle-grip">
-                <GripVertical className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                className="drag-handle-add"
-                title="Add block"
-                onPointerDown={(e: React.PointerEvent) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (!editor) return;
-                  const { from } = editor.state.selection;
-                  const $pos = editor.state.doc.resolve(from);
-                  const nodeEnd = $pos.end() + 1;
-                  editor
-                    .chain()
-                    .focus()
-                    .insertContentAt(nodeEnd, { type: 'paragraph' })
-                    .setTextSelection(nodeEnd + 1)
-                    .run();
-                  const tr = editor.state.tr.insertText('/');
-                  editor.view.dispatch(tr);
-                }}
-              >
-                <Plus className="h-3 w-3" />
-              </button>
-            </div>
-          </DragHandle>
-          <EditorContent editor={editor} />
+      <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 overflow-y-auto">
+          <div className="py-3 relative">
+            <DragHandle editor={editor}>
+              <div className="drag-handle">
+                <button type="button" className="drag-handle-grip">
+                  <GripVertical className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  className="drag-handle-add"
+                  title="Add block"
+                  onPointerDown={(e: React.PointerEvent) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!editor) return;
+                    const { from } = editor.state.selection;
+                    const $pos = editor.state.doc.resolve(from);
+                    const nodeEnd = $pos.end() + 1;
+                    editor
+                      .chain()
+                      .focus()
+                      .insertContentAt(nodeEnd, { type: 'paragraph' })
+                      .setTextSelection(nodeEnd + 1)
+                      .run();
+                    const tr = editor.state.tr.insertText('/');
+                    editor.view.dispatch(tr);
+                  }}
+                >
+                  <Plus className="h-3 w-3" />
+                </button>
+              </div>
+            </DragHandle>
+            <EditorContent editor={editor} />
+          </div>
+        </div>
+        <div className="w-56 shrink-0 border-l border-gray-100 overflow-y-auto bg-gray-50/40">
+          <TocSidebar maxShowCount={20} topOffset={80} />
         </div>
       </div>
 
