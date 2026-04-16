@@ -40,9 +40,9 @@ export default function DashboardLayout({
   const [isCollapsed, setIsCollapsed] = useState(true);
 
   return (
-    <div className="flex min-h-[calc(100dvh-68px)] w-full">
+    <div className="flex w-full min-h-[calc(100dvh-68px)] lg:h-[calc(100dvh-68px)] lg:overflow-hidden">
       <aside
-        className={`bg-white lg:bg-gray-50 border-r border-gray-200 lg:block lg:sticky lg:top-0 h-screen shrink-0 ${
+        className={`bg-white lg:bg-gray-50 border-r border-gray-200 lg:block lg:h-full shrink-0 ${
           isSidebarOpen ? 'block' : 'hidden'
         } lg:relative absolute inset-y-0 left-0 z-40 transition-all duration-300 ease-in-out lg:translate-x-0 ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
@@ -66,7 +66,7 @@ export default function DashboardLayout({
             </Button>
           </div>
         </div>
-        <nav className="h-full overflow-y-auto p-2 flex flex-col">
+        <nav className="flex h-full min-h-0 flex-col overflow-y-auto p-2">
           {navItems.map((item) => {
             const isActive = item.matchPrefix
               ? pathname.startsWith(item.href)
@@ -112,7 +112,9 @@ export default function DashboardLayout({
         </button>
       )}
 
-      <main className="flex-1 min-w-0">{children}</main>
+      <main className="flex-1 min-w-0 lg:h-full lg:min-h-0 lg:overflow-y-auto">
+        {children}
+      </main>
     </div>
   );
 }

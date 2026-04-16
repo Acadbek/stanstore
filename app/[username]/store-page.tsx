@@ -24,6 +24,12 @@ type StoreData = {
   products: Product[];
 };
 
+type StorePageProps = {
+  data: StoreData;
+  embedded?: boolean;
+  sidebarAction?: React.ReactNode;
+};
+
 type SocialLinks = {
   instagram?: string | null;
   twitter?: string | null;
@@ -157,7 +163,11 @@ function ProductLink({
   );
 }
 
-export default function StorePage({ data }: { data: StoreData }) {
+export default function StorePage({
+  data,
+  embedded = false,
+  sidebarAction,
+}: StorePageProps) {
   const { profile, products } = data;
   const theme = getTheme(profile.theme || 'default');
   const s = theme.styles;
@@ -176,6 +186,8 @@ export default function StorePage({ data }: { data: StoreData }) {
   }, [profile.username, profile.displayName]);
 
   useEffect(() => {
+    if (embedded) return;
+
     let cancelled = false;
   
     async function initSmoothScroll() {
@@ -193,9 +205,9 @@ export default function StorePage({ data }: { data: StoreData }) {
         lenisOptions: {
           smoothWheel: true,
           syncTouch: false,
-          lerp: 0.16,
-          wheelMultiplier: 1.16,
-          touchMultiplier: 1,
+          lerp: 0.58,
+          wheelMultiplier: 1.6,
+          touchMultiplier: 1.5,
           autoResize: true,
         },
         autoStart: true,
@@ -213,7 +225,7 @@ export default function StorePage({ data }: { data: StoreData }) {
       smoothScrollRef.current?.destroy();
       smoothScrollRef.current = null;
     };
-  }, []);
+  }, [embedded]);
 
   const socialItems: {
     url: string | null | undefined;
@@ -250,13 +262,21 @@ export default function StorePage({ data }: { data: StoreData }) {
 
   return (
     <div
-      className="min-h-screen transition-colors duration-300"
+      className={`${embedded ? 'h-full min-h-0 w-full overflow-y-auto md:overflow-hidden' : 'min-h-screen'} transition-colors duration-300`}
       style={{ background: s.pageBgGradient || s.pageBg }}
     >
-      <div className="mx-auto max-w-7xl px-5 py-8 md:px-8 md:py-0 lg:px-10">
-        <div className="grid gap-10 md:min-h-screen md:grid-cols-[minmax(280px,38%)_minmax(0,62%)] md:gap-14 xl:gap-20">
-          <aside className="md:sticky md:top-0 md:flex md:h-screen md:items-center md:py-10">
-            <div className="mx-auto flex w-full max-w-md flex-col items-center text-center md:max-w-sm md:items-start md:text-left">
+      <div
+        className={
+          embedded
+            ? 'h-full min-h-0 w-full px-0 py-0'
+            : 'mx-auto max-w-7xl px-5 py-8 md:px-8 md:py-0 lg:px-10'
+        }
+      >
+        <div
+          className={`grid w-full gap-10 md:grid-cols-[minmax(280px,38%)_minmax(0,62%)] md:gap-14 xl:gap-20 ${embedded ? 'px-6 py-6 md:h-full md:min-h-0 md:py-0 lg:px-8' : 'md:min-h-screen'}`}
+        >
+          <aside className={`md:sticky md:top-0 md:flex md:items-center md:py-10 ${embedded ? 'md:h-full' : 'md:h-screen'}`}>
+            <div className="mx-auto flex w-full max-w-md flex-col items-center text-center md:max-w-sm">
               <Avatar
                 className="h-28 w-28 md:h-32 md:w-32"
                 style={{ boxShadow: `0 0 0 8px ${profileRing}` }}
@@ -310,7 +330,7 @@ export default function StorePage({ data }: { data: StoreData }) {
               )}
 
               {filteredSocials.length > 0 && (
-                <div className="mt-8 flex flex-wrap items-center justify-center gap-3 md:justify-start">
+                <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                   {filteredSocials.map((social, i) => (
                     <a
                       key={i}
@@ -343,10 +363,14 @@ export default function StorePage({ data }: { data: StoreData }) {
                   ))}
                 </div>
               )}
+
+              {sidebarAction && <div className="mt-8">{sidebarAction}</div>}
             </div>
           </aside>
 
-          <section className="min-w-0 pb-12 pt-6 md:pb-12 md:pt-20 lg:pb-16 lg:pt-24">
+          <section
+            className={`min-w-0 pb-12 pt-6 md:pb-12 md:pt-20 lg:pb-16 lg:pt-24 ${embedded ? 'md:h-full md:min-h-0 md:overflow-y-auto hide-scrollbar md:pb-8 md:pt-10 lg:pb-10 lg:pt-12' : ''}`}
+          >
             {products.length > 0 &&
               (() => {
                 const cols = profile.productColumns || 3;
