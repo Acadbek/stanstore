@@ -59,6 +59,7 @@ import {
   Loader2,
   X,
   Youtube,
+  MoreHorizontal,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { generateReactHelpers } from '@uploadthing/react';
@@ -174,6 +175,7 @@ export default function RichEditor({
   const [isYoutubeModalOpen, setIsYoutubeModalOpen] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const youtubeUrlInputRef = useRef<HTMLInputElement>(null);
+<<<<<<< HEAD
   const [aiGoal, setAiGoal] = useState<AiGoal>('rewrite');
   const [aiTone, setAiTone] = useState<AiTone>('friendly');
   const [aiInstruction, setAiInstruction] = useState('');
@@ -182,6 +184,25 @@ export default function RichEditor({
   const [isAiGenerating, setIsAiGenerating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [copiedSuggestionId, setCopiedSuggestionId] = useState<string | null>(null);
+=======
+  const [currentFont, setCurrentFont] = useState('Manrope');
+  const savedSelectionRef = useRef<{ from: number; to: number } | null>(null);
+  const debugLogRef = useRef<string[]>([]);
+
+  const debugLog = useCallback((...args: any[]) => {
+    const msg = args
+      .map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a)))
+      .join(' ');
+    debugLogRef.current.push(msg);
+    console.log('[RICH-EDITOR]', ...args);
+  }, []);
+
+  const copyDebugLogs = useCallback(() => {
+    const text = debugLogRef.current.join('\n');
+    navigator.clipboard.writeText(text);
+    console.log('[RICH-EDITOR] Logs copied!');
+  }, []);
+>>>>>>> 8312731498bb815f28c262d77a1e8e3ceaf9211f
 
   const extractYoutubeEmbedUrl = (url: string): string | null => {
     try {
@@ -205,6 +226,42 @@ export default function RichEditor({
       return null;
     }
   };
+
+  const resolveFontFamily = useCallback((ed: any): string => {
+    const fromAttr = ed
+      .getAttributes('textStyle')
+      .fontFamily?.replace(/['"]/g, '');
+    if (fromAttr) return fromAttr;
+    const { from } = ed.state.selection;
+    if (from === 0) return 'Manrope';
+    const $pos = ed.state.doc.resolve(from);
+    const textStyleMark = ed.state.schema.marks.textStyle;
+    if (!textStyleMark) return 'Manrope';
+    for (let d = $pos.depth; d > 0; d--) {
+      const nodeAfter = $pos.parent.childAfter($pos.parentOffset);
+      if (nodeAfter.node) {
+        const found = nodeAfter.node.marks.find(
+          (m: any) => m.type === textStyleMark
+        );
+        if (found) {
+          return (
+            (found.attrs.fontFamily as string)?.replace(/['"]/g, '') ||
+            'Manrope'
+          );
+        }
+      }
+    }
+    const storedMarks = ed.state.storedMarks;
+    if (storedMarks) {
+      const found = storedMarks.find((m: any) => m.type === textStyleMark);
+      if (found) {
+        return (
+          (found.attrs.fontFamily as string)?.replace(/['"]/g, '') || 'Manrope'
+        );
+      }
+    }
+    return 'Manrope';
+  }, []);
 
   const editor = useEditor({
     extensions: [
@@ -252,6 +309,19 @@ export default function RichEditor({
     content,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
+    },
+    onSelectionUpdate: ({ editor }) => {
+      const font = resolveFontFamily(editor);
+      debugLog('onSelectionUpdate', {
+        font,
+        hasFocus: editor.view.hasFocus(),
+        selection: {
+          from: editor.state.selection.from,
+          to: editor.state.selection.to,
+          empty: editor.state.selection.empty,
+        },
+      });
+      setCurrentFont(font);
     },
     editorProps: {
       attributes: {
@@ -694,259 +764,310 @@ export default function RichEditor({
   return (
     <div
       ref={editorRootRef}
-      className="rounded-xl border border-gray-200 bg-white relative"
+      className="rounded-xl border border-gray-200 bg-white relative overflow-hidden"
     >
-      <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-gray-100 bg-gray-50/80 sticky top-0 z-10">
-        <DropdownMenu>
+      <button
+        type="button"
+        onClick={copyDebugLogs}
+        className="absolute -top-8 left-1/2 -translate-x-1/2 z-50 px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+      >
+        Copy Logs
+      </button>
+      <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-gray-100 bg-gray-50/80 sticky top-0 z-50 overflow-hidden">
+        <DropdownMenu
+          onOpenChange={(open) => {
+            if (open) {
+              const { from, to } = editor.state.selection;
+              savedSelectionRef.current = { from, to };
+              debugLog(
+                'DROPDOWN OPEN - saved selection',
+                savedSelectionRef.current
+              );
+            } else {
+              savedSelectionRef.current = null;
+            }
+          }}
+        >
           <DropdownMenuTrigger asChild>
             <button
               type="button"
               title="Font family"
-              className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-sm hover:bg-gray-100 transition-colors text-gray-700 max-w-[140px] truncate"
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-sm hover:bg-gray-100 transition-colors text-gray-700 max-w-[140px] truncate shrink-0"
             >
-              <span className="truncate">
-                {editor
-                  .getAttributes('textStyle')
-                  .fontFamily?.replace(/['"]/g, '') || 'Manrope'}
-              </span>
+              <span className="truncate">{currentFont}</span>
               <ChevronDown className="h-3 w-3 shrink-0" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-44">
             <DropdownMenuItem
-              onClick={() => editor.chain().focus().unsetFontFamily().run()}
+              onClick={() => {
+                const sel = savedSelectionRef.current;
+                debugLog('FONT CLICK Manrope', {
+                  sel,
+                  hasFocus: editor.view.hasFocus(),
+                });
+                if (!sel) return;
+                editor.chain().setTextSelection(sel).unsetFontFamily().run();
+                debugLog('FONT CLICK Manrope applied', {
+                  currentFont: resolveFontFamily(editor),
+                });
+              }}
             >
               <span style={{ fontFamily: 'Manrope' }}>Manrope</span>
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() =>
-                editor.chain().focus().setFontFamily("'Geist Sans'").run()
-              }
+              onClick={() => {
+                const sel = savedSelectionRef.current;
+                debugLog('FONT CLICK Geist Sans', {
+                  sel,
+                  hasFocus: editor.view.hasFocus(),
+                });
+                if (!sel) return;
+                editor
+                  .chain()
+                  .setTextSelection(sel)
+                  .setFontFamily("'Geist Sans'")
+                  .run();
+                debugLog('FONT CLICK Geist Sans applied', {
+                  currentFont: resolveFontFamily(editor),
+                });
+              }}
             >
               <span style={{ fontFamily: "'Geist Sans'" }}>Geist Sans</span>
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() =>
-                editor.chain().focus().setFontFamily("'Geist Mono'").run()
-              }
+              onClick={() => {
+                const sel = savedSelectionRef.current;
+                debugLog('FONT CLICK Geist Mono', {
+                  sel,
+                  hasFocus: editor.view.hasFocus(),
+                });
+                if (!sel) return;
+                editor
+                  .chain()
+                  .setTextSelection(sel)
+                  .setFontFamily("'Geist Mono'")
+                  .run();
+                debugLog('FONT CLICK Geist Mono applied', {
+                  currentFont: resolveFontFamily(editor),
+                });
+              }}
             >
               <span style={{ fontFamily: "'Geist Mono'" }}>Geist Mono</span>
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() =>
-                editor.chain().focus().setFontFamily("'Hedvig Sans'").run()
-              }
+              onClick={() => {
+                const sel = savedSelectionRef.current;
+                debugLog('FONT CLICK Hedvig Sans', {
+                  sel,
+                  hasFocus: editor.view.hasFocus(),
+                });
+                if (!sel) return;
+                editor
+                  .chain()
+                  .setTextSelection(sel)
+                  .setFontFamily("'Hedvig Sans'")
+                  .run();
+                debugLog('FONT CLICK Hedvig Sans applied', {
+                  currentFont: resolveFontFamily(editor),
+                });
+              }}
             >
               <span style={{ fontFamily: "'Hedvig Sans'" }}>Hedvig Sans</span>
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() =>
-                editor.chain().focus().setFontFamily("'Hedvig Serif'").run()
-              }
+              onClick={() => {
+                const sel = savedSelectionRef.current;
+                debugLog('FONT CLICK Hedvig Serif', {
+                  sel,
+                  hasFocus: editor.view.hasFocus(),
+                });
+                if (!sel) return;
+                editor
+                  .chain()
+                  .setTextSelection(sel)
+                  .setFontFamily("'Hedvig Serif'")
+                  .run();
+                debugLog('FONT CLICK Hedvig Serif applied', {
+                  currentFont: resolveFontFamily(editor),
+                });
+              }}
             >
               <span style={{ fontFamily: "'Hedvig Serif'" }}>Hedvig Serif</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         <ToolbarSeparator />
-        <div className="flex items-center gap-0.5">
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleBold().run()}
-            isActive={editor.isActive('bold')}
-            title="Bold"
-          >
-            <Bold className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleItalic().run()}
-            isActive={editor.isActive('italic')}
-            title="Italic"
-          >
-            <Italic className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleUnderline().run()}
-            isActive={editor.isActive('underline')}
-            title="Underline"
-          >
-            <UnderlineIcon className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleStrike().run()}
-            isActive={editor.isActive('strike')}
-            title="Strikethrough"
-          >
-            <Strikethrough className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleCode().run()}
-            isActive={editor.isActive('code')}
-            title="Code"
-          >
-            <Code className="h-4 w-4" />
-          </ToolbarButton>
-        </div>
-
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleBold().run()}
+          isActive={editor.isActive('bold')}
+          title="Bold"
+        >
+          <Bold className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+          isActive={editor.isActive('italic')}
+          title="Italic"
+        >
+          <Italic className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+          isActive={editor.isActive('underline')}
+          title="Underline"
+        >
+          <UnderlineIcon className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleStrike().run()}
+          isActive={editor.isActive('strike')}
+          title="Strikethrough"
+        >
+          <Strikethrough className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleCode().run()}
+          isActive={editor.isActive('code')}
+          title="Code"
+        >
+          <Code className="h-4 w-4" />
+        </ToolbarButton>
         <ToolbarSeparator />
+        <ToolbarButton
+          onClick={() =>
+            editor.chain().focus().toggleHeading({ level: 1 }).run()
+          }
+          isActive={editor.isActive('heading', { level: 1 })}
+          title="Heading 1"
+        >
+          <Heading1 className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() =>
+            editor.chain().focus().toggleHeading({ level: 2 }).run()
+          }
+          isActive={editor.isActive('heading', { level: 2 })}
+          title="Heading 2"
+        >
+          <Heading2 className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() =>
+            editor.chain().focus().toggleHeading({ level: 3 }).run()
+          }
+          isActive={editor.isActive('heading', { level: 3 })}
+          title="Heading 3"
+        >
+          <Heading3 className="h-4 w-4" />
+        </ToolbarButton>
 
-        <div className="flex items-center gap-0.5">
-          <ToolbarButton
-            onClick={() =>
-              editor.chain().focus().toggleHeading({ level: 1 }).run()
-            }
-            isActive={editor.isActive('heading', { level: 1 })}
-            title="Heading 1"
-          >
-            <Heading1 className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() =>
-              editor.chain().focus().toggleHeading({ level: 2 }).run()
-            }
-            isActive={editor.isActive('heading', { level: 2 })}
-            title="Heading 2"
-          >
-            <Heading2 className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() =>
-              editor.chain().focus().toggleHeading({ level: 3 }).run()
-            }
-            isActive={editor.isActive('heading', { level: 3 })}
-            title="Heading 3"
-          >
-            <Heading3 className="h-4 w-4" />
-          </ToolbarButton>
-        </div>
-
-        <ToolbarSeparator />
-
-        <div className="flex items-center gap-0.5">
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
-            isActive={editor.isActive('bulletList')}
-            title="Bullet List"
-          >
-            <List className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            isActive={editor.isActive('orderedList')}
-            title="Ordered List"
-          >
-            <ListOrdered className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleTaskList().run()}
-            isActive={editor.isActive('taskList')}
-            title="Checkbox"
-          >
-            <CheckSquare className="h-4 w-4" />
-          </ToolbarButton>
-        </div>
-
-        <ToolbarSeparator />
-
-        <div className="flex items-center gap-0.5">
+        <div className="ml-auto shrink-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                title="Quote style"
-                className={`inline-flex items-center gap-1 rounded-md px-1.5 py-1.5 hover:bg-gray-100 transition-colors ${
-                  editor.isActive('blockquote')
-                    ? 'bg-orange-100 text-orange-600'
-                    : 'text-gray-500'
-                }`}
+                title="More tools"
+                className="p-1.5 rounded-md hover:bg-gray-100 transition-colors text-gray-500"
               >
-                <Quote className="h-4 w-4" />
-                <ChevronDown className="h-3 w-3" />
+                <MoreHorizontal className="h-4 w-4" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-44">
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem
+                onClick={() => editor.chain().focus().toggleBulletList().run()}
+              >
+                <List className="h-4 w-4 mr-2" />
+                Bullet List
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => editor.chain().focus().toggleOrderedList().run()}
+              >
+                <ListOrdered className="h-4 w-4 mr-2" />
+                Ordered List
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => editor.chain().focus().toggleTaskList().run()}
+              >
+                <CheckSquare className="h-4 w-4 mr-2" />
+                Checkbox
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => applyQuoteStyle('line')}>
+                <Quote className="h-4 w-4 mr-2" />
                 Quote (line)
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => applyQuoteStyle('double')}>
-                Quote ("")
+                <Quote className="h-4 w-4 mr-2" />
+                Quote (&quot;&quot;)
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => editor.chain().focus().unsetBlockquote().run()}
               >
+                <Quote className="h-4 w-4 mr-2" />
                 Remove quote
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() =>
+                  editor.chain().focus().setTextAlign('left').run()
+                }
+              >
+                <AlignLeft className="h-4 w-4 mr-2" />
+                Align Left
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() =>
+                  editor.chain().focus().setTextAlign('center').run()
+                }
+              >
+                <AlignCenter className="h-4 w-4 mr-2" />
+                Align Center
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() =>
+                  editor.chain().focus().setTextAlign('right').run()
+                }
+              >
+                <AlignRight className="h-4 w-4 mr-2" />
+                Align Right
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={addHorizontalRule}>
+                <Minus className="h-4 w-4 mr-2" />
+                Divider
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={openLinkModal}>
+                <LinkIcon className="h-4 w-4 mr-2" />
+                Add Link
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={addImage}>
+                <ImageIcon className="h-4 w-4 mr-2" />
+                Add Image
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => editor.chain().focus().insertCarousel().run()}
+              >
+                <GalleryHorizontal className="h-4 w-4 mr-2" />
+                Carousel
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setYoutubeUrl('');
+                  setIsYoutubeModalOpen(true);
+                }}
+              >
+                <Youtube className="h-4 w-4 mr-2" />
+                YouTube Video
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() =>
+                  editor.chain().focus().unsetAllMarks().clearNodes().run()
+                }
+              >
+                <RemoveFormatting className="h-4 w-4 mr-2" />
+                Clear Formatting
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().setTextAlign('left').run()}
-            isActive={editor.isActive({ textAlign: 'left' })}
-            title="Align Left"
-          >
-            <AlignLeft className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().setTextAlign('center').run()}
-            isActive={editor.isActive({ textAlign: 'center' })}
-            title="Align Center"
-          >
-            <AlignCenter className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().setTextAlign('right').run()}
-            isActive={editor.isActive({ textAlign: 'right' })}
-            title="Align Right"
-          >
-            <AlignRight className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton onClick={addHorizontalRule} title="Divider">
-            <Minus className="h-4 w-4" />
-          </ToolbarButton>
         </div>
-
-        <ToolbarSeparator />
-
-        <div className="flex items-center gap-0.5">
-          <ToolbarButton
-            onClick={openLinkModal}
-            isActive={editor.isActive('link')}
-            title="Add Link"
-          >
-            <LinkIcon className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton onClick={addImage} title="Add Image">
-            {isUploading ? (
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-orange-500" />
-            ) : (
-              <ImageIcon className="h-4 w-4" />
-            )}
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().insertCarousel().run()}
-            title="Carousel"
-          >
-            <GalleryHorizontal className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => {
-              setYoutubeUrl('');
-              setIsYoutubeModalOpen(true);
-            }}
-            title="YouTube Video"
-          >
-            <Youtube className="h-4 w-4" />
-          </ToolbarButton>
-        </div>
-
-        <ToolbarSeparator />
-
-        <ToolbarButton
-          onClick={() =>
-            editor.chain().focus().unsetAllMarks().clearNodes().run()
-          }
-          title="Clear Formatting"
-        >
-          <RemoveFormatting className="h-4 w-4" />
-        </ToolbarButton>
       </div>
 
       <div className="px-8 py-3 pl-12 min-h-[300px] relative">
