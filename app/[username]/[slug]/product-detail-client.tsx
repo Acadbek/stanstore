@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import posthog from 'posthog-js';
-import type LocomotiveScroll from 'locomotive-scroll';
 
 const radiusMap: Record<string, string> = {
   none: '0px',
@@ -125,7 +124,6 @@ export default function ProductDetailClient({ profile, product }: Props) {
   const serifFont = 'Hedvig Serif, serif';
   const sansFont = 'Hedvig Sans, Geist Sans, sans-serif';
   const profileRing = s.avatarRing || 'rgba(255, 255, 255, 0.88)';
-  const smoothScrollRef = useRef<LocomotiveScroll | null>(null);
   const descriptionRef = useRef<HTMLDivElement>(null);
   const contentScrollRef = useRef<HTMLDivElement>(null);
   const contentInnerRef = useRef<HTMLDivElement>(null);
@@ -251,76 +249,6 @@ export default function ProductDetailClient({ profile, product }: Props) {
     if (!price) return 'Free';
     return `$${(price / 100).toFixed(2)}`;
   };
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const desktopQuery = window.matchMedia('(min-width: 1024px)');
-    const reducedMotionQuery = window.matchMedia(
-      '(prefers-reduced-motion: reduce)'
-    );
-
-    function destroySmoothScroll() {
-      smoothScrollRef.current?.destroy();
-      smoothScrollRef.current = null;
-    }
-
-    async function syncSmoothScroll() {
-      destroySmoothScroll();
-
-      if (reducedMotionQuery.matches || !desktopQuery.matches) {
-        return;
-      }
-
-      const wrapper = contentScrollRef.current;
-      const content = contentInnerRef.current;
-
-      if (!wrapper || !content) {
-        return;
-      }
-
-      const { default: LocomotiveScroll } = await import('locomotive-scroll');
-
-      if (cancelled || reducedMotionQuery.matches || !desktopQuery.matches) {
-        return;
-      }
-
-      smoothScrollRef.current = new LocomotiveScroll({
-        lenisOptions: {
-          wrapper,
-          content,
-          eventsTarget: window,
-          smoothWheel: true,
-          syncTouch: false,
-          lerp: 0.58,
-          wheelMultiplier: 1.16,
-          touchMultiplier: 1,
-          autoResize: true,
-        },
-        autoStart: true,
-      });
-
-      requestAnimationFrame(() => {
-        smoothScrollRef.current?.resize();
-      });
-    }
-
-    void syncSmoothScroll();
-
-    const handleMediaChange = () => {
-      void syncSmoothScroll();
-    };
-
-    desktopQuery.addEventListener('change', handleMediaChange);
-    reducedMotionQuery.addEventListener('change', handleMediaChange);
-
-    return () => {
-      cancelled = true;
-      desktopQuery.removeEventListener('change', handleMediaChange);
-      reducedMotionQuery.removeEventListener('change', handleMediaChange);
-      destroySmoothScroll();
-    };
-  }, []);
 
   return (
     <div

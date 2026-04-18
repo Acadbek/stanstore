@@ -122,6 +122,8 @@ export const products = pgTable('products', {
   productUrl: varchar('product_url', { length: 500 }),
   imageUrl: text('image_url'),
   type: varchar('type', { length: 20 }).notNull().default('digital'),
+  frontStyle: varchar('front_style', { length: 20 }).notNull().default('inherit'),
+  frontStylePrompt: text('front_style_prompt'),
   isPublished: boolean('is_published').notNull().default(false),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),

@@ -18,10 +18,7 @@ import { Callout } from './callout';
 import { Carousel, CarouselItem } from './carousel';
 import { QuoteBlock } from './quote-block';
 import { YoutubeEmbed } from './youtube-embed';
-import { TocProvider, useToc } from './toc-sidebar';
 import { TocSidebar } from './toc-sidebar';
-import TiptapTableOfContents from '@tiptap/extension-table-of-contents';
-import UniqueId from '@tiptap/extension-unique-id';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -72,6 +69,7 @@ type RichEditorProps = {
   content: string;
   onChange: (html: string) => void;
   placeholder?: string;
+  onYoutubeThumbnail?: (thumbnailUrl: string) => void;
 };
 
 type QuoteStyle = 'line' | 'double';
@@ -148,6 +146,32 @@ function toSentenceCase(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+function normalizeWhitespace(value: string): string {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function getCompletionContext(editor: ReturnType<typeof useEditor>): { from: number; contextKey: string; currentBlock: string; contextBefore: string } | null {
+  if (!editor) return null;
+  const { state } = editor;
+  const { selection } = state;
+  const pos = selection.head;
+  const textBefore = state.doc.textBetween(0, pos, '\n', '\n');
+  const textAfter = state.doc.textBetween(pos, state.doc.content.size, '\n', '\n');
+  const contextBefore = textBefore.split(/\n\n/).pop() || '';
+  const currentBlock = textAfter.split(/\n\n/)[0] || '';
+  const contextKey = `${pos}-${contextBefore.slice(-50)}`;
+  return { from: pos, contextKey, currentBlock, contextBefore };
+}
+
+function buildLocalContinuation(currentBlock: string, contextBefore: string): string {
+  const lastSentence = contextBefore.split(/[.!?]\s+/).pop() || '';
+  const words = lastSentence.trim().split(/\s+/);
+  if (words.length >= 3) {
+    return `${words.slice(-3).join(' ')}...`;
+  }
+  return lastSentence || '...';
+}
+
 function buildAiSuggestions(selectedText: string): AiSuggestion[] {
   const compact = selectedText.replace(/\s+/g, ' ').trim();
   const short =
@@ -167,78 +191,12 @@ function buildAiSuggestions(selectedText: string): AiSuggestion[] {
   ];
 }
 
-function normalizeWhitespace(value: string) {
-  return value.replace(/\s+/g, ' ').trim();
-}
-
-function buildLocalContinuation(currentBlock: string, contextBefore: string) {
-  const source = normalizeWhitespace(currentBlock || contextBefore);
-  if (!source) return '';
-
-  const lower = source.toLowerCase();
-
-  if (lower.includes('perfect for') || lower.includes('ideal for')) {
-    return ' and helps your customers get results faster.';
-  }
-
-  if (lower.includes('template')) {
-    return ' with a ready-to-use structure you can customize in minutes.';
-  }
-
-  if (lower.includes('guide') || lower.includes('course')) {
-    return ' with clear steps that make it easy to follow and apply.';
-  }
-
-  if (lower.includes('checklist')) {
-    return ' so nothing important gets missed along the way.';
-  }
-
-  if (/[.!?]$/.test(source)) {
-    return ' Designed to save time and keep things simple.';
-  }
-
-  return ' that saves time and makes the next step easier.';
-}
-
-function getCompletionContext(
-  editor: NonNullable<ReturnType<typeof useEditor>>
-) {
-  const { from, empty } = editor.state.selection;
-  if (!empty) return null;
-
-  const fullText = normalizeWhitespace(
-    editor.state.doc.textBetween(0, from, '\n', '\n')
-  );
-  const currentBlock = normalizeWhitespace(
-    editor.state.selection.$from.parent.textBetween(
-      0,
-      editor.state.selection.$from.parent.content.size,
-      ' ',
-      ' '
-    )
-  );
-
-  if (fullText.length < 8) return null;
-
-  const recentContext = fullText.slice(-900);
-  return {
-    from,
-    contextBefore: recentContext,
-    currentBlock: currentBlock.slice(-240),
-    contextKey: `${from}:${recentContext.slice(-120)}:${currentBlock.slice(-80)}`,
-  };
-}
-
-export default function RichEditor(props: RichEditorProps) {
-  return (
-    <TocProvider>
-      <RichEditorInner {...props} />
-    </TocProvider>
-  );
-}
-
-function RichEditorInner({ content, onChange, placeholder }: RichEditorProps) {
-  const { setTocContent, activeItem, setActiveItem } = useToc();
+export default function RichEditor({
+  content,
+  onChange,
+  placeholder,
+  onYoutubeThumbnail,
+}: RichEditorProps) {
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [linkText, setLinkText] = useState('');
@@ -399,18 +357,6 @@ function RichEditorInner({ content, onChange, placeholder }: RichEditorProps) {
       YoutubeEmbed as any,
       TextStyle,
       FontFamily,
-      UniqueId.configure({
-        types: ['heading'],
-        attributeName: 'id',
-        generateID: () => `h-${Math.random().toString(36).substr(2, 9)}`,
-      }),
-      TiptapTableOfContents.configure({
-        getId: (textContent: string) =>
-          `h-${textContent.slice(0, 20).replace(/\s+/g, '-').toLowerCase()}-${Math.random().toString(36).substr(2, 5)}`,
-        onUpdate: (content) => {
-          setTocContent(content);
-        },
-      }),
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -914,8 +860,34 @@ function RichEditorInner({ content, onChange, placeholder }: RichEditorProps) {
     const embedUrl = extractYoutubeEmbedUrl(youtubeUrl.trim());
     if (embedUrl) {
       editor.chain().focus().setYoutubeEmbed(embedUrl).run();
+      const videoId = extractVideoIdFromUrl(youtubeUrl.trim());
+      if (videoId && onYoutubeThumbnail) {
+        onYoutubeThumbnail(`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`);
+      }
     }
     closeYoutubeModal();
+  };
+
+  const extractVideoIdFromUrl = (url: string): string | null => {
+    try {
+      const u = new URL(url);
+      let videoId = '';
+      if (u.hostname === 'youtu.be') {
+        videoId = u.pathname.slice(1);
+      } else if (u.hostname.includes('youtube.com')) {
+        videoId = u.searchParams.get('v') || '';
+        if (!videoId && u.pathname.startsWith('/embed/')) {
+          videoId = u.pathname.replace('/embed/', '');
+        }
+        if (!videoId && u.pathname.startsWith('/shorts/')) {
+          videoId = u.pathname.replace('/shorts/', '');
+        }
+      }
+      if (!videoId) return null;
+      return videoId.split(/[?&]/)[0];
+    } catch {
+      return null;
+    }
   };
 
   const rootWidth = editorRootRef.current?.clientWidth ?? 560;

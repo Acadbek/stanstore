@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, Pencil } from 'lucide-react';
 import Link from 'next/link';
@@ -20,16 +21,24 @@ type StoreData = {
 };
 
 export default function ProfilePage() {
-  const { data: profileData, error: profileError } = useSWR<ProfileData>(
-    '/api/profile',
-    fetcher
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const { data: profileData, error: profileError, mutate: mutateProfile } = useSWR<ProfileData>(
+    `/api/profile?_t=${refreshKey}`,
+    fetcher,
+    { revalidateOnMount: true, revalidateOnFocus: true }
   );
-  const { data: productsData, error: productsError } = useSWR<Product[]>(
-    '/api/products',
-    fetcher
+  const { data: productsData, error: productsError, mutate: mutateProducts } = useSWR<Product[]>(
+    `/api/products?_t=${refreshKey}`,
+    fetcher,
+    { revalidateOnMount: true, revalidateOnFocus: true }
   );
 
-  if (profileError || productsError) {
+  useEffect(() => {
+    setRefreshKey((prev: number) => prev + 1);
+  }, []);
+
+  if (profileError) {
     return (
       <section className="flex-1 p-8">
         <p className="text-sm text-red-500">
@@ -39,7 +48,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (!profileData || !productsData) {
+  if (!profileData || (!productsData && !productsError)) {
     return (
       <section className="flex-1 flex items-center justify-center min-h-[60vh]">
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -68,7 +77,7 @@ export default function ProfilePage() {
     );
   }
 
-  const publishedProducts = productsData.filter(
+  const publishedProducts = (productsData || []).filter(
     (product) => product.isPublished
   );
 
