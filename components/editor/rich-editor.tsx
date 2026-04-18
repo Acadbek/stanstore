@@ -150,6 +150,28 @@ function normalizeWhitespace(value: string): string {
   return value.replace(/\s+/g, ' ').trim();
 }
 
+function getCompletionContext(editor: ReturnType<typeof useEditor>): { from: number; contextKey: string; currentBlock: string; contextBefore: string } | null {
+  if (!editor) return null;
+  const { state } = editor;
+  const { selection } = state;
+  const pos = selection.head;
+  const textBefore = state.doc.textBetween(0, pos, '\n', '\n');
+  const textAfter = state.doc.textBetween(pos, state.doc.content.size, '\n', '\n');
+  const contextBefore = textBefore.split(/\n\n/).pop() || '';
+  const currentBlock = textAfter.split(/\n\n/)[0] || '';
+  const contextKey = `${pos}-${contextBefore.slice(-50)}`;
+  return { from: pos, contextKey, currentBlock, contextBefore };
+}
+
+function buildLocalContinuation(currentBlock: string, contextBefore: string): string {
+  const lastSentence = contextBefore.split(/[.!?]\s+/).pop() || '';
+  const words = lastSentence.trim().split(/\s+/);
+  if (words.length >= 3) {
+    return `${words.slice(-3).join(' ')}...`;
+  }
+  return lastSentence || '...';
+}
+
 function buildAiSuggestions(selectedText: string): AiSuggestion[] {
   const compact = selectedText.replace(/\s+/g, ' ').trim();
   const short =
@@ -173,6 +195,7 @@ export default function RichEditor({
   content,
   onChange,
   placeholder,
+  onYoutubeThumbnail,
 }: RichEditorProps) {
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
