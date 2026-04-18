@@ -229,11 +229,6 @@ function getCompletionContext(
   };
 }
 
-export default function RichEditor({
-  content,
-  onChange,
-  placeholder,
-}: RichEditorProps) {
 export default function RichEditor(props: RichEditorProps) {
   return (
     <TocProvider>
@@ -964,15 +959,6 @@ function RichEditorInner({ content, onChange, placeholder }: RichEditorProps) {
           </ToolbarButton>
         </div>
         <ToolbarSeparator />
-        <DropdownMenu>
-      <button
-        type="button"
-        onClick={copyDebugLogs}
-        className="absolute -top-8 left-1/2 -translate-x-1/2 z-50 px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-      >
-        Copy Logs
-      </button>
-      <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-gray-100 bg-gray-50/80 sticky top-0 z-50 overflow-hidden">
         <DropdownMenu
           onOpenChange={(open) => {
             if (open) {
