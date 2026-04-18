@@ -4,6 +4,7 @@ import { Manrope } from 'next/font/google';
 import { getUser, getTeamForUser } from '@/lib/db/queries';
 import { SWRConfig } from 'swr';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { Providers } from '@/components/progress-bar';
 
 export const metadata: Metadata = {
   title: 'Next.js SaaS Starter',
@@ -32,7 +33,9 @@ export default function RootLayout({
             },
           }}
         >
-          <TooltipProvider>{children}</TooltipProvider>
+          <Providers>
+            <TooltipProvider>{children}</TooltipProvider>
+          </Providers>
         </SWRConfig>
       </body>
     </html>

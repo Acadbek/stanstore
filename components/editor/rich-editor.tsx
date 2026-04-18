@@ -18,6 +18,7 @@ import { Callout } from './callout';
 import { Carousel, CarouselItem } from './carousel';
 import { QuoteBlock } from './quote-block';
 import { YoutubeEmbed } from './youtube-embed';
+import { TocSidebar } from './toc-sidebar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -48,12 +49,14 @@ import {
   CheckSquare,
   Minus,
   GripVertical,
-  Trash2,
+  Plus,
   ChevronDown,
   GalleryHorizontal,
   Sparkles,
   X,
   Youtube,
+  Undo2,
+  Redo2,
   MoreHorizontal,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -79,6 +82,12 @@ type SelectionHint = {
   y: number;
 };
 
+type InlineCompletion = {
+  text: string;
+  from: number;
+  contextKey: string;
+};
+
 type AiSuggestion = {
   id: string;
   label: string;
@@ -88,11 +97,13 @@ type AiSuggestion = {
 function ToolbarButton({
   onClick,
   isActive,
+  disabled,
   title,
   children,
 }: {
   onClick: () => void;
   isActive?: boolean;
+  disabled?: boolean;
   title: string;
   children: React.ReactNode;
 }) {
@@ -101,9 +112,13 @@ function ToolbarButton({
       type="button"
       onClick={onClick}
       title={title}
-      className={`p-1.5 rounded-md hover:bg-gray-100 transition-colors ${
-        isActive ? 'bg-orange-100 text-orange-600' : 'text-gray-500'
-      }`}
+      disabled={disabled}
+      className={`p-1.5 rounded-md transition-colors ${disabled
+        ? 'text-gray-300 cursor-not-allowed'
+        : isActive
+          ? 'bg-orange-100 text-orange-600 hover:bg-orange-200'
+          : 'text-gray-500 hover:bg-gray-100'
+        }`}
     >
       {children}
     </button>
@@ -154,7 +169,6 @@ export default function RichEditor({
   content,
   onChange,
   placeholder,
-  onYoutubeThumbnail,
 }: RichEditorProps) {
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
@@ -177,6 +191,23 @@ export default function RichEditor({
     null
   );
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
+  const [inlineCompletion, setInlineCompletion] =
+    useState<InlineCompletion | null>(null);
+  const [isInlineCompletionLoading, setIsInlineCompletionLoading] =
+    useState(false);
+  const [inlineCompletionError, setInlineCompletionError] = useState<
+    string | null
+  >(null);
+  const [inlineCompletionSource, setInlineCompletionSource] = useState<
+    'local' | 'ai' | null
+  >(null);
+  const [editorText, setEditorText] = useState('');
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const inlineCompletionRef = useRef<InlineCompletion | null>(null);
+  const completionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completionAbortRef = useRef<AbortController | null>(null);
+  const completionRequestIdRef = useRef(0);
+
   const [isYoutubeModalOpen, setIsYoutubeModalOpen] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const youtubeUrlInputRef = useRef<HTMLInputElement>(null);
@@ -302,6 +333,17 @@ export default function RichEditor({
     ],
     content,
     onUpdate: ({ editor }) => {
+      setEditorText(
+        normalizeWhitespace(
+          editor.state.doc.textBetween(
+            0,
+            editor.state.doc.content.size,
+            '\n',
+            '\n'
+          )
+        )
+      );
+      setCursorPosition(editor.state.selection.from);
       onChange(editor.getHTML());
     },
     onSelectionUpdate: ({ editor }) => {
@@ -319,7 +361,7 @@ export default function RichEditor({
     },
     editorProps: {
       attributes: {
-        class: 'tiptap min-h-[300px] focus:outline-none',
+        class: 'tiptap focus:outline-none',
       },
     },
     immediatelyRender: false,
@@ -353,6 +395,23 @@ export default function RichEditor({
     return () =>
       window.removeEventListener('tiptap-open-image-picker', onOpenImagePicker);
   }, [addImage]);
+
+  const clearInlineCompletion = useCallback(() => {
+    if (completionTimerRef.current) {
+      clearTimeout(completionTimerRef.current);
+      completionTimerRef.current = null;
+    }
+    completionAbortRef.current?.abort();
+    completionAbortRef.current = null;
+    setIsInlineCompletionLoading(false);
+    setInlineCompletionError(null);
+    setInlineCompletionSource(null);
+    setInlineCompletion(null);
+  }, []);
+
+  useEffect(() => {
+    inlineCompletionRef.current = inlineCompletion;
+  }, [inlineCompletion]);
 
   const closeLinkModal = useCallback(() => {
     linkModalContextRef.current = null;
@@ -549,6 +608,15 @@ export default function RichEditor({
     [editor, selectionHint]
   );
 
+  const applyInlineCompletion = useCallback(() => {
+    const completion = inlineCompletionRef.current;
+    if (!editor || !completion) return;
+
+    editor.chain().focus().insertContent(completion.text).run();
+
+    clearInlineCompletion();
+  }, [clearInlineCompletion, editor]);
+
   const addHorizontalRule = useCallback(() => {
     if (!editor) return;
     editor.chain().focus().setHorizontalRule().run();
@@ -586,6 +654,157 @@ export default function RichEditor({
     },
     [editor]
   );
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleSelectionUpdate = () => {
+      if (!editor.state.selection.empty) {
+        clearInlineCompletion();
+        return;
+      }
+
+      setCursorPosition(editor.state.selection.from);
+    };
+
+    editor.on('selectionUpdate', handleSelectionUpdate);
+
+    const dom = editor.view.dom;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Tab' && inlineCompletionRef.current) {
+        event.preventDefault();
+        applyInlineCompletion();
+      }
+
+      if (event.key === 'Escape' && inlineCompletionRef.current) {
+        event.preventDefault();
+        clearInlineCompletion();
+      }
+    };
+
+    dom.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      editor.off('selectionUpdate', handleSelectionUpdate);
+      dom.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [applyInlineCompletion, clearInlineCompletion, editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+    if (!editor.isFocused || !editor.state.selection.empty) return;
+
+    const context = getCompletionContext(editor);
+    if (!context) {
+      clearInlineCompletion();
+      return;
+    }
+
+    if (inlineCompletion?.contextKey === context.contextKey) {
+      return;
+    }
+
+    if (completionTimerRef.current) {
+      clearTimeout(completionTimerRef.current);
+    }
+
+    if (completionTimerRef.current) {
+      clearTimeout(completionTimerRef.current);
+    }
+
+    completionAbortRef.current?.abort();
+    setInlineCompletionError(null);
+    setInlineCompletion(null);
+    setInlineCompletionSource(null);
+    setIsInlineCompletionLoading(false);
+
+    completionTimerRef.current = setTimeout(async () => {
+      const requestId = completionRequestIdRef.current + 1;
+      completionRequestIdRef.current = requestId;
+
+      const fallback = buildLocalContinuation(
+        context.currentBlock,
+        context.contextBefore
+      );
+
+      const applySuggestion = (
+        suggestion: string,
+        source: 'local' | 'ai',
+        error?: string
+      ) => {
+        if (completionRequestIdRef.current !== requestId) return;
+        if (!suggestion) {
+          setInlineCompletion(null);
+          setInlineCompletionError(error || 'No continuation available yet.');
+          setInlineCompletionSource(null);
+          setIsInlineCompletionLoading(false);
+          return;
+        }
+
+        setInlineCompletion({
+          text:
+            suggestion.startsWith('.') || suggestion.startsWith(',')
+              ? suggestion
+              : ` ${suggestion}`,
+          from: context.from,
+          contextKey: context.contextKey,
+        });
+        setInlineCompletionSource(source);
+        setInlineCompletionError(error || null);
+        setIsInlineCompletionLoading(false);
+      };
+
+      setIsInlineCompletionLoading(true);
+
+      const controller = new AbortController();
+      completionAbortRef.current = controller;
+
+      try {
+        const response = await fetch('/api/editor/continue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contextBefore: context.contextBefore,
+            currentBlock: context.currentBlock,
+          }),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          applySuggestion(
+            fallback,
+            'local',
+            'AI unavailable, showing local suggestion.'
+          );
+          setIsInlineCompletionLoading(false);
+          return;
+        }
+
+        const data = (await response.json()) as {
+          suggestion?: string;
+          source?: 'local' | 'ai';
+        };
+        const remoteSuggestion = normalizeWhitespace(data.suggestion || '');
+        applySuggestion(
+          remoteSuggestion || fallback,
+          data.source === 'ai' && remoteSuggestion ? 'ai' : 'local',
+          remoteSuggestion ? undefined : 'Using local continuation.'
+        );
+      } catch (error) {
+        if ((error as Error).name === 'AbortError') return;
+        applySuggestion(
+          fallback,
+          'local',
+          'AI unavailable, showing local suggestion.'
+        );
+      }
+    }, 900);
+  }, [
+    clearInlineCompletion,
+    cursorPosition,
+    editor,
+    editorText,
+    inlineCompletion?.contextKey,
+  ]);
 
   const closeYoutubeModal = useCallback(() => {
     setIsYoutubeModalOpen(false);
@@ -651,26 +870,40 @@ export default function RichEditor({
     : 30;
   const aiPanelLeft = selectionHint
     ? clamp(
-        aiHintX - aiPanelWidth / 2,
-        8,
-        Math.max(8, rootWidth - aiPanelWidth - 8)
-      )
+      aiHintX - aiPanelWidth / 2,
+      8,
+      Math.max(8, rootWidth - aiPanelWidth - 8)
+    )
     : 8;
   const aiPanelTop = selectionHint ? Math.max(selectionHint.y + 26, 56) : 56;
+  const shouldShowInlineBar =
+    Boolean(inlineCompletion) ||
+    isInlineCompletionLoading ||
+    Boolean(inlineCompletionError);
 
   return (
     <div
       ref={editorRootRef}
-      className="rounded-xl border border-gray-200 bg-white relative overflow-hidden"
+      className="rounded-xl border border-gray-200 bg-white relative overflow-hidden h-screen flex flex-col"
     >
-      <button
-        type="button"
-        onClick={copyDebugLogs}
-        className="absolute -top-8 left-1/2 -translate-x-1/2 z-50 px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-      >
-        Copy Logs
-      </button>
-      <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-gray-100 bg-gray-50/80 sticky top-0 z-50 overflow-hidden">
+      <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-gray-100 bg-gray-50/80 sticky top-0 z-10">
+        <div className="flex items-center gap-0.5">
+          <ToolbarButton
+            onClick={() => editor.chain().focus().undo().run()}
+            disabled={!editor.can().undo()}
+            title="Undo"
+          >
+            <Undo2 className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().redo().run()}
+            disabled={!editor.can().redo()}
+            title="Redo"
+          >
+            <Redo2 className="h-4 w-4" />
+          </ToolbarButton>
+        </div>
+        <ToolbarSeparator />
         <DropdownMenu
           onOpenChange={(open) => {
             if (open) {
@@ -864,8 +1097,11 @@ export default function RichEditor({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                title="More tools"
-                className="p-1.5 rounded-md hover:bg-gray-100 transition-colors text-gray-500"
+                title="Quote style"
+                className={`inline-flex items-center gap-1 rounded-md px-1.5 py-1.5 hover:bg-gray-100 transition-colors ${editor.isActive('blockquote')
+                  ? 'bg-orange-100 text-orange-600'
+                  : 'text-gray-500'
+                  }`}
               >
                 <MoreHorizontal className="h-4 w-4" />
               </button>
@@ -967,37 +1203,91 @@ export default function RichEditor({
         </div>
       </div>
 
-      <div className="px-8 py-3 pl-12 min-h-[300px] relative">
-        <DragHandle editor={editor}>
-          <div className="drag-handle">
-            <button type="button" className="drag-handle-grip">
-              <GripVertical className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              className="drag-handle-delete"
-              title="Delete block"
-              onPointerDown={(e: React.PointerEvent) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!editor) return;
-                const { from } = editor.state.selection;
-                const $pos = editor.state.doc.resolve(from);
-                const nodeStart = Number($pos.start) - 1;
-                const nodeEnd = nodeStart + Number($pos.parent.nodeSize);
-                editor
-                  .chain()
-                  .focus()
-                  .deleteRange({ from: nodeStart, to: nodeEnd })
-                  .run();
-              }}
-            >
-              <Trash2 className="h-3 w-3" />
-            </button>
+      <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 overflow-y-auto">
+          <div className="py-3 relative">
+            <DragHandle editor={editor}>
+              <div className="drag-handle">
+                <button type="button" className="drag-handle-grip">
+                  <GripVertical className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  className="drag-handle-add"
+                  title="Add block"
+                  onPointerDown={(e: React.PointerEvent) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!editor) return;
+                    const { from } = editor.state.selection;
+                    const $pos = editor.state.doc.resolve(from);
+                    const nodeEnd = $pos.end() + 1;
+                    editor
+                      .chain()
+                      .focus()
+                      .insertContentAt(nodeEnd, { type: 'paragraph' })
+                      .setTextSelection(nodeEnd + 1)
+                      .run();
+                    const tr = editor.state.tr.insertText('/');
+                    editor.view.dispatch(tr);
+                  }}
+                >
+                  <Plus className="h-3 w-3" />
+                </button>
+              </div>
+            </DragHandle>
+            <EditorContent editor={editor} />
           </div>
-        </DragHandle>
-        <EditorContent editor={editor} />
+        </div>
+        <div className="w-56 shrink-0 border-l border-gray-100 overflow-y-auto bg-gray-50/40">
+          <TocSidebar maxShowCount={20} topOffset={80} />
+        </div>
       </div>
+
+      {shouldShowInlineBar && (
+        <div className="flex items-center gap-2 border-t border-orange-100 bg-orange-50/70 px-3 py-2 text-xs">
+          <Sparkles className="h-3.5 w-3.5 shrink-0 text-orange-500" />
+          <div className="min-w-0 flex-1 text-gray-600">
+            {inlineCompletion ? (
+              <span className="truncate">
+                Suggestion:
+                <span className="ml-1 text-gray-500">
+                  {inlineCompletion.text}
+                </span>
+                {inlineCompletionSource && (
+                  <span className="ml-2 rounded-full border border-orange-200 bg-white px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-orange-600">
+                    {inlineCompletionSource}
+                  </span>
+                )}
+              </span>
+            ) : isInlineCompletionLoading ? (
+              <span>AI is generating a continuation...</span>
+            ) : (
+              <span>{inlineCompletionError}</span>
+            )}
+          </div>
+          {inlineCompletion && (
+            <>
+              <button
+                type="button"
+                className="rounded-md border border-orange-200 bg-white px-2 py-1 font-medium text-orange-600 hover:bg-orange-50"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={applyInlineCompletion}
+              >
+                Accept Tab
+              </button>
+              <button
+                type="button"
+                className="rounded-md px-2 py-1 text-gray-500 hover:bg-white"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={clearInlineCompletion}
+              >
+                Dismiss
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {selectionHint && (
         <button

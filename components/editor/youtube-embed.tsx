@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Node, mergeAttributes } from '@tiptap/core';
@@ -114,12 +115,12 @@ export const YoutubeEmbed = Node.create({
     return {
       setYoutubeEmbed:
         (src: string) =>
-        ({ commands }: { commands: any }) => {
-          return commands.insertContent({
-            type: this.name,
-            attrs: { src },
-          });
-        },
+          ({ commands }: { commands: any }) => {
+            return commands.insertContent({
+              type: this.name,
+              attrs: { src },
+            });
+          },
     } as any;
   },
 });

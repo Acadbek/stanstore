@@ -87,19 +87,17 @@ export default function ProfilePage() {
   };
 
   return (
-    <section className="flex w-full flex-1 min-h-[calc(100dvh-68px)] overflow-y-auto p-0 lg:h-full lg:min-h-0 lg:overflow-hidden">
-      <StorePage
-        data={storeData}
-        embedded
-        sidebarAction={
-          <Link href="/dashboard/profile/config">
-            <Button variant="secondary" className="flex items-center gap-2">
-              <Pencil className="h-4 w-4" />
-              Edit Profile
-            </Button>
-          </Link>
-        }
-      />
+    <section className="flex-1 min-h-screen">
+      <Link href="/dashboard/profile/config">
+        <Button
+          variant="secondary"
+          className="flex items-center gap-2 fixed right-10 top-5"
+        >
+          <Pencil className="h-4 w-4" />
+          Edit Profile
+        </Button>
+      </Link>
+      <StorePage data={storeData} />
     </section>
   );
 }
