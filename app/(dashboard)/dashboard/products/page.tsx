@@ -6,27 +6,10 @@ import { Input } from '@/components/ui/input';
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import {
-  Loader2,
-  PlusCircle,
-  Eye,
-  EyeOff,
-  Trash2,
-  Pencil,
-  LayoutGrid,
-  List,
-} from 'lucide-react';
-import {
-  createProduct,
-  updateProduct,
-  deleteProduct,
-  toggleProductPublish,
-} from './actions';
+import { Loader2, PlusCircle, Eye, EyeOff, Trash2, Pencil } from 'lucide-react';
+import { createProduct, updateProduct, deleteProduct, toggleProductPublish } from './actions';
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { Product } from '@/lib/db/schema';
 import useSWR, { mutate } from 'swr';
@@ -75,135 +58,122 @@ function ProductForm({
   );
 
   return (
-    <Card className="border-2 border-orange-100">
-      <CardHeader>
-        <CardTitle>
-          {mode === 'create' ? 'Add New Product' : 'Edit Product'}
-        </CardTitle>
-        <CardDescription>
-          {mode === 'create'
-            ? 'Add a digital product, link, or booking to your store.'
-            : 'Update your product details.'}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form className="space-y-4" action={formAction}>
-          {mode === 'edit' && initialData && (
-            <input type="hidden" name="id" value={initialData.id} />
-          )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
-              <Label htmlFor="title" className="mb-2">
-                Title
-              </Label>
-              <Input
-                id="title"
-                name="title"
-                placeholder="My Awesome Product"
-                defaultValue={initialData?.title || ''}
-                required
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <Label className="mb-2">Description</Label>
-              <RichEditor
-                content={descriptionHtml}
-                onChange={setDescriptionHtml}
-                placeholder="Describe your product in detail..."
-              />
-            </div>
-            <div>
-              <Label htmlFor="price" className="mb-2">
-                Price ($)
-              </Label>
-              <Input
-                id="price"
-                name="price"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                defaultValue={
-                  initialData?.price ? (initialData.price / 100).toFixed(2) : ''
-                }
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Leave empty for free
-              </p>
-            </div>
-            <div>
-              <Label htmlFor="type" className="mb-2">
-                Type
-              </Label>
-              <select
-                id="type"
-                name="type"
-                defaultValue={initialData?.type || 'digital'}
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                <option value="digital">Digital Product</option>
-                <option value="link">Link</option>
-                <option value="booking">Booking</option>
-              </select>
-            </div>
-            <div className="sm:col-span-2">
-              <Label htmlFor="productUrl" className="mb-2">
-                Product URL
-              </Label>
-              <Input
-                id="productUrl"
-                name="productUrl"
-                type="url"
-                placeholder="https://example.com/product"
-                defaultValue={initialData?.productUrl || ''}
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <Label htmlFor="imageUrl" className="mb-2">
-                Cover Image URL
-              </Label>
-              <Input
-                id="imageUrl"
-                name="imageUrl"
-                type="url"
-                placeholder="https://example.com/image.jpg"
-                defaultValue={initialData?.imageUrl || ''}
-              />
-            </div>
+    <div>
+      <form className="space-y-4" action={formAction}>
+        {mode === 'edit' && initialData && (
+          <input type="hidden" name="id" value={initialData.id} />
+        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="sm:col-span-2">
+            <RichEditor
+              content={descriptionHtml}
+              onChange={setDescriptionHtml}
+              placeholder="Describe your product in detail..."
+            />
           </div>
-          <div className="flex items-center gap-3">
-            <Button
-              type="submit"
-              className="bg-orange-500 hover:bg-orange-600 text-white"
-              disabled={isPending}
+          <div>
+            <Label htmlFor="price" className="mb-2">
+              Price ($)
+            </Label>
+            <Input
+              id="price"
+              name="price"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              defaultValue={
+                initialData?.price ? (initialData.price / 100).toFixed(2) : ''
+              }
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Leave empty for free
+            </p>
+          </div>
+          <div>
+            <Label htmlFor="type" className="mb-2">
+              Type
+            </Label>
+            <select
+              id="type"
+              name="type"
+              defaultValue={initialData?.type || 'digital'}
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              {isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : mode === 'create' ? (
-                <>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Product
-                </>
-              ) : (
-                'Save Changes'
-              )}
-            </Button>
-            {mode === 'edit' && onCancel && (
-              <Button type="button" variant="outline" onClick={onCancel}>
-                Cancel
-              </Button>
-            )}
+              <option value="digital">Digital Product</option>
+              <option value="link">Link</option>
+              <option value="booking">Booking</option>
+            </select>
           </div>
-          {state.error && <p className="text-red-500 text-sm">{state.error}</p>}
-          {state.success && (
-            <p className="text-green-500 text-sm">{state.success}</p>
+          <div className="sm:col-span-2">
+            <Label htmlFor="title" className="mb-2">
+              Title
+            </Label>
+            <Input
+              id="title"
+              name="title"
+              placeholder="My Awesome Product"
+              defaultValue={initialData?.title || ''}
+              required
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <Label htmlFor="productUrl" className="mb-2">
+              Product URL
+            </Label>
+            <Input
+              id="productUrl"
+              name="productUrl"
+              type="url"
+              placeholder="https://example.com/product"
+              defaultValue={initialData?.productUrl || ''}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <Label htmlFor="imageUrl" className="mb-2">
+              Cover Image URL
+            </Label>
+            <Input
+              id="imageUrl"
+              name="imageUrl"
+              type="url"
+              placeholder="https://example.com/image.jpg"
+              defaultValue={initialData?.imageUrl || ''}
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button
+            type="submit"
+            className="bg-orange-500 hover:bg-orange-600 text-white"
+            disabled={isPending}
+          >
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : mode === 'create' ? (
+              <>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add Product
+              </>
+            ) : (
+              'Save Changes'
+            )}
+          </Button>
+          {mode === 'edit' && onCancel && (
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
           )}
-        </form>
-      </CardContent>
-    </Card>
+        </div>
+        {state.error && <p className="text-red-500 text-sm">{state.error}</p>}
+        {state.success && (
+          <p className="text-green-500 text-sm">{state.success}</p>
+        )}
+      </form>
+    </div>
   );
 }
 
@@ -404,10 +374,8 @@ function ProductGridCard({
 
 function ProductList({
   onEdit,
-  viewMode,
 }: {
   onEdit: (product: Product) => void;
-  viewMode: 'list' | 'grid';
 }) {
   const { data: products } = useSWR<Product[]>('/api/products', fetcher);
 
@@ -416,16 +384,6 @@ function ProductList({
       <div className="text-center py-12 text-muted-foreground">
         <p className="text-lg font-medium mb-2">No products yet</p>
         <p className="text-sm">Add your first product to start selling.</p>
-      </div>
-    );
-  }
-
-  if (viewMode === 'grid') {
-    return (
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        {products.map((product) => (
-          <ProductGridCard key={product.id} product={product} onEdit={onEdit} />
-        ))}
       </div>
     );
   }
@@ -453,37 +411,13 @@ function ProductSkeleton() {
 export default function ProductsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
   const isFormOpen = showForm || editingProduct !== null;
 
   return (
     <div className="flex flex-1">
       <section className="flex-1 overflow-y-auto lg:p-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-lg lg:text-2xl font-medium text-gray-900">
-            Products
-          </h1>
           <div className="flex items-center gap-2">
-            <div className="flex items-center border rounded-lg overflow-hidden">
-              <Button
-                type="button"
-                variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                size="icon"
-                className={`h-8 w-8 rounded-none ${viewMode === 'grid' ? 'bg-orange-500 hover:bg-orange-600 text-white' : ''}`}
-                onClick={() => setViewMode('grid')}
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-              <Button
-                type="button"
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
-                size="icon"
-                className={`h-8 w-8 rounded-none ${viewMode === 'list' ? 'bg-orange-500 hover:bg-orange-600 text-white' : ''}`}
-                onClick={() => setViewMode('list')}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-            </div>
             {!showForm && !editingProduct && (
               <Button
                 onClick={() => setShowForm(true)}
@@ -525,7 +459,7 @@ export default function ProductsPage() {
 
       {isFormOpen && (
         <div className="hidden lg:block lg:shrink-0">
-          <ChatPanel isOpen onClose={() => {}} />
+          <ChatPanel isOpen onClose={() => { }} />
         </div>
       )}
     </div>
