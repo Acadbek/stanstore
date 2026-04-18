@@ -6,6 +6,7 @@ import {
   useEffect,
   useCallback,
   useRef,
+  type RefObject,
 } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,6 +58,7 @@ import useSWR, { mutate } from 'swr';
 import { Suspense } from 'react';
 import { generateReactHelpers } from '@uploadthing/react';
 import type { OurFileRouter } from '@/lib/uploadthing';
+import Link from 'next/link';
 
 const { useUploadThing } = generateReactHelpers<OurFileRouter>();
 
@@ -71,6 +73,8 @@ type ActionState = {
   error?: string;
   success?: string;
 };
+
+const PROFILE_FORM_ID = 'profile-config-form';
 
 const borderRadiusOptions = [
   { id: 'none', label: 'None', css: '0px' },
@@ -884,11 +888,15 @@ function ProfileForm({
   initialData,
   formAction,
   isPending,
+  formRef,
+  formId,
 }: {
   state: ActionState;
   initialData?: ProfileData;
   formAction: (formData: FormData) => void;
   isPending: boolean;
+  formRef: RefObject<HTMLFormElement | null>;
+  formId: string;
 }) {
   const profile = initialData?.profile;
   const socialLinks = profile?.socialLinks as Record<
@@ -1075,6 +1083,8 @@ function ProfileFormWithData({
   state,
   formAction,
   isPending,
+  formRef,
+  formId,
 }: {
   selectedTheme: string;
   selectedRadius: string;
@@ -1084,6 +1094,8 @@ function ProfileFormWithData({
   state: ActionState;
   formAction: (formData: FormData) => void;
   isPending: boolean;
+  formRef: RefObject<HTMLFormElement | null>;
+  formId: string;
 }) {
   const { data } = useSWR<ProfileData>('/api/profile', fetcher);
 
@@ -1112,6 +1124,8 @@ function ProfileFormWithData({
       initialData={data}
       formAction={wrappedFormAction}
       isPending={isPending}
+      formRef={formRef}
+      formId={formId}
     />
   );
 }
@@ -1437,6 +1451,7 @@ export default function ProfileConfigPage() {
     },
     {}
   );
+  const profileFormRef = useRef<HTMLFormElement>(null);
 
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
   const [selectedRadius, setSelectedRadius] = useState<string | null>(null);
@@ -1480,8 +1495,7 @@ export default function ProfileConfigPage() {
   return (
     <section className="flex-1 lg:p-8">
       <div className="fixed top-0 left-0 right-0 z-10 border-b bg-white/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <h1 className="text-xl font-bold">Edit Profile</h1>
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-end">
           <div className="flex items-center gap-4">
             <Button
               type="submit"
@@ -1498,7 +1512,6 @@ export default function ProfileConfigPage() {
                 'Save Changes'
               )}
             </Button>
-            <Button variant="ghost">Back to Profile</Button>
           </div>
         </div>
       </div>
@@ -1554,6 +1567,8 @@ export default function ProfileConfigPage() {
             state={state}
             formAction={formAction}
             isPending={isPending}
+            formRef={profileFormRef}
+            formId={PROFILE_FORM_ID}
           />
         </div>
       </Suspense>

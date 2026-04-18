@@ -88,15 +88,6 @@ function UserMenu() {
   );
 }
 
-function Header() {
-  return <header></header>;
-}
-
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return (
-    <section className="flex flex-col">
-      <Header />
-      {children}
-    </section>
-  );
+  return <section className="flex flex-col">{children}</section>;
 }

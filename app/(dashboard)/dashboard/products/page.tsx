@@ -313,6 +313,65 @@ function ProductCard({
   );
 }
 
+function ProductGridCard({
+  product,
+  onEdit,
+}: {
+  product: Product;
+  onEdit: (product: Product) => void;
+}) {
+  return (
+    <Card className={`group ${product.isPublished ? '' : 'opacity-60'}`}>
+      <div className="relative aspect-video overflow-hidden rounded-t-xl bg-gray-100">
+        {product.imageUrl ? (
+          <img
+            src={product.imageUrl}
+            alt={product.title}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center">
+            <span className="text-white text-4xl font-bold">
+              {product.title[0]?.toUpperCase()}
+            </span>
+          </div>
+        )}
+        <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="bg-white/80 hover:bg-white text-gray-400 hover:text-gray-700 h-7 w-7"
+            onClick={() => onEdit(product)}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <TogglePublishButton product={product} />
+          <DeleteProductButton productId={product.id} />
+        </div>
+      </div>
+      <CardContent className="p-4">
+        <h3 className="font-semibold text-sm text-gray-900 truncate">
+          {product.title}
+        </h3>
+        {product.description && (
+          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+            {product.description}
+          </p>
+        )}
+        <div className="flex items-center gap-2 mt-2">
+          <span className="text-xs font-medium text-gray-900">
+            {product.price ? `$${(product.price / 100).toFixed(2)}` : 'Free'}
+          </span>
+          <span className="text-xs text-gray-400 uppercase">
+            {product.type}
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ProductList({
   onEdit,
 }: {
@@ -355,8 +414,8 @@ export default function ProductsPage() {
   const isFormOpen = showForm || editingProduct !== null;
 
   return (
-    <div className="flex flex-1 min-w-0">
-      <section className="flex-1 min-w-0 overflow-y-auto lg:px-8">
+    <div className="flex flex-1">
+      <section className="flex-1 overflow-y-auto lg:p-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             {!showForm && !editingProduct && (
@@ -390,7 +449,10 @@ export default function ProductsPage() {
               />
             )}
 
-            <ProductList onEdit={(product) => setEditingProduct(product)} />
+            <ProductList
+              onEdit={(product) => setEditingProduct(product)}
+              viewMode={viewMode}
+            />
           </div>
         </Suspense>
       </section>

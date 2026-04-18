@@ -58,6 +58,8 @@ import {
   Sparkles,
   X,
   Youtube,
+  Undo2,
+  Redo2,
   MoreHorizontal,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -82,6 +84,12 @@ type SelectionHint = {
   y: number;
 };
 
+type InlineCompletion = {
+  text: string;
+  from: number;
+  contextKey: string;
+};
+
 type AiSuggestion = {
   id: string;
   label: string;
@@ -91,11 +99,13 @@ type AiSuggestion = {
 function ToolbarButton({
   onClick,
   isActive,
+  disabled,
   title,
   children,
 }: {
   onClick: () => void;
   isActive?: boolean;
+  disabled?: boolean;
   title: string;
   children: React.ReactNode;
 }) {
@@ -104,9 +114,13 @@ function ToolbarButton({
       type="button"
       onClick={onClick}
       title={title}
-      className={`p-1.5 rounded-md hover:bg-gray-100 transition-colors ${
-        isActive ? 'bg-orange-100 text-orange-600' : 'text-gray-500'
-      }`}
+      disabled={disabled}
+      className={`p-1.5 rounded-md transition-colors ${disabled
+        ? 'text-gray-300 cursor-not-allowed'
+        : isActive
+          ? 'bg-orange-100 text-orange-600 hover:bg-orange-200'
+          : 'text-gray-500 hover:bg-gray-100'
+        }`}
     >
       {children}
     </button>
@@ -153,6 +167,73 @@ function buildAiSuggestions(selectedText: string): AiSuggestion[] {
   ];
 }
 
+function normalizeWhitespace(value: string) {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function buildLocalContinuation(currentBlock: string, contextBefore: string) {
+  const source = normalizeWhitespace(currentBlock || contextBefore);
+  if (!source) return '';
+
+  const lower = source.toLowerCase();
+
+  if (lower.includes('perfect for') || lower.includes('ideal for')) {
+    return ' and helps your customers get results faster.';
+  }
+
+  if (lower.includes('template')) {
+    return ' with a ready-to-use structure you can customize in minutes.';
+  }
+
+  if (lower.includes('guide') || lower.includes('course')) {
+    return ' with clear steps that make it easy to follow and apply.';
+  }
+
+  if (lower.includes('checklist')) {
+    return ' so nothing important gets missed along the way.';
+  }
+
+  if (/[.!?]$/.test(source)) {
+    return ' Designed to save time and keep things simple.';
+  }
+
+  return ' that saves time and makes the next step easier.';
+}
+
+function getCompletionContext(
+  editor: NonNullable<ReturnType<typeof useEditor>>
+) {
+  const { from, empty } = editor.state.selection;
+  if (!empty) return null;
+
+  const fullText = normalizeWhitespace(
+    editor.state.doc.textBetween(0, from, '\n', '\n')
+  );
+  const currentBlock = normalizeWhitespace(
+    editor.state.selection.$from.parent.textBetween(
+      0,
+      editor.state.selection.$from.parent.content.size,
+      ' ',
+      ' '
+    )
+  );
+
+  if (fullText.length < 8) return null;
+
+  const recentContext = fullText.slice(-900);
+  return {
+    from,
+    contextBefore: recentContext,
+    currentBlock: currentBlock.slice(-240),
+    contextKey: `${from}:${recentContext.slice(-120)}:${currentBlock.slice(-80)}`,
+  };
+}
+
+export default function RichEditor({
+  content,
+  onChange,
+  placeholder,
+}: RichEditorProps) {
 export default function RichEditor(props: RichEditorProps) {
   return (
     <TocProvider>
@@ -184,6 +265,23 @@ function RichEditorInner({ content, onChange, placeholder }: RichEditorProps) {
     null
   );
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
+  const [inlineCompletion, setInlineCompletion] =
+    useState<InlineCompletion | null>(null);
+  const [isInlineCompletionLoading, setIsInlineCompletionLoading] =
+    useState(false);
+  const [inlineCompletionError, setInlineCompletionError] = useState<
+    string | null
+  >(null);
+  const [inlineCompletionSource, setInlineCompletionSource] = useState<
+    'local' | 'ai' | null
+  >(null);
+  const [editorText, setEditorText] = useState('');
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const inlineCompletionRef = useRef<InlineCompletion | null>(null);
+  const completionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completionAbortRef = useRef<AbortController | null>(null);
+  const completionRequestIdRef = useRef(0);
+
   const [isYoutubeModalOpen, setIsYoutubeModalOpen] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const youtubeUrlInputRef = useRef<HTMLInputElement>(null);
@@ -321,6 +419,17 @@ function RichEditorInner({ content, onChange, placeholder }: RichEditorProps) {
     ],
     content,
     onUpdate: ({ editor }) => {
+      setEditorText(
+        normalizeWhitespace(
+          editor.state.doc.textBetween(
+            0,
+            editor.state.doc.content.size,
+            '\n',
+            '\n'
+          )
+        )
+      );
+      setCursorPosition(editor.state.selection.from);
       onChange(editor.getHTML());
     },
     onSelectionUpdate: ({ editor }) => {
@@ -372,6 +481,23 @@ function RichEditorInner({ content, onChange, placeholder }: RichEditorProps) {
     return () =>
       window.removeEventListener('tiptap-open-image-picker', onOpenImagePicker);
   }, [addImage]);
+
+  const clearInlineCompletion = useCallback(() => {
+    if (completionTimerRef.current) {
+      clearTimeout(completionTimerRef.current);
+      completionTimerRef.current = null;
+    }
+    completionAbortRef.current?.abort();
+    completionAbortRef.current = null;
+    setIsInlineCompletionLoading(false);
+    setInlineCompletionError(null);
+    setInlineCompletionSource(null);
+    setInlineCompletion(null);
+  }, []);
+
+  useEffect(() => {
+    inlineCompletionRef.current = inlineCompletion;
+  }, [inlineCompletion]);
 
   const closeLinkModal = useCallback(() => {
     linkModalContextRef.current = null;
@@ -568,6 +694,15 @@ function RichEditorInner({ content, onChange, placeholder }: RichEditorProps) {
     [editor, selectionHint]
   );
 
+  const applyInlineCompletion = useCallback(() => {
+    const completion = inlineCompletionRef.current;
+    if (!editor || !completion) return;
+
+    editor.chain().focus().insertContent(completion.text).run();
+
+    clearInlineCompletion();
+  }, [clearInlineCompletion, editor]);
+
   const addHorizontalRule = useCallback(() => {
     if (!editor) return;
     editor.chain().focus().setHorizontalRule().run();
@@ -605,6 +740,157 @@ function RichEditorInner({ content, onChange, placeholder }: RichEditorProps) {
     },
     [editor]
   );
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleSelectionUpdate = () => {
+      if (!editor.state.selection.empty) {
+        clearInlineCompletion();
+        return;
+      }
+
+      setCursorPosition(editor.state.selection.from);
+    };
+
+    editor.on('selectionUpdate', handleSelectionUpdate);
+
+    const dom = editor.view.dom;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Tab' && inlineCompletionRef.current) {
+        event.preventDefault();
+        applyInlineCompletion();
+      }
+
+      if (event.key === 'Escape' && inlineCompletionRef.current) {
+        event.preventDefault();
+        clearInlineCompletion();
+      }
+    };
+
+    dom.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      editor.off('selectionUpdate', handleSelectionUpdate);
+      dom.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [applyInlineCompletion, clearInlineCompletion, editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+    if (!editor.isFocused || !editor.state.selection.empty) return;
+
+    const context = getCompletionContext(editor);
+    if (!context) {
+      clearInlineCompletion();
+      return;
+    }
+
+    if (inlineCompletion?.contextKey === context.contextKey) {
+      return;
+    }
+
+    if (completionTimerRef.current) {
+      clearTimeout(completionTimerRef.current);
+    }
+
+    if (completionTimerRef.current) {
+      clearTimeout(completionTimerRef.current);
+    }
+
+    completionAbortRef.current?.abort();
+    setInlineCompletionError(null);
+    setInlineCompletion(null);
+    setInlineCompletionSource(null);
+    setIsInlineCompletionLoading(false);
+
+    completionTimerRef.current = setTimeout(async () => {
+      const requestId = completionRequestIdRef.current + 1;
+      completionRequestIdRef.current = requestId;
+
+      const fallback = buildLocalContinuation(
+        context.currentBlock,
+        context.contextBefore
+      );
+
+      const applySuggestion = (
+        suggestion: string,
+        source: 'local' | 'ai',
+        error?: string
+      ) => {
+        if (completionRequestIdRef.current !== requestId) return;
+        if (!suggestion) {
+          setInlineCompletion(null);
+          setInlineCompletionError(error || 'No continuation available yet.');
+          setInlineCompletionSource(null);
+          setIsInlineCompletionLoading(false);
+          return;
+        }
+
+        setInlineCompletion({
+          text:
+            suggestion.startsWith('.') || suggestion.startsWith(',')
+              ? suggestion
+              : ` ${suggestion}`,
+          from: context.from,
+          contextKey: context.contextKey,
+        });
+        setInlineCompletionSource(source);
+        setInlineCompletionError(error || null);
+        setIsInlineCompletionLoading(false);
+      };
+
+      setIsInlineCompletionLoading(true);
+
+      const controller = new AbortController();
+      completionAbortRef.current = controller;
+
+      try {
+        const response = await fetch('/api/editor/continue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contextBefore: context.contextBefore,
+            currentBlock: context.currentBlock,
+          }),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          applySuggestion(
+            fallback,
+            'local',
+            'AI unavailable, showing local suggestion.'
+          );
+          setIsInlineCompletionLoading(false);
+          return;
+        }
+
+        const data = (await response.json()) as {
+          suggestion?: string;
+          source?: 'local' | 'ai';
+        };
+        const remoteSuggestion = normalizeWhitespace(data.suggestion || '');
+        applySuggestion(
+          remoteSuggestion || fallback,
+          data.source === 'ai' && remoteSuggestion ? 'ai' : 'local',
+          remoteSuggestion ? undefined : 'Using local continuation.'
+        );
+      } catch (error) {
+        if ((error as Error).name === 'AbortError') return;
+        applySuggestion(
+          fallback,
+          'local',
+          'AI unavailable, showing local suggestion.'
+        );
+      }
+    }, 900);
+  }, [
+    clearInlineCompletion,
+    cursorPosition,
+    editor,
+    editorText,
+    inlineCompletion?.contextKey,
+  ]);
 
   const closeYoutubeModal = useCallback(() => {
     setIsYoutubeModalOpen(false);
@@ -644,18 +930,41 @@ function RichEditorInner({ content, onChange, placeholder }: RichEditorProps) {
     : 30;
   const aiPanelLeft = selectionHint
     ? clamp(
-        aiHintX - aiPanelWidth / 2,
-        8,
-        Math.max(8, rootWidth - aiPanelWidth - 8)
-      )
+      aiHintX - aiPanelWidth / 2,
+      8,
+      Math.max(8, rootWidth - aiPanelWidth - 8)
+    )
     : 8;
   const aiPanelTop = selectionHint ? Math.max(selectionHint.y + 26, 56) : 56;
+  const shouldShowInlineBar =
+    Boolean(inlineCompletion) ||
+    isInlineCompletionLoading ||
+    Boolean(inlineCompletionError);
 
   return (
     <div
       ref={editorRootRef}
       className="rounded-xl border border-gray-200 bg-white relative overflow-hidden h-screen flex flex-col"
     >
+      <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-gray-100 bg-gray-50/80 sticky top-0 z-10">
+        <div className="flex items-center gap-0.5">
+          <ToolbarButton
+            onClick={() => editor.chain().focus().undo().run()}
+            disabled={!editor.can().undo()}
+            title="Undo"
+          >
+            <Undo2 className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().redo().run()}
+            disabled={!editor.can().redo()}
+            title="Redo"
+          >
+            <Redo2 className="h-4 w-4" />
+          </ToolbarButton>
+        </div>
+        <ToolbarSeparator />
+        <DropdownMenu>
       <button
         type="button"
         onClick={copyDebugLogs}
@@ -857,8 +1166,11 @@ function RichEditorInner({ content, onChange, placeholder }: RichEditorProps) {
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                title="More tools"
-                className="p-1.5 rounded-md hover:bg-gray-100 transition-colors text-gray-500"
+                title="Quote style"
+                className={`inline-flex items-center gap-1 rounded-md px-1.5 py-1.5 hover:bg-gray-100 transition-colors ${editor.isActive('blockquote')
+                  ? 'bg-orange-100 text-orange-600'
+                  : 'text-gray-500'
+                  }`}
               >
                 <MoreHorizontal className="h-4 w-4" />
               </button>
@@ -1000,6 +1312,51 @@ function RichEditorInner({ content, onChange, placeholder }: RichEditorProps) {
           <TocSidebar maxShowCount={20} topOffset={80} />
         </div>
       </div>
+
+      {shouldShowInlineBar && (
+        <div className="flex items-center gap-2 border-t border-orange-100 bg-orange-50/70 px-3 py-2 text-xs">
+          <Sparkles className="h-3.5 w-3.5 shrink-0 text-orange-500" />
+          <div className="min-w-0 flex-1 text-gray-600">
+            {inlineCompletion ? (
+              <span className="truncate">
+                Suggestion:
+                <span className="ml-1 text-gray-500">
+                  {inlineCompletion.text}
+                </span>
+                {inlineCompletionSource && (
+                  <span className="ml-2 rounded-full border border-orange-200 bg-white px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-orange-600">
+                    {inlineCompletionSource}
+                  </span>
+                )}
+              </span>
+            ) : isInlineCompletionLoading ? (
+              <span>AI is generating a continuation...</span>
+            ) : (
+              <span>{inlineCompletionError}</span>
+            )}
+          </div>
+          {inlineCompletion && (
+            <>
+              <button
+                type="button"
+                className="rounded-md border border-orange-200 bg-white px-2 py-1 font-medium text-orange-600 hover:bg-orange-50"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={applyInlineCompletion}
+              >
+                Accept Tab
+              </button>
+              <button
+                type="button"
+                className="rounded-md px-2 py-1 text-gray-500 hover:bg-white"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={clearInlineCompletion}
+              >
+                Dismiss
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {selectionHint && (
         <button
