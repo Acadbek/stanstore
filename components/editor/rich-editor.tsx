@@ -146,6 +146,10 @@ function toSentenceCase(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+function normalizeWhitespace(value: string): string {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
 function buildAiSuggestions(selectedText: string): AiSuggestion[] {
   const compact = selectedText.replace(/\s+/g, ' ').trim();
   const short =
