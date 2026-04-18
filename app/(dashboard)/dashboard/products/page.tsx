@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useEffect, useState } from 'react';
+import { useSWRConfig } from 'swr';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -257,6 +258,7 @@ function ProductForm({
   onSuccess?: () => void;
   onCancel?: () => void;
 }) {
+  const { mutate } = useSWRConfig();
   const getInitialStyle = (product?: Product): ProductFrontStyleOption => {
     if (!product?.frontStyle) return mode === 'create' ? 'cta' : 'inherit';
     if (product.frontStyle === 'inherit') return 'inherit';
@@ -320,10 +322,7 @@ function ProductForm({
       const action = mode === 'create' ? createProduct : updateProduct;
       formData.set('description', descriptionHtml);
       formData.set('frontStyle', frontStyle);
-      formData.set(
-        'frontStylePrompt',
-        frontStyle === 'custom' ? frontStylePrompt : ''
-      );
+      formData.set('frontStylePrompt', frontStylePrompt || '');
       const result = await action(prevState, formData);
       if ('success' in result && result.success) {
         mutate('/api/products');
@@ -405,6 +404,9 @@ function ProductForm({
           content={descriptionHtml}
           onChange={setDescriptionHtml}
           placeholder="Describe your product in detail..."
+          onYoutubeThumbnail={(url) => {
+            if (!imageUrl) setImageUrl(url);
+          }}
         />
       </div>
       <div>
@@ -501,158 +503,156 @@ function ProductForm({
     </div>
   );
 
-  if (mode === 'edit') {
-    return (
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
-        <Card className="border-2 border-orange-100">
-          <CardHeader>
-            <CardTitle>Front Content</CardTitle>
-            <CardDescription>
-              Edit your product card details and save when you are happy with the preview.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form className="space-y-4" action={formAction}>
-              {initialData && <input type="hidden" name="id" value={initialData.id} />}
-              {formFields}
-              {actionRow}
-              {state.error && <p className="text-red-500 text-sm">{state.error}</p>}
-              {state.success && (
-                <p className="text-green-500 text-sm">{state.success}</p>
-              )}
-            </form>
-          </CardContent>
-        </Card>
-
-        <Card className="h-fit lg:sticky lg:top-8">
-          <CardHeader>
-            <CardTitle>Live Preview</CardTitle>
-            <CardDescription>Switch between 3 looks or generate from description.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {PRESET_STYLES.map((option) => {
-                const isActive = activePreviewStyle === option.id;
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => {
-                      setFrontStyle(option.id);
-                      setIsMoreOpen(false);
-                    }}
-                    className={`rounded-md border px-2 py-2 text-left text-xs font-semibold transition-colors ${isActive
-                        ? 'border-orange-500 bg-orange-50 text-orange-700'
-                        : 'border-gray-200 bg-white text-gray-600 hover:border-orange-300 hover:text-orange-600'
-                      }`}
-                  >
-                    <div className="space-y-1">
-                      {option.id === 'pill' && (
-                        <div className="flex items-center gap-1">
-                          <span className="h-4 w-4 rounded-full bg-orange-200" />
-                          <span className="h-1.5 flex-1 rounded-full bg-gray-300" />
-                        </div>
-                      )}
-                      {option.id === 'cta' && (
-                        <div className="space-y-1">
-                          <span className="block h-1.5 w-3/4 rounded bg-gray-300" />
-                          <span className="block h-1.5 w-full rounded bg-gray-200" />
-                          <span className="block h-2 w-full rounded-full bg-orange-300" />
-                        </div>
-                      )}
-                      {option.id === 'editorial' && (
-                        <div className="flex items-start gap-1">
-                          <span className="h-5 w-4 rounded bg-orange-200" />
-                          <div className="flex-1 space-y-1">
-                            <span className="block h-1.5 w-full rounded bg-gray-300" />
-                            <span className="block h-1.5 w-4/5 rounded bg-gray-200" />
-                          </div>
-                        </div>
-                      )}
-                      <span>{option.label}</span>
-                    </div>
-                  </button>
-                );
-              })}
-
-              <button
-                type="button"
-                onClick={() => setIsMoreOpen((prev) => !prev)}
-                className={`rounded-md border px-2 py-2 text-xs font-semibold transition-colors ${frontStyle === 'custom'
-                    ? 'border-orange-500 bg-orange-50 text-orange-700'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-orange-300 hover:text-orange-600'
-                  }`}
-              >
-                More
-              </button>
-            </div>
-
-            {isMoreOpen && (
-              <div className="rounded-xl border border-orange-100 bg-orange-50/50 p-3 space-y-2">
-                <Label htmlFor="stylePrompt" className="text-xs text-gray-700">
-                  Describe your card style
-                </Label>
-                <textarea
-                  id="stylePrompt"
-                  value={stylePromptInput}
-                  onChange={(event) => setStylePromptInput(event.target.value)}
-                  rows={3}
-                  className="w-full rounded-md border border-gray-200 bg-white p-2 text-sm outline-none focus:border-orange-400"
-                  placeholder="Example: beige editorial card with outline button and arrow"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  className="bg-orange-500 hover:bg-orange-600 text-white"
-                  onClick={applyStyleDescription}
-                  disabled={isInterpretingStyle}
-                >
-                  {isInterpretingStyle ? (
-                    <>
-                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-                      Interpreting...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="mr-1 h-3.5 w-3.5" />
-                      Apply Description
-                    </>
-                  )}
-                </Button>
-              </div>
-            )}
-
-            <div className="rounded-2xl bg-[#f5f3f2] p-4">
-              {resolvedStyle && (
-                <ProductFrontPreview
-                  title={previewTitle}
-                  description={previewDescription}
-                  priceLabel={previewPrice}
-                  buttonLabel={previewButtonLabel}
-                  imageUrl={imageUrl}
-                  type={type}
-                  style={resolvedStyle}
-                />
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div>
-      <form className="space-y-4" action={formAction}>
-        {mode === 'edit' && (
-          <input type="hidden" name="id" value={initialData.id} />
-        )}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <>
+      {mode === 'edit' ? (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+          <Card className="border-2 border-orange-100">
+            <CardHeader>
+              <CardTitle>Front Content</CardTitle>
+              <CardDescription>
+                Edit your product card details and save when you are happy with the preview.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form className="space-y-4" action={formAction}>
+                {initialData && <input type="hidden" name="id" value={initialData.id} />}
+                {formFields}
+                {actionRow}
+                {state.error && <p className="text-red-500 text-sm">{state.error}</p>}
+                {state.success && (
+                  <p className="text-green-500 text-sm">{state.success}</p>
+                )}
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card className="h-fit lg:sticky lg:top-8">
+            <CardHeader>
+              <CardTitle>Live Preview</CardTitle>
+              <CardDescription>Switch between 3 looks or generate from description.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {PRESET_STYLES.map((option) => {
+                  const isActive = activePreviewStyle === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => {
+                        setFrontStyle(option.id);
+                        setIsMoreOpen(false);
+                      }}
+                      className={`rounded-md border px-2 py-2 text-left text-xs font-semibold transition-colors ${isActive
+                          ? 'border-orange-500 bg-orange-50 text-orange-700'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-orange-300 hover:text-orange-600'
+                        }`}
+                    >
+                      <div className="space-y-1">
+                        {option.id === 'pill' && (
+                          <div className="flex items-center gap-1">
+                            <span className="h-4 w-4 rounded-full bg-orange-200" />
+                            <span className="h-1.5 flex-1 rounded-full bg-gray-300" />
+                          </div>
+                        )}
+                        {option.id === 'cta' && (
+                          <div className="space-y-1">
+                            <span className="block h-1.5 w-3/4 rounded bg-gray-300" />
+                            <span className="block h-1.5 w-full rounded bg-gray-200" />
+                            <span className="block h-2 w-full rounded-full bg-orange-300" />
+                          </div>
+                        )}
+                        {option.id === 'editorial' && (
+                          <div className="flex items-start gap-1">
+                            <span className="h-5 w-4 rounded bg-orange-200" />
+                            <div className="flex-1 space-y-1">
+                              <span className="block h-1.5 w-full rounded bg-gray-300" />
+                              <span className="block h-1.5 w-4/5 rounded bg-gray-200" />
+                            </div>
+                          </div>
+                        )}
+                        <span>{option.label}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  onClick={() => setIsMoreOpen((prev) => !prev)}
+                  className={`rounded-md border px-2 py-2 text-xs font-semibold transition-colors ${frontStyle === 'custom'
+                      ? 'border-orange-500 bg-orange-50 text-orange-700'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-orange-300 hover:text-orange-600'
+                    }`}
+                >
+                  More
+                </button>
+              </div>
+
+              {isMoreOpen && (
+                <div className="rounded-xl border border-orange-100 bg-orange-50/50 p-3 space-y-2">
+                  <Label htmlFor="stylePrompt" className="text-xs text-gray-700">
+                    Describe your card style
+                  </Label>
+                  <textarea
+                    id="stylePrompt"
+                    value={stylePromptInput}
+                    onChange={(event) => setStylePromptInput(event.target.value)}
+                    rows={3}
+                    className="w-full rounded-md border border-gray-200 bg-white p-2 text-sm outline-none focus:border-orange-400"
+                    placeholder="Example: beige editorial card with outline button and arrow"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                    onClick={applyStyleDescription}
+                    disabled={isInterpretingStyle}
+                  >
+                    {isInterpretingStyle ? (
+                      <>
+                        <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                        Interpreting...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-1 h-3.5 w-3.5" />
+                        Apply Description
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              <div className="rounded-2xl bg-[#f5f3f2] p-4">
+                {resolvedStyle && (
+                  <ProductFrontPreview
+                    title={previewTitle}
+                    description={previewDescription}
+                    priceLabel={previewPrice}
+                    buttonLabel={previewButtonLabel}
+                    imageUrl={imageUrl}
+                    type={type}
+                    style={resolvedStyle}
+                  />
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <div>
+          <form className="space-y-4" action={formAction}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
             <RichEditor
               content={descriptionHtml}
               onChange={setDescriptionHtml}
               placeholder="Describe your product in detail..."
+              onYoutubeThumbnail={(url) => {
+                if (!imageUrl) setImageUrl(url);
+              }}
             />
           </div>
           <div>
@@ -722,7 +722,8 @@ function ProductForm({
               name="imageUrl"
               type="url"
               placeholder="https://example.com/image.jpg"
-              defaultValue={initialData?.imageUrl || ''}
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
             />
           </div>
         </div>
@@ -746,7 +747,7 @@ function ProductForm({
               'Save Changes'
             )}
           </Button>
-          {mode === 'edit' && onCancel && (
+          {onCancel && (
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
             </Button>
@@ -758,10 +759,14 @@ function ProductForm({
         )}
       </form>
     </div>
+      )}
+    </>
   );
 }
 
 function DeleteProductButton({ productId }: { productId: number }) {
+  const { mutate } = useSWRConfig();
+
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this product?')) return;
     const formData = new FormData();
@@ -785,6 +790,7 @@ function DeleteProductButton({ productId }: { productId: number }) {
 
 function TogglePublishButton({ product }: { product: Product }) {
   const [isLoading, setIsLoading] = useState(false);
+  const { mutate } = useSWRConfig();
 
   const handleToggle = async () => {
     setIsLoading(true);

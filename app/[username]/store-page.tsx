@@ -5,6 +5,7 @@ import { Profile, Product } from '@/lib/db/schema';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
 import { getTheme } from '@/lib/themes';
+import { resolveFrontStyle } from '@/lib/product-front-style';
 import posthog from 'posthog-js';
 
 const radiusMap: Record<string, string> = {
@@ -178,6 +179,7 @@ export default function StorePage({
   const theme = getTheme(profile.theme || 'default');
   const s = theme.styles;
   const r = getRadius(profile.borderRadius);
+  const br = getRadius(profile.buttonBorderRadius);
   const socialLinks = profile.socialLinks as SocialLinks | null;
   const serifFont = 'Hedvig Serif, serif';
   const sansFont = 'Hedvig Sans, Geist Sans, sans-serif';
@@ -597,6 +599,7 @@ export default function StorePage({
                           product={product}
                           username={profile.username}
                         >
+                          {renderFrontOverride(product) || (
                             <div
                               className="group flex items-center gap-3 border p-3 transition-all duration-200"
                               style={{
@@ -657,6 +660,7 @@ export default function StorePage({
                                 </span>
                               </div>
                             </div>
+                          )}
                           </ProductLink>
                         ))}
                       </div>

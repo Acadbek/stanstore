@@ -133,6 +133,7 @@ async function revalidateStorePaths(userId: number, productSlug?: string) {
     revalidatePath(`/${username}/${productSlug}`);
   }
   revalidatePath('/dashboard/profile');
+  revalidatePath('/dashboard/products');
 }
 
 const createProductSchema = z.object({
@@ -259,16 +260,19 @@ export const updateProduct = validatedActionWithUser(
       updatedAt: new Date(),
     };
 
+    const finalFrontStyle = frontStyle || existing.frontStyle;
+    const finalFrontStylePrompt =
+      frontStylePrompt === undefined
+        ? existing.frontStylePrompt
+        : frontStylePrompt || null;
+
     try {
       await db
         .update(products)
         .set({
           ...baseUpdate,
-          frontStyle: frontStyle || existing.frontStyle,
-          frontStylePrompt:
-            frontStylePrompt === undefined
-              ? existing.frontStylePrompt
-              : frontStylePrompt || null,
+          frontStyle: finalFrontStyle,
+          frontStylePrompt: finalFrontStylePrompt,
         })
         .where(eq(products.id, id));
     } catch (error) {
@@ -280,11 +284,8 @@ export const updateProduct = validatedActionWithUser(
         .update(products)
         .set({
           ...baseUpdate,
-          frontStyle: frontStyle || existing.frontStyle,
-          frontStylePrompt:
-            frontStylePrompt === undefined
-              ? existing.frontStylePrompt
-              : frontStylePrompt || null,
+          frontStyle: finalFrontStyle,
+          frontStylePrompt: finalFrontStylePrompt,
         })
         .where(eq(products.id, id));
     }

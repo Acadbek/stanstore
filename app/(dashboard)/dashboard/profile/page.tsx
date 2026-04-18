@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, Pencil } from 'lucide-react';
 import Link from 'next/link';
@@ -20,14 +21,22 @@ type StoreData = {
 };
 
 export default function ProfilePage() {
-  const { data: profileData, error: profileError } = useSWR<ProfileData>(
-    '/api/profile',
-    fetcher
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const { data: profileData, error: profileError, mutate: mutateProfile } = useSWR<ProfileData>(
+    `/api/profile?_t=${refreshKey}`,
+    fetcher,
+    { revalidateOnMount: true, revalidateOnFocus: true }
   );
-  const { data: productsData, error: productsError } = useSWR<Product[]>(
-    '/api/products',
-    fetcher
+  const { data: productsData, error: productsError, mutate: mutateProducts } = useSWR<Product[]>(
+    `/api/products?_t=${refreshKey}`,
+    fetcher,
+    { revalidateOnMount: true, revalidateOnFocus: true }
   );
+
+  useEffect(() => {
+    setRefreshKey((prev: number) => prev + 1);
+  }, []);
 
   if (profileError) {
     return (

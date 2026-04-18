@@ -12,16 +12,34 @@ declare module '@tiptap/core' {
   }
 }
 
-function YoutubeEmbedNodeView({ node }: NodeViewProps) {
-  const src = (node.attrs.src as string) || '';
-
-  let displayUrl: string;
+function extractVideoId(src: string): string | null {
   try {
     const u = new URL(src);
-    displayUrl = u.hostname + u.pathname;
+    let videoId = '';
+    if (u.hostname === 'youtu.be') {
+      videoId = u.pathname.slice(1);
+    } else if (u.hostname.includes('youtube.com')) {
+      videoId = u.searchParams.get('v') || '';
+      if (!videoId && u.pathname.startsWith('/embed/')) {
+        videoId = u.pathname.replace('/embed/', '');
+      }
+      if (!videoId && u.pathname.startsWith('/shorts/')) {
+        videoId = u.pathname.replace('/shorts/', '');
+      }
+    }
+    if (!videoId) return null;
+    return videoId.split(/[?&]/)[0];
   } catch {
-    displayUrl = src;
+    return null;
   }
+}
+
+function YoutubeEmbedNodeView({ node }: NodeViewProps) {
+  const src = (node.attrs.src as string) || '';
+  const videoId = extractVideoId(src);
+  const thumbnailUrl = videoId
+    ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+    : null;
 
   return (
     <NodeViewWrapper>
@@ -31,13 +49,28 @@ function YoutubeEmbedNodeView({ node }: NodeViewProps) {
         contentEditable={false}
         className="youtube-embed-placeholder"
       >
-        <div className="yt-icon">
-          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path d="M8 5v14l11-7z" />
-          </svg>
-        </div>
+        {thumbnailUrl ? (
+          <div className="yt-thumbnail-wrap">
+            <img
+              src={thumbnailUrl}
+              alt="YouTube thumbnail"
+              className="yt-thumbnail"
+            />
+            <div className="yt-play-btn">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </div>
+          </div>
+        ) : (
+          <div className="yt-icon">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </div>
+        )}
         <span className="yt-label">YouTube Video</span>
-        <span className="yt-url">{displayUrl}</span>
+        {videoId && <span className="yt-url">{videoId}</span>}
       </div>
     </NodeViewWrapper>
   );

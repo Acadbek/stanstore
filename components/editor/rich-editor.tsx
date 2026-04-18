@@ -66,6 +66,7 @@ type RichEditorProps = {
   content: string;
   onChange: (html: string) => void;
   placeholder?: string;
+  onYoutubeThumbnail?: (thumbnailUrl: string) => void;
 };
 
 type QuoteStyle = 'line' | 'double';
@@ -153,6 +154,7 @@ export default function RichEditor({
   content,
   onChange,
   placeholder,
+  onYoutubeThumbnail,
 }: RichEditorProps) {
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
@@ -612,8 +614,34 @@ export default function RichEditor({
     const embedUrl = extractYoutubeEmbedUrl(youtubeUrl.trim());
     if (embedUrl) {
       editor.chain().focus().setYoutubeEmbed(embedUrl).run();
+      const videoId = extractVideoIdFromUrl(youtubeUrl.trim());
+      if (videoId && onYoutubeThumbnail) {
+        onYoutubeThumbnail(`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`);
+      }
     }
     closeYoutubeModal();
+  };
+
+  const extractVideoIdFromUrl = (url: string): string | null => {
+    try {
+      const u = new URL(url);
+      let videoId = '';
+      if (u.hostname === 'youtu.be') {
+        videoId = u.pathname.slice(1);
+      } else if (u.hostname.includes('youtube.com')) {
+        videoId = u.searchParams.get('v') || '';
+        if (!videoId && u.pathname.startsWith('/embed/')) {
+          videoId = u.pathname.replace('/embed/', '');
+        }
+        if (!videoId && u.pathname.startsWith('/shorts/')) {
+          videoId = u.pathname.replace('/shorts/', '');
+        }
+      }
+      if (!videoId) return null;
+      return videoId.split(/[?&]/)[0];
+    } catch {
+      return null;
+    }
   };
 
   const rootWidth = editorRootRef.current?.clientWidth ?? 560;
