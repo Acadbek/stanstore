@@ -451,7 +451,6 @@ export default function ProductsPage() {
 
             <ProductList
               onEdit={(product) => setEditingProduct(product)}
-              viewMode={viewMode}
             />
           </div>
         </Suspense>
