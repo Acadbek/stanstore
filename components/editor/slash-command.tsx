@@ -12,7 +12,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { AnimatePresence, LayoutGroup, motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   Type,
   Heading1,
@@ -518,26 +518,29 @@ const CommandList = forwardRef<CommandListRef, CommandListProps>(
             })}
           </div>
         </div>
-        <LayoutGroup>
-          <div className="slash-command-preview">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={selectedItem?.title}
-                className="slash-command-preview-float"
-                initial={{ opacity: 0, y: previewY - 10 }}
-                animate={{ opacity: 1, y: previewY }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15, ease: 'easeOut' }}
-              >
-                <div className="slash-command-preview-inner">
+        <div className="slash-command-preview">
+          <motion.div
+            className="slash-command-preview-float"
+            animate={{ y: previewY }}
+            transition={{ duration: 0.12, ease: 'easeOut' }}
+          >
+            <div className="slash-command-preview-inner">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={selectedItem?.title}
+                  initial={{ opacity: 0.4, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.97 }}
+                  transition={{ duration: 0.1, ease: 'easeOut' }}
+                >
                   {selectedItem?.preview ?? (
                     <span className="text-gray-400 text-xs">No preview</span>
                   )}
-                </div>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </LayoutGroup>
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        </div>
       </div>
     );
   }
