@@ -6,11 +6,13 @@ import tippy from 'tippy.js';
 import { Suggestion } from '@tiptap/suggestion';
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
   useState,
 } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   Type,
   Heading1,
@@ -378,7 +380,6 @@ const commandItems: CommandItem[] = [
     command: () => {
       window.dispatchEvent(new Event('tiptap-open-youtube-modal'));
     },
-<<<<<<< HEAD
   },
   {
     title: 'Google Calendar',
@@ -420,7 +421,6 @@ const commandItems: CommandItem[] = [
     icon: Type,
     command: (editor) =>
       editor.chain().focus().setFontFamily("'Hedvig Serif'").run(),
-=======
     preview: (
       <div className="scp-youtube-preview">
         <div className="scp-youtube-placeholder">
@@ -429,7 +429,6 @@ const commandItems: CommandItem[] = [
         </div>
       </div>
     ),
->>>>>>> c63a592f53f17cf1fd4fd95a5ff59e9b34821db6
   },
   {
     title: 'Clear Formatting',
@@ -464,10 +463,25 @@ const CommandList = forwardRef<CommandListRef, CommandListProps>(
   ({ items, command }, ref) => {
     const [selectedIndex, setSelectedIndex] = useState(0);
     const containerRef = useRef<HTMLDivElement>(null);
+    const itemRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+    const [previewY, setPreviewY] = useState(0);
 
     useEffect(() => {
       setSelectedIndex(0);
     }, [items]);
+
+    const updatePreviewPosition = useCallback(() => {
+      const el = itemRefs.current.get(selectedIndex);
+      if (el && containerRef.current) {
+        const containerRect = containerRef.current.getBoundingClientRect();
+        const itemRect = el.getBoundingClientRect();
+        setPreviewY(itemRect.top - containerRect.top);
+      }
+    }, [selectedIndex]);
+
+    useEffect(() => {
+      updatePreviewPosition();
+    }, [updatePreviewPosition, items]);
 
     useEffect(() => {
       if (containerRef.current) {
@@ -524,6 +538,9 @@ const CommandList = forwardRef<CommandListRef, CommandListProps>(
               return (
                 <button
                   key={item.title}
+                  ref={(el) => {
+                    if (el) itemRefs.current.set(index, el);
+                  }}
                   type="button"
                   className={`slash-command-item ${index === selectedIndex ? 'is-selected' : ''}`}
                   onClick={() => command(item)}
@@ -544,12 +561,27 @@ const CommandList = forwardRef<CommandListRef, CommandListProps>(
           </div>
         </div>
         <div className="slash-command-preview">
-          <div className="slash-command-preview-label">Preview</div>
-          <div className="slash-command-preview-content">
-            {selectedItem?.preview ?? (
-              <span className="text-gray-400 text-xs">No preview</span>
-            )}
-          </div>
+          <motion.div
+            className="slash-command-preview-float"
+            animate={{ y: previewY }}
+            transition={{ duration: 0.12, ease: 'easeOut' }}
+          >
+            <div className="slash-command-preview-inner">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={selectedItem?.title}
+                  initial={{ opacity: 0.4, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.97 }}
+                  transition={{ duration: 0.1, ease: 'easeOut' }}
+                >
+                  {selectedItem?.preview ?? (
+                    <span className="text-gray-400 text-xs">No preview</span>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </motion.div>
         </div>
       </div>
     );
