@@ -1097,7 +1097,6 @@
     0 4px 6px -1px rgba(0, 0, 0, 0.1),
     0 2px 4px -1px rgba(0, 0, 0, 0.06);
   display: flex;
-  min-width: 540px;
   max-height: 360px;
   overflow: hidden;
   z-index: 50;
@@ -1156,6 +1155,7 @@
 .slash-command-preview {
   flex: 0 1 auto;
   max-width: 260px;
+  align-self: flex-start;
   border-left: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
