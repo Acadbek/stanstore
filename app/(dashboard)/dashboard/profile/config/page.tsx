@@ -54,6 +54,7 @@ import {
   themes,
   getTheme,
   getThemeCategories,
+  applyThemeToProfile,
   type ThemeConfig,
 } from '@/lib/themes';
 import {
@@ -451,11 +452,10 @@ function ThemePickerCard({
     <button
       type="button"
       onClick={onClick}
-      className={`group relative rounded-xl border-2 p-1 transition-all text-left w-full ${
-        isSelected
+      className={`group relative rounded-xl border-2 p-1 transition-all text-left w-full ${isSelected
           ? 'border-orange-500 '
           : 'border-gray-200 hover:border-gray-300'
-      }`}
+        }`}
     >
       <div
         className="rounded-lg p-3 h-24 flex flex-col justify-between overflow-hidden"
@@ -524,11 +524,10 @@ function RadiusPickerRow({
             key={opt.id}
             type="button"
             onClick={() => onSelect(opt.id)}
-            className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${
-              isActive
+            className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${isActive
                 ? 'border-orange-500  bg-orange-50'
                 : 'border-gray-200 hover:border-gray-300'
-            }`}
+              }`}
           >
             <div
               className="w-8 h-8 border-2 border-current"
@@ -947,22 +946,20 @@ function ProductCardsGrid({
             <button
               type="button"
               onClick={() => onPerProductFrontStyleChange(item.id, 'pill')}
-              className={`rounded px-2 py-1 text-[10px] font-semibold transition-colors ${
-                selectedStyle === 'pill'
+              className={`rounded px-2 py-1 text-[10px] font-semibold transition-colors ${selectedStyle === 'pill'
                   ? 'bg-orange-100 text-orange-700'
                   : 'text-gray-600 hover:bg-gray-100'
-              }`}
+                }`}
             >
               Simple Row
             </button>
             <button
               type="button"
               onClick={() => onPerProductFrontStyleChange(item.id, 'cta')}
-              className={`rounded px-2 py-1 text-[10px] font-semibold transition-colors ${
-                selectedStyle === 'cta'
+              className={`rounded px-2 py-1 text-[10px] font-semibold transition-colors ${selectedStyle === 'cta'
                   ? 'bg-orange-100 text-orange-700'
                   : 'text-gray-600 hover:bg-gray-100'
-              }`}
+                }`}
             >
               CTA Card
             </button>
@@ -1473,7 +1470,7 @@ function ThemeCardWithPopover({
           <ThemePickerCard
             theme={theme}
             isSelected={isSelected}
-            onClick={() => {}}
+            onClick={() => { }}
           />
           <div className="absolute -top-1.5 -left-1.5 z-10 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
             {variants.length}
@@ -1497,9 +1494,8 @@ function ThemeCardWithPopover({
                 key={v.id}
                 type="button"
                 onClick={() => onSelect(v.id)}
-                className={`relative flex flex-col items-center gap-1 p-1 rounded-lg transition-all ${
-                  isThis ? 'bg-orange-50' : 'hover:bg-gray-50'
-                }`}
+                className={`relative flex flex-col items-center gap-1 p-1 rounded-lg transition-all ${isThis ? 'bg-orange-50' : 'hover:bg-gray-50'
+                  }`}
               >
                 <div className="flex gap-0.5">
                   <div
@@ -1659,11 +1655,10 @@ function ThemeConfigSection({
                   key={n}
                   type="button"
                   onClick={() => onColumnsChange(n)}
-                  className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${
-                    isActive
+                  className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${isActive
                       ? 'border-orange-500  bg-orange-50'
                       : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                    }`}
                 >
                   <div className="flex gap-0.5">
                     {Array.from({ length: Math.min(n, 4) }).map((_, i) => (
@@ -1707,11 +1702,10 @@ function ThemeConfigSection({
                   key={t.id}
                   type="button"
                   onClick={() => onCardTemplateChange(t.id)}
-                  className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${
-                    isActive
+                  className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${isActive
                       ? 'border-orange-500 bg-orange-50'
                       : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                    }`}
                 >
                   <div
                     className="w-8 h-6 rounded border"
@@ -1740,22 +1734,19 @@ function ThemeConfigSection({
               role="switch"
               aria-checked={isCustomFrontStyleEnabled}
               onClick={() => onCustomFrontStyleToggle(!isCustomFrontStyleEnabled)}
-              className={`inline-flex items-center gap-2 rounded-full border px-2 py-1 text-xs font-semibold transition-colors ${
-                isCustomFrontStyleEnabled
+              className={`inline-flex items-center gap-2 rounded-full border px-2 py-1 text-xs font-semibold transition-colors ${isCustomFrontStyleEnabled
                   ? 'border-orange-500 bg-orange-50 text-orange-700'
                   : 'border-gray-200 bg-white text-gray-600'
-              }`}
+                }`}
             >
               <span>{isCustomFrontStyleEnabled ? 'ON' : 'OFF'}</span>
               <span
-                className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${
-                  isCustomFrontStyleEnabled ? 'bg-orange-500' : 'bg-gray-300'
-                }`}
+                className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${isCustomFrontStyleEnabled ? 'bg-orange-500' : 'bg-gray-300'
+                  }`}
               >
                 <span
-                  className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
-                    isCustomFrontStyleEnabled ? 'translate-x-4' : 'translate-x-0.5'
-                  }`}
+                  className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${isCustomFrontStyleEnabled ? 'translate-x-4' : 'translate-x-0.5'
+                    }`}
                 />
               </span>
             </button>

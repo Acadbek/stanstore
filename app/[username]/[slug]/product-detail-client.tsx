@@ -123,6 +123,8 @@ export default function ProductDetailClient({ profile, product }: Props) {
   const socialLinks = profile.socialLinks as SocialLinks | null;
   const serifFont = 'Hedvig Serif, serif';
   const sansFont = 'Hedvig Sans, Geist Sans, sans-serif';
+  const headingFontFamily = s.headingFont === 'serif' ? serifFont : sansFont;
+  const bodyFontFamily = s.bodyFont === 'serif' ? serifFont : sansFont;
   const profileRing = s.avatarRing || 'rgba(255, 255, 255, 0.88)';
   const descriptionRef = useRef<HTMLDivElement>(null);
   const contentScrollRef = useRef<HTMLDivElement>(null);
@@ -132,11 +134,26 @@ export default function ProductDetailClient({ profile, product }: Props) {
     url: string | null | undefined;
     icon: ReactNode;
   }[] = [
-    { url: socialLinks?.twitter, icon: <TwitterIcon color={s.socialIconColor} /> },
-    { url: socialLinks?.instagram, icon: <InstagramIcon color={s.socialIconColor} /> },
-    { url: socialLinks?.youtube, icon: <YouTubeIcon color={s.socialIconColor} /> },
-    { url: socialLinks?.tiktok, icon: <TikTokIcon color={s.socialIconColor} /> },
-    { url: socialLinks?.website, icon: <GlobeIcon color={s.socialIconColor} /> },
+    {
+      url: socialLinks?.twitter,
+      icon: <TwitterIcon color={s.socialIconColor} />,
+    },
+    {
+      url: socialLinks?.instagram,
+      icon: <InstagramIcon color={s.socialIconColor} />,
+    },
+    {
+      url: socialLinks?.youtube,
+      icon: <YouTubeIcon color={s.socialIconColor} />,
+    },
+    {
+      url: socialLinks?.tiktok,
+      icon: <TikTokIcon color={s.socialIconColor} />,
+    },
+    {
+      url: socialLinks?.website,
+      icon: <GlobeIcon color={s.socialIconColor} />,
+    },
   ];
   const filteredSocials = socialItems.filter((item) => item.url);
 
@@ -273,7 +290,7 @@ export default function ProductDetailClient({ profile, product }: Props) {
                     style={{
                       background: s.avatarFallback,
                       color: s.avatarFallbackText,
-                      fontFamily: serifFont,
+                      fontFamily: headingFontFamily,
                     }}
                   >
                     {(profile.displayName || profile.username || 'U')
@@ -289,7 +306,10 @@ export default function ProductDetailClient({ profile, product }: Props) {
               <div className="mt-8 space-y-3">
                 <h1
                   className="text-4xl leading-none tracking-tight md:text-[3.2rem]"
-                  style={{ color: s.headingColor, fontFamily: serifFont }}
+                  style={{
+                    color: s.headingColor,
+                    fontFamily: headingFontFamily,
+                  }}
                 >
                   <Link href={`/${profile.username}`} className="no-underline">
                     {profile.displayName || profile.username}
@@ -299,7 +319,7 @@ export default function ProductDetailClient({ profile, product }: Props) {
                 {profile.headline && (
                   <p
                     className="text-xs uppercase tracking-[0.16em] sm:text-sm sm:tracking-[0.18em]"
-                    style={{ color: s.mutedColor, fontFamily: sansFont }}
+                    style={{ color: s.mutedColor, fontFamily: bodyFontFamily }}
                   >
                     {profile.headline}
                   </p>
@@ -309,7 +329,7 @@ export default function ProductDetailClient({ profile, product }: Props) {
               {profile.bio && (
                 <p
                   className="mt-6 max-w-md text-sm leading-7 md:text-[0.95rem]"
-                  style={{ color: s.textColor, fontFamily: sansFont }}
+                  style={{ color: s.textColor, fontFamily: bodyFontFamily }}
                 >
                   {profile.bio}
                 </p>
@@ -335,13 +355,15 @@ export default function ProductDetailClient({ profile, product }: Props) {
                         const el = e.currentTarget as HTMLElement;
                         el.style.color = s.socialIconHover;
                         el.style.transform = 'translateY(-2px)';
-                        el.style.boxShadow = '0 16px 34px rgba(15, 23, 42, 0.10)';
+                        el.style.boxShadow =
+                          '0 16px 34px rgba(15, 23, 42, 0.10)';
                       }}
                       onMouseLeave={(e) => {
                         const el = e.currentTarget as HTMLElement;
                         el.style.color = s.socialIconColor;
                         el.style.transform = 'translateY(0)';
-                        el.style.boxShadow = '0 10px 28px rgba(15, 23, 42, 0.05)';
+                        el.style.boxShadow =
+                          '0 10px 28px rgba(15, 23, 42, 0.05)';
                       }}
                     >
                       {social.icon}
@@ -361,218 +383,218 @@ export default function ProductDetailClient({ profile, product }: Props) {
                 ref={contentInnerRef}
                 className="mx-auto max-w-md px-0 pb-12 pt-0 sm:max-w-xl lg:max-w-3xl lg:pb-16 lg:pt-12"
               >
-              {product.imageUrl ? (
-                <div
-                  className="relative mb-8 overflow-hidden shadow-lg"
-                  style={{
-                    borderRadius: cr,
-                    boxShadow: '0 18px 50px rgba(0,0,0,0.14)',
-                  }}
-                >
+                {product.imageUrl ? (
                   <div
-                    className="pointer-events-none absolute inset-0 z-10"
+                    className="relative mb-8 overflow-hidden shadow-lg"
                     style={{
-                      background:
-                        'linear-gradient(180deg, rgba(15,23,42,0.18) 0%, rgba(15,23,42,0.03) 26%, rgba(15,23,42,0.24) 100%)',
+                      borderRadius: cr,
+                      boxShadow: '0 18px 50px rgba(0,0,0,0.14)',
                     }}
-                  />
-                  <div className="absolute left-4 top-4 z-20">
-                    <Link
-                      href={`/${profile.username}`}
-                      aria-label="Back to store"
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border transition-all duration-200"
-                      style={{
-                        color: '#fff',
-                        background: 'rgba(15, 23, 42, 0.26)',
-                        borderColor: 'rgba(255,255,255,0.24)',
-                        backdropFilter: 'blur(14px)',
-                        WebkitBackdropFilter: 'blur(14px)',
-                        boxShadow: '0 10px 30px rgba(15, 23, 42, 0.18)',
-                      }}
-                    >
-                      <ArrowLeft className="h-4 w-4" />
-                    </Link>
-                  </div>
-                  <img
-                    src={product.imageUrl}
-                    alt={product.title}
-                    className="h-64 w-full object-cover sm:h-80 lg:h-[26rem]"
-                  />
-                </div>
-              ) : (
-                <div
-                  className="relative mb-8 flex h-64 items-center justify-center overflow-hidden shadow-lg sm:h-80 lg:h-[26rem]"
-                  style={{
-                    background: s.productBadge,
-                    borderRadius: cr,
-                    boxShadow: '0 18px 50px rgba(0,0,0,0.14)',
-                  }}
-                >
-                  <div
-                    className="absolute inset-0"
-                    style={{
-                      background:
-                        'radial-gradient(circle at top left, rgba(255,255,255,0.32), transparent 34%), radial-gradient(circle at bottom right, rgba(15,23,42,0.14), transparent 42%)',
-                    }}
-                  />
-                  <div className="absolute left-4 top-4 z-10">
-                    <Link
-                      href={`/${profile.username}`}
-                      aria-label="Back to store"
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border transition-all duration-200"
-                      style={{
-                        color: s.headingColor,
-                        background: 'rgba(255,255,255,0.58)',
-                        borderColor: s.cardBorder,
-                        backdropFilter: 'blur(14px)',
-                        WebkitBackdropFilter: 'blur(14px)',
-                        boxShadow: '0 10px 30px rgba(15, 23, 42, 0.12)',
-                      }}
-                    >
-                      <ArrowLeft className="h-4 w-4" />
-                    </Link>
-                  </div>
-                  <span
-                    className="relative z-[1] text-6xl font-bold"
-                    style={{ color: s.productBadgeText }}
                   >
-                    {product.title[0]?.toUpperCase()}
-                  </span>
-                </div>
-              )}
-
-              <div className="space-y-4 mb-8">
-                <h1
-                  className="text-2xl font-bold"
-                  style={{ color: s.headingColor }}
-                >
-                  {product.title}
-                </h1>
-
-                {product.description && (
+                    <div
+                      className="pointer-events-none absolute inset-0 z-10"
+                      style={{
+                        background:
+                          'linear-gradient(180deg, rgba(15,23,42,0.18) 0%, rgba(15,23,42,0.03) 26%, rgba(15,23,42,0.24) 100%)',
+                      }}
+                    />
+                    <div className="absolute left-4 top-4 z-20">
+                      <Link
+                        href={`/${profile.username}`}
+                        aria-label="Back to store"
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-full border transition-all duration-200"
+                        style={{
+                          color: '#fff',
+                          background: 'rgba(15, 23, 42, 0.26)',
+                          borderColor: 'rgba(255,255,255,0.24)',
+                          backdropFilter: 'blur(14px)',
+                          WebkitBackdropFilter: 'blur(14px)',
+                          boxShadow: '0 10px 30px rgba(15, 23, 42, 0.18)',
+                        }}
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                      </Link>
+                    </div>
+                    <img
+                      src={product.imageUrl}
+                      alt={product.title}
+                      className="h-64 w-full object-cover sm:h-80 lg:h-[26rem]"
+                    />
+                  </div>
+                ) : (
                   <div
-                    ref={descriptionRef}
-                    className="text-sm leading-relaxed product-content mb-4"
-                    style={{ color: s.textColor }}
-                    dangerouslySetInnerHTML={{ __html: product.description }}
-                  />
+                    className="relative mb-8 flex h-64 items-center justify-center overflow-hidden shadow-lg sm:h-80 lg:h-[26rem]"
+                    style={{
+                      background: s.productBadge,
+                      borderRadius: cr,
+                      boxShadow: '0 18px 50px rgba(0,0,0,0.14)',
+                    }}
+                  >
+                    <div
+                      className="absolute inset-0"
+                      style={{
+                        background:
+                          'radial-gradient(circle at top left, rgba(255,255,255,0.32), transparent 34%), radial-gradient(circle at bottom right, rgba(15,23,42,0.14), transparent 42%)',
+                      }}
+                    />
+                    <div className="absolute left-4 top-4 z-10">
+                      <Link
+                        href={`/${profile.username}`}
+                        aria-label="Back to store"
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-full border transition-all duration-200"
+                        style={{
+                          color: s.headingColor,
+                          background: 'rgba(255,255,255,0.58)',
+                          borderColor: s.cardBorder,
+                          backdropFilter: 'blur(14px)',
+                          WebkitBackdropFilter: 'blur(14px)',
+                          boxShadow: '0 10px 30px rgba(15, 23, 42, 0.12)',
+                        }}
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                      </Link>
+                    </div>
+                    <span
+                      className="relative z-[1] text-6xl font-bold"
+                      style={{ color: s.productBadgeText }}
+                    >
+                      {product.title[0]?.toUpperCase()}
+                    </span>
+                  </div>
                 )}
 
-                <div className="flex items-center gap-3 pt-2">
-                  <span
+                <div className="space-y-4 mb-8">
+                  <h1
                     className="text-2xl font-bold"
-                    style={{ color: s.priceColor }}
-                  >
-                    {formatPrice(product.price)}
-                  </span>
-                  <span
-                    className="text-xs font-medium uppercase px-2.5 py-1"
-                    style={{
-                      background: s.cardBg,
-                      color: s.mutedColor,
-                      border: `1px solid ${s.cardBorder}`,
-                      borderRadius: br,
-                    }}
-                  >
-                    {product.type}
-                  </span>
-                </div>
-              </div>
-
-              {product.productUrl ? (
-                <a
-                  href={product.productUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full py-3.5 font-semibold text-base transition-all duration-200 no-underline"
-                  style={{
-                    background: s.buttonBg,
-                    color: s.buttonText,
-                    borderRadius: br,
-                  }}
-                  onClick={() => {
-                    posthog.capture('product_get', {
-                      productId: product.id,
-                      productTitle: product.title,
-                      productType: product.type,
-                      productPrice: product.price,
-                      username: profile.username,
-                    });
-                  }}
-                >
-                  Get this product
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              ) : (
-                <Button
-                  className="w-full py-3.5 text-base font-semibold"
-                  style={{
-                    background: s.buttonBg,
-                    color: s.buttonText,
-                    borderRadius: br,
-                  }}
-                  onClick={() => {
-                    posthog.capture('product_get', {
-                      productId: product.id,
-                      productTitle: product.title,
-                      productType: product.type,
-                      productPrice: product.price,
-                      username: profile.username,
-                    });
-                  }}
-                >
-                  Get this product
-                </Button>
-              )}
-
-              <div
-                className="flex items-center gap-3 mt-8 pt-6 lg:hidden"
-                style={{ borderTop: `1px solid ${s.cardBorder}` }}
-              >
-                <Link href={`/${profile.username}`}>
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage
-                      src={profile.avatarUrl || undefined}
-                      alt={profile.displayName || profile.username || ''}
-                    />
-                    <AvatarFallback
-                      className="text-sm"
-                      style={{
-                        background: s.avatarFallback,
-                        color: s.avatarFallbackText,
-                      }}
-                    >
-                      {(profile.displayName || profile.username || 'U')
-                        .split(' ')
-                        .map((n) => n[0])
-                        .join('')
-                        .toUpperCase()
-                        .slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
-                </Link>
-                <div>
-                  <Link
-                    href={`/${profile.username}`}
-                    className="text-sm font-semibold no-underline"
                     style={{ color: s.headingColor }}
                   >
-                    {profile.displayName || profile.username}
-                  </Link>
-                  {profile.headline && (
-                    <p className="text-xs" style={{ color: s.mutedColor }}>
-                      {profile.headline}
-                    </p>
-                  )}
-                </div>
-              </div>
+                    {product.title}
+                  </h1>
 
-              <p
-                className="text-center text-xs mt-16"
-                style={{ color: s.footerColor, fontFamily: sansFont }}
-              >
-                Powered by ACME
-              </p>
+                  {product.description && (
+                    <div
+                      ref={descriptionRef}
+                      className="text-sm leading-relaxed product-content mb-4"
+                      style={{ color: s.textColor }}
+                      dangerouslySetInnerHTML={{ __html: product.description }}
+                    />
+                  )}
+
+                  <div className="flex items-center gap-3 pt-2">
+                    <span
+                      className="text-2xl font-bold"
+                      style={{ color: s.priceColor }}
+                    >
+                      {formatPrice(product.price)}
+                    </span>
+                    <span
+                      className="text-xs font-medium uppercase px-2.5 py-1"
+                      style={{
+                        background: s.cardBg,
+                        color: s.mutedColor,
+                        border: `1px solid ${s.cardBorder}`,
+                        borderRadius: br,
+                      }}
+                    >
+                      {product.type}
+                    </span>
+                  </div>
+                </div>
+
+                {product.productUrl ? (
+                  <a
+                    href={product.productUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-3.5 font-semibold text-base transition-all duration-200 no-underline"
+                    style={{
+                      background: s.buttonBg,
+                      color: s.buttonText,
+                      borderRadius: br,
+                    }}
+                    onClick={() => {
+                      posthog.capture('product_get', {
+                        productId: product.id,
+                        productTitle: product.title,
+                        productType: product.type,
+                        productPrice: product.price,
+                        username: profile.username,
+                      });
+                    }}
+                  >
+                    Get this product
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                ) : (
+                  <Button
+                    className="w-full py-3.5 text-base font-semibold"
+                    style={{
+                      background: s.buttonBg,
+                      color: s.buttonText,
+                      borderRadius: br,
+                    }}
+                    onClick={() => {
+                      posthog.capture('product_get', {
+                        productId: product.id,
+                        productTitle: product.title,
+                        productType: product.type,
+                        productPrice: product.price,
+                        username: profile.username,
+                      });
+                    }}
+                  >
+                    Get this product
+                  </Button>
+                )}
+
+                <div
+                  className="flex items-center gap-3 mt-8 pt-6 lg:hidden"
+                  style={{ borderTop: `1px solid ${s.cardBorder}` }}
+                >
+                  <Link href={`/${profile.username}`}>
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage
+                        src={profile.avatarUrl || undefined}
+                        alt={profile.displayName || profile.username || ''}
+                      />
+                      <AvatarFallback
+                        className="text-sm"
+                        style={{
+                          background: s.avatarFallback,
+                          color: s.avatarFallbackText,
+                        }}
+                      >
+                        {(profile.displayName || profile.username || 'U')
+                          .split(' ')
+                          .map((n) => n[0])
+                          .join('')
+                          .toUpperCase()
+                          .slice(0, 2)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Link>
+                  <div>
+                    <Link
+                      href={`/${profile.username}`}
+                      className="text-sm font-semibold no-underline"
+                      style={{ color: s.headingColor }}
+                    >
+                      {profile.displayName || profile.username}
+                    </Link>
+                    {profile.headline && (
+                      <p className="text-xs" style={{ color: s.mutedColor }}>
+                        {profile.headline}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <p
+                  className="text-center text-xs mt-16"
+                  style={{ color: s.footerColor, fontFamily: bodyFontFamily }}
+                >
+                  Powered by ACME
+                </p>
               </div>
             </section>
           </div>

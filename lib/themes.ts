@@ -33,6 +33,12 @@ export type ThemeConfig = {
     footerColor: string;
     buttonBg: string;
     buttonText: string;
+    borderRadius: string;
+    buttonBorderRadius: string;
+    productColumns: number;
+    cardTemplate: string;
+    headingFont: string;
+    bodyFont: string;
   };
 };
 
@@ -50,7 +56,12 @@ export const themes: ThemeConfig[] = [
     description: 'Сдержанная структура для серьезных продуктов и сервисов',
     category: 'minimalist-business',
     categoryLabel: 'Минималистичный бизнес',
-    preview: { bg: '#FAF9F6', accent: '#0056D2', text: '#333333', card: '#FFFFFF' },
+    preview: {
+      bg: '#FAF9F6',
+      accent: '#0056D2',
+      text: '#333333',
+      card: '#FFFFFF',
+    },
     styles: {
       pageBg: '#F5F5F5',
       pageBgGradient: 'linear-gradient(to bottom, #F5F5F5, #FAF9F6)',
@@ -74,6 +85,12 @@ export const themes: ThemeConfig[] = [
       footerColor: '#CED1D8',
       buttonBg: '#0056D2',
       buttonText: '#FFFFFF',
+      borderRadius: 'sm',
+      buttonBorderRadius: 'md',
+      productColumns: 3,
+      cardTemplate: 'standard',
+      headingFont: 'sans',
+      bodyFont: 'sans',
     },
   },
   {
@@ -82,7 +99,12 @@ export const themes: ThemeConfig[] = [
     description: 'Мягкая, фотогеничная палитра для дизайнеров и стилистов',
     category: 'aesthetic-creator',
     categoryLabel: 'Эстетичный создатель',
-    preview: { bg: '#F1E9DA', accent: '#B85C38', text: '#4A3E3F', card: '#FFF8F0' },
+    preview: {
+      bg: '#F1E9DA',
+      accent: '#B85C38',
+      text: '#4A3E3F',
+      card: '#FFF8F0',
+    },
     styles: {
       pageBg: '#EDDCC6',
       pageBgGradient: 'linear-gradient(to bottom, #EDDCC6, #F6EFD9)',
@@ -106,6 +128,12 @@ export const themes: ThemeConfig[] = [
       footerColor: '#EAD8C8',
       buttonBg: '#B85C38',
       buttonText: '#FDFDFF',
+      borderRadius: 'lg',
+      buttonBorderRadius: 'full',
+      productColumns: 2,
+      cardTemplate: 'compact',
+      headingFont: 'serif',
+      bodyFont: 'sans',
     },
   },
   {
@@ -114,7 +142,12 @@ export const themes: ThemeConfig[] = [
     description: 'Яркая, чистая палитра для продуктов и цифровых сервисов',
     category: 'neo-digital',
     categoryLabel: 'Нео-Цифра',
-    preview: { bg: '#FFFFFF', accent: '#14D8C5', text: '#112A46', card: '#F0F4F8' },
+    preview: {
+      bg: '#FFFFFF',
+      accent: '#14D8C5',
+      text: '#112A46',
+      card: '#F0F4F8',
+    },
     styles: {
       pageBg: '#FFFFFF',
       pageBgGradient: 'linear-gradient(to bottom, #FFFFFF, #F0F4F8)',
@@ -138,6 +171,12 @@ export const themes: ThemeConfig[] = [
       footerColor: '#D9E3F3',
       buttonBg: '#14D8C5',
       buttonText: '#112A46',
+      borderRadius: 'md',
+      buttonBorderRadius: 'lg',
+      productColumns: 3,
+      cardTemplate: 'standard',
+      headingFont: 'sans',
+      bodyFont: 'sans',
     },
   },
   {
@@ -146,7 +185,12 @@ export const themes: ThemeConfig[] = [
     description: 'Профессиональный тёмный режим для геймеров и крипто-команд',
     category: 'night-mode',
     categoryLabel: 'Ночной режим',
-    preview: { bg: '#101827', accent: '#43D8FF', text: '#E0E0E0', card: '#1F2937' },
+    preview: {
+      bg: '#101827',
+      accent: '#43D8FF',
+      text: '#E0E0E0',
+      card: '#1F2937',
+    },
     styles: {
       pageBg: '#101827',
       pageBgGradient: 'linear-gradient(to bottom, #101827, #1E1E2F)',
@@ -170,6 +214,12 @@ export const themes: ThemeConfig[] = [
       footerColor: '#2B2B3C',
       buttonBg: '#43D8FF',
       buttonText: '#101827',
+      borderRadius: 'lg',
+      buttonBorderRadius: 'full',
+      productColumns: 3,
+      cardTemplate: 'overlay',
+      headingFont: 'sans',
+      bodyFont: 'sans',
     },
   },
   {
@@ -178,7 +228,12 @@ export const themes: ThemeConfig[] = [
     description: 'Чистая, дорогая палитра для коучинга и люкс-услуг',
     category: 'premium-gloss',
     categoryLabel: 'Премиум глянец',
-    preview: { bg: '#FFFFFF', accent: '#D4AF37', text: '#1A1A1A', card: '#FFFFFF' },
+    preview: {
+      bg: '#FFFFFF',
+      accent: '#D4AF37',
+      text: '#1A1A1A',
+      card: '#FFFFFF',
+    },
     styles: {
       pageBg: '#FFFFFF',
       pageBgGradient: 'linear-gradient(to bottom, #FFFFFF, #F9F9F9)',
@@ -202,6 +257,12 @@ export const themes: ThemeConfig[] = [
       footerColor: '#DDDDDD',
       buttonBg: '#000000',
       buttonText: '#FFFFFF',
+      borderRadius: 'md',
+      buttonBorderRadius: 'sm',
+      productColumns: 2,
+      cardTemplate: 'minimal',
+      headingFont: 'serif',
+      bodyFont: 'serif',
     },
   },
 ];
@@ -222,5 +283,17 @@ export function getThemeCategories(): ThemeCategory[] {
 }
 
 export function getTheme(themeId: string): ThemeConfig {
+  if (!themeId || themeId === 'default') return themes[0];
   return themes.find((t) => t.id === themeId) || themes[0];
+}
+
+export function applyThemeToProfile(themeId: string) {
+  const theme = getTheme(themeId);
+  return {
+    theme: theme.id,
+    borderRadius: theme.styles.borderRadius,
+    buttonBorderRadius: theme.styles.buttonBorderRadius,
+    productColumns: theme.styles.productColumns,
+    cardTemplate: theme.styles.cardTemplate,
+  };
 }
