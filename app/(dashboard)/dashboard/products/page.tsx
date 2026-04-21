@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from 'react';
 import { useSWRConfig } from 'swr';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -16,7 +17,7 @@ import { Loader2, PlusCircle, Eye, EyeOff, Trash2, Pencil } from 'lucide-react';
 import { createProduct, updateProduct, deleteProduct, toggleProductPublish } from './actions';
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { Product } from '@/lib/db/schema';
-import useSWR, { mutate } from 'swr';
+import useSWR from 'swr';
 import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import {
@@ -28,7 +29,19 @@ const RichEditor = dynamic(() => import('@/components/editor/rich-editor'), {
   ssr: false,
 });
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = async (url: string) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) {
+      throw new Error(`Request failed: ${res.status}`);
+    }
+    return res.json();
+  } finally {
+    clearTimeout(timeout);
+  }
+};
 
 type ActionState = {
   error?: string;
@@ -245,7 +258,7 @@ function ProductForm({
   return (
     <>
       {mode === 'edit' ? (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="grid grid-cols-1 gap-6">
           <Card className="border-2 border-orange-100">
             <CardHeader>
               <CardTitle>Front Content</CardTitle>
@@ -588,11 +601,31 @@ function ProductGridCard({
 }
 
 function ProductList({
+  products,
+  isLoading,
+  error,
   onEdit,
 }: {
+  products: Product[];
+  isLoading: boolean;
+  error?: Error;
   onEdit: (product: Product) => void;
 }) {
-  const { data: products } = useSWR<Product[]>('/api/products', fetcher);
+  if (isLoading) {
+    return (
+      <div className="text-center py-8 text-sm text-muted-foreground">
+        Loading products...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8 text-sm text-red-500">
+        Failed to load products. Please refresh.
+      </div>
+    );
+  }
 
   if (!products?.length) {
     return (
@@ -624,9 +657,38 @@ function ProductSkeleton() {
 }
 
 export default function ProductsPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const { data: productsData, isLoading: isProductsLoading, error: productsError } = useSWR<Product[]>(
+    '/api/products',
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 10000 }
+  );
+  const editProductIdParam = searchParams.get('editProductId');
   const isFormOpen = showForm || editingProduct !== null;
+
+  const clearEditQueryParam = () => {
+    if (!searchParams.has('editProductId')) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('editProductId');
+    const next = params.toString();
+    router.replace(next ? `${pathname}?${next}` : pathname);
+  };
+
+  useEffect(() => {
+    if (!editProductIdParam || !productsData?.length) return;
+    const productId = Number(editProductIdParam);
+    if (Number.isNaN(productId)) return;
+
+    const targetProduct = productsData.find((product) => product.id === productId);
+    if (!targetProduct) return;
+
+    setShowForm(false);
+    setEditingProduct(targetProduct);
+  }, [editProductIdParam, productsData]);
 
   return (
     <div className="flex flex-1">
@@ -651,8 +713,14 @@ export default function ProductsPage() {
               <ProductForm
                 mode="edit"
                 initialData={editingProduct}
-                onSuccess={() => setEditingProduct(null)}
-                onCancel={() => setEditingProduct(null)}
+                onSuccess={() => {
+                  setEditingProduct(null);
+                  clearEditQueryParam();
+                }}
+                onCancel={() => {
+                  setEditingProduct(null);
+                  clearEditQueryParam();
+                }}
               />
             )}
 
@@ -665,6 +733,9 @@ export default function ProductsPage() {
             )}
 
             <ProductList
+              products={productsData || []}
+              isLoading={isProductsLoading}
+              error={productsError}
               onEdit={(product) => setEditingProduct(product)}
             />
           </div>

@@ -22,6 +22,24 @@ type LegacyProductRow = {
   updated_at: Date | string;
 };
 
+type LegacyProfileRow = {
+  id: number;
+  user_id: number;
+  username: string | null;
+  display_name: string | null;
+  headline: string | null;
+  bio: string | null;
+  avatar_url: string | null;
+  theme: string | null;
+  border_radius: string | null;
+  button_border_radius: string | null;
+  product_columns: number | null;
+  card_template: string | null;
+  social_links: unknown;
+  created_at: Date | string;
+  updated_at: Date | string;
+};
+
 function isMissingColumnError(error: unknown) {
   const message = error instanceof Error ? error.message.toLowerCase() : '';
   return (
@@ -31,6 +49,20 @@ function isMissingColumnError(error: unknown) {
     message.includes('front style prompt') ||
     message.includes('card_template') ||
     message.includes('card template')
+  );
+}
+
+function isMissingProfileColumnError(error: unknown) {
+  const message = error instanceof Error ? error.message.toLowerCase() : '';
+  return (
+    message.includes('product_columns') ||
+    message.includes('product columns') ||
+    message.includes('card_template') ||
+    message.includes('card template') ||
+    message.includes('button_border_radius') ||
+    message.includes('button border radius') ||
+    message.includes('social_links') ||
+    message.includes('social links')
   );
 }
 
@@ -46,6 +78,33 @@ async function ensureProductColumns() {
   await db.execute(sql`
     ALTER TABLE products
     ADD COLUMN IF NOT EXISTS card_template varchar(20)
+  `);
+}
+
+async function ensureProfileColumns() {
+  await db.execute(sql`
+    ALTER TABLE profiles
+    ADD COLUMN IF NOT EXISTS theme varchar(30) NOT NULL DEFAULT 'default'
+  `);
+  await db.execute(sql`
+    ALTER TABLE profiles
+    ADD COLUMN IF NOT EXISTS border_radius varchar(10) NOT NULL DEFAULT 'md'
+  `);
+  await db.execute(sql`
+    ALTER TABLE profiles
+    ADD COLUMN IF NOT EXISTS button_border_radius varchar(10) NOT NULL DEFAULT 'md'
+  `);
+  await db.execute(sql`
+    ALTER TABLE profiles
+    ADD COLUMN IF NOT EXISTS product_columns smallint NOT NULL DEFAULT 3
+  `);
+  await db.execute(sql`
+    ALTER TABLE profiles
+    ADD COLUMN IF NOT EXISTS card_template varchar(20) NOT NULL DEFAULT 'standard'
+  `);
+  await db.execute(sql`
+    ALTER TABLE profiles
+    ADD COLUMN IF NOT EXISTS social_links jsonb
   `);
 }
 
@@ -71,6 +130,29 @@ function mapLegacyProduct(row: LegacyProductRow) {
     frontStylePrompt: row.front_style_prompt || null,
     cardTemplate: row.card_template || null,
     isPublished: row.is_published,
+    createdAt: normalizeDate(row.created_at),
+    updatedAt: normalizeDate(row.updated_at),
+  };
+}
+
+function mapLegacyProfile(row: LegacyProfileRow) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    username: row.username,
+    displayName: row.display_name,
+    headline: row.headline,
+    bio: row.bio,
+    avatarUrl: row.avatar_url,
+    theme: row.theme || 'default',
+    borderRadius: row.border_radius || 'md',
+    buttonBorderRadius: row.button_border_radius || 'md',
+    productColumns: row.product_columns || 3,
+    cardTemplate: row.card_template || 'standard',
+    socialLinks:
+      row.social_links && typeof row.social_links === 'object'
+        ? row.social_links
+        : null,
     createdAt: normalizeDate(row.created_at),
     updatedAt: normalizeDate(row.updated_at),
   };
@@ -202,23 +284,85 @@ export async function getTeamForUser() {
 }
 
 export async function getProfileByUserId(userId: number) {
-  const result = await db
-    .select()
-    .from(profiles)
-    .where(eq(profiles.userId, userId))
-    .limit(1);
+  try {
+    const result = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.userId, userId))
+      .limit(1);
 
-  return result.length > 0 ? result[0] : null;
+    return result.length > 0 ? result[0] : null;
+  } catch (error) {
+    if (!isMissingProfileColumnError(error)) {
+      throw error;
+    }
+
+    await ensureProfileColumns();
+    const rows = await db.execute<LegacyProfileRow>(sql`
+      SELECT
+        id,
+        user_id,
+        username,
+        display_name,
+        headline,
+        bio,
+        avatar_url,
+        theme,
+        border_radius,
+        button_border_radius,
+        product_columns,
+        card_template,
+        social_links,
+        created_at,
+        updated_at
+      FROM profiles
+      WHERE user_id = ${userId}
+      LIMIT 1
+    `);
+
+    return rows.length > 0 ? mapLegacyProfile(rows[0]) : null;
+  }
 }
 
 export async function getProfileByUsername(username: string) {
-  const result = await db
-    .select()
-    .from(profiles)
-    .where(eq(profiles.username, username))
-    .limit(1);
+  try {
+    const result = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.username, username))
+      .limit(1);
 
-  return result.length > 0 ? result[0] : null;
+    return result.length > 0 ? result[0] : null;
+  } catch (error) {
+    if (!isMissingProfileColumnError(error)) {
+      throw error;
+    }
+
+    await ensureProfileColumns();
+    const rows = await db.execute<LegacyProfileRow>(sql`
+      SELECT
+        id,
+        user_id,
+        username,
+        display_name,
+        headline,
+        bio,
+        avatar_url,
+        theme,
+        border_radius,
+        button_border_radius,
+        product_columns,
+        card_template,
+        social_links,
+        created_at,
+        updated_at
+      FROM profiles
+      WHERE username = ${username}
+      LIMIT 1
+    `);
+
+    return rows.length > 0 ? mapLegacyProfile(rows[0]) : null;
+  }
 }
 
 export async function getPublicStoreData(username: string) {

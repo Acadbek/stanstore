@@ -33,6 +33,8 @@ import {
   Eye,
   Plus,
   GalleryHorizontal,
+  Sparkles,
+  ArrowRight,
 } from 'lucide-react';
 import Cropper from 'react-easy-crop';
 import {
@@ -47,18 +49,23 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { updateProfile, updateAvatar, deleteAvatar } from '../actions';
-import { Profile, User } from '@/lib/db/schema';
+import { Profile, Product, User } from '@/lib/db/schema';
 import {
   themes,
   getTheme,
   getThemeCategories,
   type ThemeConfig,
 } from '@/lib/themes';
+import {
+  getDisplayFrontStylePrompt,
+  isFrontStyleId,
+  resolveFrontStyle,
+  type FrontStyleId,
+} from '@/lib/product-front-style';
 import useSWR, { mutate } from 'swr';
 import { Suspense } from 'react';
 import { generateReactHelpers } from '@uploadthing/react';
 import type { OurFileRouter } from '@/lib/uploadthing';
-import Link from 'next/link';
 
 const { useUploadThing } = generateReactHelpers<OurFileRouter>();
 
@@ -68,6 +75,8 @@ type ProfileData = {
   user: User;
   profile: Profile | null;
 };
+
+type ProductFrontStyleOption = FrontStyleId;
 
 type ActionState = {
   error?: string;
@@ -91,6 +100,12 @@ const btnRadiusOptions = [
   { id: 'lg', label: 'Large', css: '8px' },
   { id: 'full', label: 'Full', css: '9999px' },
 ] as const;
+
+const FRONT_STYLE_PRESETS: { id: FrontStyleId; label: string }[] = [
+  { id: 'pill', label: 'Simple Row' },
+  { id: 'cta', label: 'CTA Card' },
+  { id: 'editorial', label: 'Editorial' },
+];
 
 const getRadiusCss = (id: string) =>
   borderRadiusOptions.find((r) => r.id === id)?.css ?? '6px';
@@ -169,10 +184,9 @@ async function getCroppedImg(
   });
 }
 
-function AvatarSection() {
-  const { data } = useSWR<ProfileData>('/api/profile', fetcher);
-  const profile = data?.profile;
-  const user = data?.user;
+function AvatarSection({ profileData }: { profileData?: ProfileData }) {
+  const profile = profileData?.profile;
+  const user = profileData?.user;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [cropOpen, setCropOpen] = useState(false);
@@ -718,21 +732,40 @@ function ProductCardMinimal({
 }
 
 function ProductCardsGrid({
+  products,
   s,
   cr,
+  br,
   columns,
   cardTemplate,
+  perProductFrontStyles,
+  onPerProductFrontStyleChange,
+  isCustomFrontStyleEnabled,
 }: {
+  products: Product[];
   s: ThemeConfig['styles'];
   cr: string;
+  br: string;
   columns: number;
   cardTemplate: string;
+  perProductFrontStyles: Record<number, 'pill' | 'cta'>;
+  onPerProductFrontStyleChange: (productId: number, style: 'pill' | 'cta') => void;
+  isCustomFrontStyleEnabled: boolean;
 }) {
-  const items = [
-    { title: 'E-book Template', price: '$29.00', type: 'Digital' },
-    { title: 'Design Course', price: '$49.00', type: 'Course' },
-    { title: 'Icon Pack', price: '$9.00', type: 'Digital' },
-  ];
+  const items = products.slice(0, 8).map((product) => ({
+    id: product.id,
+    title: product.title || 'Untitled',
+    price: product.price ? `$${(product.price / 100).toFixed(2)}` : 'Free',
+    type: product.type || 'digital',
+    imageUrl: product.imageUrl || '',
+    description:
+      (product.description || '')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim() || 'Product description',
+    frontStyle: product.frontStyle || 'inherit',
+    frontStylePrompt: product.frontStylePrompt || '',
+  }));
 
   const colClass =
     columns === 1
@@ -743,20 +776,231 @@ function ProductCardsGrid({
           ? 'grid-cols-2 sm:grid-cols-4'
           : 'grid-cols-3';
 
-  const CardComponent =
-    cardTemplate === 'compact'
-      ? ProductCardCompact
-      : cardTemplate === 'overlay'
-        ? ProductCardOverlay
-        : cardTemplate === 'minimal'
-          ? ProductCardMinimal
-          : ProductCardStandard;
+  const renderFrontOverride = (item: (typeof items)[number]) => {
+    const selectedStyle =
+      perProductFrontStyles[item.id] ||
+      (item.frontStyle === 'pill' ? 'pill' : 'cta');
+    const resolved = resolveFrontStyle(
+      selectedStyle,
+      ''
+    );
+    if (!resolved) return null;
+
+    const titleClass = resolved.titleFont === 'serif' ? 'font-serif' : 'font-semibold';
+    const imageClass = resolved.imageShape === 'circle' ? 'rounded-full' : 'rounded-xl';
+
+    if (resolved.preset === 'pill') {
+      return (
+        <div
+          className="flex items-center gap-3 border p-3"
+          style={{
+            background: resolved.bgColor,
+            borderColor: resolved.borderColor,
+            borderRadius: 9999,
+          }}
+        >
+          {item.imageUrl ? (
+            <div className={`h-11 w-11 shrink-0 overflow-hidden ${imageClass}`}>
+              <img src={item.imageUrl} alt={item.title} className="h-full w-full object-cover" />
+            </div>
+          ) : (
+            <div
+              className={`flex h-11 w-11 shrink-0 items-center justify-center ${imageClass}`}
+              style={{ background: resolved.accentColor, color: '#fff' }}
+            >
+              {(item.title[0] || 'P').toUpperCase()}
+            </div>
+          )}
+          <p className={`min-w-0 flex-1 truncate text-sm ${titleClass}`} style={{ color: resolved.textColor }}>
+            {item.title}
+          </p>
+          {resolved.arrow ? (
+            <ArrowRight className="h-4 w-4" style={{ color: resolved.textColor }} />
+          ) : (
+            <span className="text-xs font-semibold" style={{ color: resolved.accentColor }}>
+              {item.price}
+            </span>
+          )}
+        </div>
+      );
+    }
+
+    if (resolved.preset === 'editorial') {
+      return (
+        <div
+          className="border p-3"
+          style={{
+            background: resolved.bgColor,
+            borderColor: resolved.borderColor,
+            borderRadius: '14px',
+          }}
+        >
+          <div className="flex gap-3">
+            {item.imageUrl ? (
+              <div className={`h-20 w-16 shrink-0 overflow-hidden ${imageClass}`}>
+                <img src={item.imageUrl} alt={item.title} className="h-full w-full object-cover" />
+              </div>
+            ) : (
+              <div
+                className={`flex h-20 w-16 shrink-0 items-center justify-center ${imageClass}`}
+                style={{ background: resolved.accentColor, color: '#fff' }}
+              >
+                {(item.title[0] || 'P').toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className={`line-clamp-2 text-sm ${titleClass}`} style={{ color: resolved.textColor }}>
+                {item.title}
+              </p>
+              <p className="mt-1 line-clamp-2 text-xs" style={{ color: resolved.mutedColor }}>
+                {item.description}
+              </p>
+              <p className="mt-1 text-sm" style={{ color: resolved.accentColor }}>
+                {item.price}
+              </p>
+            </div>
+          </div>
+          {resolved.buttonVariant !== 'none' && (
+            <button
+              type="button"
+              className="mt-2 w-full border px-3 py-1.5 text-xs font-semibold"
+              style={{
+                borderRadius: br,
+                borderColor: resolved.accentColor,
+                color: resolved.buttonVariant === 'solid' ? '#fff' : resolved.accentColor,
+                background:
+                  resolved.buttonVariant === 'solid' ? resolved.accentColor : 'transparent',
+              }}
+            >
+              Get this product
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className="border p-3"
+        style={{
+          background: resolved.bgColor,
+          borderColor: resolved.borderColor,
+          borderRadius: cr,
+        }}
+      >
+        <div className="flex items-start gap-3">
+          {item.imageUrl ? (
+            <div className={`h-12 w-12 shrink-0 overflow-hidden ${imageClass}`}>
+              <img src={item.imageUrl} alt={item.title} className="h-full w-full object-cover" />
+            </div>
+          ) : (
+            <div
+              className={`flex h-12 w-12 shrink-0 items-center justify-center ${imageClass}`}
+              style={{ background: resolved.accentColor, color: '#fff' }}
+            >
+              {(item.title[0] || 'P').toUpperCase()}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className={`truncate text-sm ${titleClass}`} style={{ color: resolved.textColor }}>
+              {item.title}
+            </p>
+            <p className="mt-1 line-clamp-2 text-xs" style={{ color: resolved.mutedColor }}>
+              {item.description}
+            </p>
+          </div>
+        </div>
+        <div className="mt-2 flex items-center justify-between">
+          <span className="text-[10px] uppercase tracking-wide text-gray-400">{item.type}</span>
+          <span className="text-xs font-bold" style={{ color: resolved.accentColor }}>
+            {item.price}
+          </span>
+        </div>
+        {resolved.buttonVariant !== 'none' && (
+          <button
+            type="button"
+            className="mt-2 w-full border px-3 py-1.5 text-xs font-semibold"
+            style={{
+              borderRadius: br,
+              borderColor: resolved.accentColor,
+              color: resolved.buttonVariant === 'solid' ? '#fff' : resolved.accentColor,
+              background:
+                resolved.buttonVariant === 'solid' ? resolved.accentColor : 'transparent',
+            }}
+          >
+            Get this product
+          </button>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className={`grid ${colClass} gap-3`}>
-      {items.map((item) => (
-        <CardComponent key={item.title} {...item} s={s} cr={cr} />
-      ))}
+      {items.map((item) => {
+        const selectedStyle =
+          perProductFrontStyles[item.id] ||
+          (item.frontStyle === 'pill' ? 'pill' : 'cta');
+
+        const styleSwitch = isCustomFrontStyleEnabled ? (
+          <div className="mb-2 flex items-center gap-1 rounded-md border border-gray-200 bg-white p-1">
+            <button
+              type="button"
+              onClick={() => onPerProductFrontStyleChange(item.id, 'pill')}
+              className={`rounded px-2 py-1 text-[10px] font-semibold transition-colors ${
+                selectedStyle === 'pill'
+                  ? 'bg-orange-100 text-orange-700'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              Simple Row
+            </button>
+            <button
+              type="button"
+              onClick={() => onPerProductFrontStyleChange(item.id, 'cta')}
+              className={`rounded px-2 py-1 text-[10px] font-semibold transition-colors ${
+                selectedStyle === 'cta'
+                  ? 'bg-orange-100 text-orange-700'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              CTA Card
+            </button>
+          </div>
+        ) : null;
+
+        const frontCard = isCustomFrontStyleEnabled ? renderFrontOverride(item) : null;
+        if (frontCard) {
+          return (
+            <div key={item.id}>
+              {styleSwitch}
+              {frontCard}
+            </div>
+          );
+        }
+
+        const CardComponent =
+          cardTemplate === 'compact'
+            ? ProductCardCompact
+            : cardTemplate === 'overlay'
+              ? ProductCardOverlay
+              : cardTemplate === 'minimal'
+                ? ProductCardMinimal
+                : ProductCardStandard;
+
+        return (
+          <div key={item.id}>
+            {styleSwitch}
+            <CardComponent
+              title={item.title}
+              price={item.price}
+              type={item.type}
+              s={s}
+              cr={cr}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -766,15 +1010,23 @@ function StorePreview({
   cardRadius,
   btnRadius,
   profile,
+  products,
   productColumns,
   cardTemplate,
+  perProductFrontStyles,
+  onPerProductFrontStyleChange,
+  isCustomFrontStyleEnabled,
 }: {
   theme: ThemeConfig;
   cardRadius: string;
   btnRadius: string;
   profile: Profile | null | undefined;
+  products: Product[];
   productColumns: number;
   cardTemplate: string;
+  perProductFrontStyles: Record<number, 'pill' | 'cta'>;
+  onPerProductFrontStyleChange: (productId: number, style: 'pill' | 'cta') => void;
+  isCustomFrontStyleEnabled: boolean;
 }) {
   const s = theme.styles;
   const cr = getRadiusCss(cardRadius);
@@ -839,12 +1091,31 @@ function StorePreview({
           </div>
 
           <div className="flex-1 min-w-0 space-y-3">
-            <ProductCardsGrid
-              s={s}
-              cr={cr}
-              columns={productColumns}
-              cardTemplate={cardTemplate}
-            />
+            {products.length > 0 ? (
+              <ProductCardsGrid
+                products={products}
+                s={s}
+                cr={cr}
+                br={br}
+                columns={productColumns}
+                cardTemplate={cardTemplate}
+                perProductFrontStyles={perProductFrontStyles}
+                onPerProductFrontStyleChange={onPerProductFrontStyleChange}
+                isCustomFrontStyleEnabled={isCustomFrontStyleEnabled}
+              />
+            ) : (
+              <div
+                className="border border-dashed p-6 text-center text-xs"
+                style={{
+                  borderRadius: cr,
+                  borderColor: s.cardBorder,
+                  color: s.mutedColor,
+                  background: s.cardBg,
+                }}
+              >
+                No products yet.
+              </div>
+            )}
 
             <div className="flex gap-2 pt-2">
               <button
@@ -1080,6 +1351,11 @@ function ProfileFormWithData({
   selectedBtnRadius,
   productColumns,
   cardTemplate,
+  bulkFrontStyle,
+  isCustomFrontStyleEnabled,
+  bulkFrontStylePrompt,
+  perProductFrontStyles,
+  profileData,
   state,
   formAction,
   isPending,
@@ -1091,21 +1367,36 @@ function ProfileFormWithData({
   selectedBtnRadius: string;
   productColumns: number;
   cardTemplate: string;
+  bulkFrontStyle: ProductFrontStyleOption;
+  isCustomFrontStyleEnabled: boolean;
+  bulkFrontStylePrompt: string;
+  perProductFrontStyles: Record<number, 'pill' | 'cta'>;
+  profileData?: ProfileData;
   state: ActionState;
   formAction: (formData: FormData) => void;
   isPending: boolean;
   formRef: RefObject<HTMLFormElement | null>;
   formId: string;
 }) {
-  const { data } = useSWR<ProfileData>('/api/profile', fetcher);
-
   const wrappedFormAction = useCallback(
     (formData: FormData) => {
+      const finalBulkFrontStyle = isCustomFrontStyleEnabled
+        ? bulkFrontStyle
+        : 'cta';
       formData.append('theme', selectedTheme);
       formData.append('borderRadius', selectedRadius);
       formData.append('buttonBorderRadius', selectedBtnRadius);
       formData.append('productColumns', String(productColumns));
       formData.append('cardTemplate', cardTemplate);
+      formData.append('bulkFrontStyle', finalBulkFrontStyle);
+      formData.append(
+        'bulkFrontStylePrompt',
+        finalBulkFrontStyle === 'custom' ? bulkFrontStylePrompt : ''
+      );
+      formData.append(
+        'perProductFrontStyles',
+        JSON.stringify(perProductFrontStyles)
+      );
       formAction(formData);
     },
     [
@@ -1115,13 +1406,17 @@ function ProfileFormWithData({
       selectedBtnRadius,
       productColumns,
       cardTemplate,
+      bulkFrontStyle,
+      isCustomFrontStyleEnabled,
+      bulkFrontStylePrompt,
+      perProductFrontStyles,
     ]
   );
 
   return (
     <ProfileForm
       state={state}
-      initialData={data}
+      initialData={profileData}
       formAction={wrappedFormAction}
       isPending={isPending}
       formRef={formRef}
@@ -1269,6 +1564,16 @@ function ThemeConfigSection({
   onBtnRadiusChange,
   onColumnsChange,
   onCardTemplateChange,
+  bulkFrontStyle,
+  bulkFrontStylePromptInput,
+  isCustomFrontStyleEnabled,
+  isMoreOpen,
+  isApplyingFrontPrompt,
+  onFrontStyleChange,
+  onFrontStylePromptInputChange,
+  onCustomFrontStyleToggle,
+  onToggleFrontMore,
+  onApplyFrontPrompt,
   profile,
 }: {
   selectedTheme: string;
@@ -1281,6 +1586,16 @@ function ThemeConfigSection({
   onBtnRadiusChange: (id: string) => void;
   onColumnsChange: (n: number) => void;
   onCardTemplateChange: (id: string) => void;
+  bulkFrontStyle: ProductFrontStyleOption;
+  bulkFrontStylePromptInput: string;
+  isCustomFrontStyleEnabled: boolean;
+  isMoreOpen: boolean;
+  isApplyingFrontPrompt: boolean;
+  onFrontStyleChange: (style: ProductFrontStyleOption) => void;
+  onFrontStylePromptInputChange: (value: string) => void;
+  onCustomFrontStyleToggle: (enabled: boolean) => void;
+  onToggleFrontMore: () => void;
+  onApplyFrontPrompt: () => void;
   profile: Profile | null | undefined;
 }) {
   const theme = getTheme(selectedTheme);
@@ -1415,6 +1730,80 @@ function ThemeConfigSection({
         </div>
 
         <div>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="text-sm font-medium text-gray-900 flex items-center gap-2">
+              <LayoutGrid className="h-4 w-4" />
+              Product Front Style
+            </h3>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isCustomFrontStyleEnabled}
+              onClick={() => onCustomFrontStyleToggle(!isCustomFrontStyleEnabled)}
+              className={`inline-flex items-center gap-2 rounded-full border px-2 py-1 text-xs font-semibold transition-colors ${
+                isCustomFrontStyleEnabled
+                  ? 'border-orange-500 bg-orange-50 text-orange-700'
+                  : 'border-gray-200 bg-white text-gray-600'
+              }`}
+            >
+              <span>{isCustomFrontStyleEnabled ? 'ON' : 'OFF'}</span>
+              <span
+                className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${
+                  isCustomFrontStyleEnabled ? 'bg-orange-500' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+                    isCustomFrontStyleEnabled ? 'translate-x-4' : 'translate-x-0.5'
+                  }`}
+                />
+              </span>
+            </button>
+          </div>
+
+          {!isCustomFrontStyleEnabled && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
+              Default front style is active.
+            </div>
+          )}
+
+          {isCustomFrontStyleEnabled && (
+            <div className="mt-3 rounded-xl border border-orange-100 bg-orange-50/50 p-3 space-y-2">
+              <Label htmlFor="bulkFrontStylePrompt" className="text-xs text-gray-700">
+                Describe your card style
+              </Label>
+              <textarea
+                id="bulkFrontStylePrompt"
+                value={bulkFrontStylePromptInput}
+                onChange={(event) => onFrontStylePromptInputChange(event.target.value)}
+                rows={3}
+                className="w-full rounded-md border border-gray-200 bg-white p-2 text-sm outline-none focus:border-orange-400"
+                placeholder="Example: image on left, title next to it, arrow on right"
+              />
+              <Button
+                type="button"
+                size="sm"
+                className="bg-orange-500 hover:bg-orange-600 text-white"
+                onClick={onApplyFrontPrompt}
+                disabled={isApplyingFrontPrompt}
+              >
+                {isApplyingFrontPrompt ? (
+                  <>
+                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                    Interpreting...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-1 h-3.5 w-3.5" />
+                    Apply Description
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <div>
           <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
             <RectangleHorizontal className="h-4 w-4" />
             Card Radius
@@ -1460,17 +1849,36 @@ export default function ProfileConfigPage() {
   );
   const [productColumns, setProductColumns] = useState<number>(3);
   const [cardTemplate, setCardTemplate] = useState<string>('standard');
+  const [bulkFrontStyle, setBulkFrontStyle] = useState<ProductFrontStyleOption>('cta');
+  const [bulkFrontStylePrompt, setBulkFrontStylePrompt] = useState('');
+  const [bulkFrontStylePromptInput, setBulkFrontStylePromptInput] = useState('');
+  const [isCustomFrontStyleEnabled, setIsCustomFrontStyleEnabled] = useState(false);
+  const [isFrontMoreOpen, setIsFrontMoreOpen] = useState(false);
+  const [isApplyingFrontPrompt, setIsApplyingFrontPrompt] = useState(false);
+  const hasHydratedBulkFrontStyle = useRef(false);
+  const [perProductFrontStyles, setPerProductFrontStyles] = useState<
+    Record<number, 'pill' | 'cta'>
+  >({});
+  const hasHydratedPerProductFrontStyles = useRef(false);
 
-  const { data } = useSWR<ProfileData>('/api/profile', fetcher);
+  const { data } = useSWR<ProfileData>('/api/profile', fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 10000,
+  });
+  const { data: productsData } = useSWR<Product[]>('/api/products', fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 10000,
+  });
 
   useEffect(() => {
     if (state.success) {
       mutate('/api/profile');
+      mutate('/api/products');
     }
   }, [state.success]);
 
   useEffect(() => {
-    if (data?.profile) {
+    if (data?.profile && productsData) {
       if (selectedTheme === null) {
         setSelectedTheme(data.profile.theme || 'default');
       }
@@ -1482,10 +1890,83 @@ export default function ProfileConfigPage() {
       }
       setProductColumns(data.profile.productColumns || 3);
       setCardTemplate(data.profile.cardTemplate || 'standard');
+
+      if (!hasHydratedBulkFrontStyle.current) {
+        const source = productsData[0];
+        const initialStyle =
+          source && isFrontStyleId(source.frontStyle) ? source.frontStyle : 'cta';
+        setBulkFrontStyle(initialStyle);
+        const initialPrompt = source?.frontStylePrompt || '';
+        setBulkFrontStylePrompt(initialPrompt);
+        setBulkFrontStylePromptInput(getDisplayFrontStylePrompt(initialPrompt));
+        setIsCustomFrontStyleEnabled(initialStyle === 'custom');
+        setIsFrontMoreOpen(initialStyle === 'custom');
+        hasHydratedBulkFrontStyle.current = true;
+      }
+
+      if (!hasHydratedPerProductFrontStyles.current) {
+        const nextStyles: Record<number, 'pill' | 'cta'> = {};
+        for (const product of productsData) {
+          nextStyles[product.id] = product.frontStyle === 'pill' ? 'pill' : 'cta';
+        }
+        setPerProductFrontStyles(nextStyles);
+        hasHydratedPerProductFrontStyles.current = true;
+      }
     }
-  }, [data, selectedTheme, selectedRadius, selectedBtnRadius]);
+  }, [data, productsData, selectedTheme, selectedRadius, selectedBtnRadius]);
+
+  const applyBulkFrontPrompt = useCallback(async () => {
+    const prompt = bulkFrontStylePromptInput.trim();
+    if (!prompt) return;
+
+    setIsApplyingFrontPrompt(true);
+    try {
+      const response = await fetch('/api/style/interpret', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+
+      if (!response.ok) throw new Error('failed');
+
+      const result = (await response.json()) as {
+        frontStyle?: string;
+        normalizedPrompt?: string;
+        displayPrompt?: string;
+      };
+
+      const nextStyle = result.frontStyle;
+      const nextPrompt = result.normalizedPrompt || prompt;
+      const displayPrompt = result.displayPrompt || prompt;
+
+      if (nextStyle && isFrontStyleId(nextStyle)) {
+        setBulkFrontStyle(nextStyle);
+      } else {
+        setBulkFrontStyle('custom');
+      }
+      setIsCustomFrontStyleEnabled(true);
+      setBulkFrontStylePrompt(nextPrompt);
+      setBulkFrontStylePromptInput(displayPrompt);
+      setIsFrontMoreOpen(true);
+    } catch {
+      setBulkFrontStyle('custom');
+      setIsCustomFrontStyleEnabled(true);
+      setBulkFrontStylePrompt(prompt);
+      setBulkFrontStylePromptInput(prompt);
+      setIsFrontMoreOpen(true);
+    } finally {
+      setIsApplyingFrontPrompt(false);
+    }
+  }, [bulkFrontStylePromptInput]);
 
   const profile = data?.profile;
+  const products = productsData || [];
+  const handlePerProductFrontStyleChange = useCallback(
+    (productId: number, style: 'pill' | 'cta') => {
+      setPerProductFrontStyles((prev) => ({ ...prev, [productId]: style }));
+    },
+    []
+  );
 
   const isReady =
     selectedTheme !== null &&
@@ -1528,7 +2009,7 @@ export default function ProfileConfigPage() {
             </div>
           )}
 
-          <AvatarSection />
+          <AvatarSection profileData={data} />
 
           {isReady && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1538,21 +2019,51 @@ export default function ProfileConfigPage() {
                 selectedBtnRadius={selectedBtnRadius}
                 productColumns={productColumns}
                 cardTemplate={cardTemplate}
+                bulkFrontStyle={bulkFrontStyle}
+                bulkFrontStylePromptInput={bulkFrontStylePromptInput}
+                isCustomFrontStyleEnabled={isCustomFrontStyleEnabled}
+                isMoreOpen={isFrontMoreOpen}
+                isApplyingFrontPrompt={isApplyingFrontPrompt}
                 onThemeChange={setSelectedTheme}
                 onRadiusChange={setSelectedRadius}
                 onBtnRadiusChange={setSelectedBtnRadius}
                 onColumnsChange={setProductColumns}
                 onCardTemplateChange={setCardTemplate}
+                onFrontStyleChange={(style) => {
+                  setBulkFrontStyle(style);
+                  if (style !== 'custom') {
+                    setIsFrontMoreOpen(false);
+                    return;
+                  }
+                  setIsFrontMoreOpen(true);
+                }}
+                onCustomFrontStyleToggle={(enabled) => {
+                  setIsCustomFrontStyleEnabled(enabled);
+                  if (!enabled) {
+                    setBulkFrontStyle('cta');
+                    setIsFrontMoreOpen(false);
+                    return;
+                  }
+                  setBulkFrontStyle('custom');
+                  setIsFrontMoreOpen(true);
+                }}
+                onFrontStylePromptInputChange={setBulkFrontStylePromptInput}
+                onToggleFrontMore={() => setIsFrontMoreOpen((prev) => !prev)}
+                onApplyFrontPrompt={applyBulkFrontPrompt}
                 profile={profile}
               />
-              <div className="lg:sticky lg:top-4 self-start">
+              <div className="lg:sticky lg:top-24 self-start">
                 <StorePreview
                   theme={getTheme(selectedTheme)}
                   cardRadius={selectedRadius}
                   btnRadius={selectedBtnRadius}
+                  products={products}
                   productColumns={productColumns}
                   cardTemplate={cardTemplate}
+                  perProductFrontStyles={perProductFrontStyles}
+                  onPerProductFrontStyleChange={handlePerProductFrontStyleChange}
                   profile={profile}
+                  isCustomFrontStyleEnabled={isCustomFrontStyleEnabled}
                 />
               </div>
             </div>
@@ -1564,6 +2075,11 @@ export default function ProfileConfigPage() {
             selectedBtnRadius={selectedBtnRadius || 'md'}
             productColumns={productColumns}
             cardTemplate={cardTemplate}
+            bulkFrontStyle={bulkFrontStyle}
+            isCustomFrontStyleEnabled={isCustomFrontStyleEnabled}
+            bulkFrontStylePrompt={bulkFrontStylePrompt}
+            perProductFrontStyles={perProductFrontStyles}
+            profileData={data}
             state={state}
             formAction={formAction}
             isPending={isPending}

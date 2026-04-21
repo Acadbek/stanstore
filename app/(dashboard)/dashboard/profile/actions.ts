@@ -1,9 +1,10 @@
 'use server';
 
 import { z } from 'zod';
-import { eq, and, ne } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
+import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db/drizzle';
-import { profiles } from '@/lib/db/schema';
+import { profiles, products } from '@/lib/db/schema';
 import { getUser, getProfileByUserId, getProfileByUsername } from '@/lib/db/queries';
 import {
   validatedActionWithUser
@@ -34,6 +35,9 @@ const updateProfileSchema = z.object({
   buttonBorderRadius: z.string().max(10).optional(),
   productColumns: z.coerce.number().min(1).max(4).optional(),
   cardTemplate: z.string().max(20).optional(),
+  bulkFrontStyle: z.enum(['pill', 'cta', 'editorial', 'custom']).optional(),
+  bulkFrontStylePrompt: z.string().max(3000).optional(),
+  perProductFrontStyles: z.string().optional(),
   instagram: z.string().optional(),
   twitter: z.string().optional(),
   youtube: z.string().optional(),
@@ -41,10 +45,89 @@ const updateProfileSchema = z.object({
   website: z.string().optional(),
 });
 
+function isMissingFrontStyleColumnsError(error: unknown) {
+  const message = error instanceof Error ? error.message.toLowerCase() : '';
+  return (
+    message.includes('front_style') ||
+    message.includes('front style') ||
+    message.includes('front_style_prompt') ||
+    message.includes('front style prompt')
+  );
+}
+
+async function ensureFrontStyleColumns() {
+  await db.execute(sql`
+    ALTER TABLE products
+    ADD COLUMN IF NOT EXISTS front_style varchar(20) NOT NULL DEFAULT 'inherit'
+  `);
+  await db.execute(sql`
+    ALTER TABLE products
+    ADD COLUMN IF NOT EXISTS front_style_prompt text
+  `);
+}
+
+type PerProductStyle = 'pill' | 'cta';
+
+function parsePerProductFrontStyles(value?: string) {
+  if (!value) return [] as { productId: number; style: PerProductStyle }[];
+
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== 'object') return [];
+
+    const entries: { productId: number; style: PerProductStyle }[] = [];
+    for (const [key, rawStyle] of Object.entries(parsed)) {
+      const productId = Number(key);
+      if (!Number.isInteger(productId) || productId <= 0) continue;
+      if (rawStyle !== 'pill' && rawStyle !== 'cta') continue;
+      entries.push({ productId, style: rawStyle });
+    }
+    return entries;
+  } catch {
+    return [];
+  }
+}
+
+async function applyPerProductFrontStyles(
+  userId: number,
+  entries: { productId: number; style: PerProductStyle }[]
+) {
+  await Promise.all(
+    entries.map(({ productId, style }) =>
+      db
+        .update(products)
+        .set({
+          frontStyle: style,
+          frontStylePrompt: null,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(products.userId, userId), eq(products.id, productId)))
+    )
+  );
+}
+
 export const updateProfile = validatedActionWithUser(
   updateProfileSchema,
   async (data, _, user) => {
-    const { username, displayName, headline, bio, theme, borderRadius, buttonBorderRadius, productColumns, cardTemplate, instagram, twitter, youtube, tiktok, website } = data;
+    const {
+      username,
+      displayName,
+      headline,
+      bio,
+      theme,
+      borderRadius,
+      buttonBorderRadius,
+      productColumns,
+      cardTemplate,
+      bulkFrontStyle,
+      bulkFrontStylePrompt,
+      perProductFrontStyles,
+      instagram,
+      twitter,
+      youtube,
+      tiktok,
+      website,
+    } = data;
 
     const existingProfile = await getProfileByUserId(user.id);
 
@@ -98,6 +181,56 @@ export const updateProfile = validatedActionWithUser(
         socialLinks,
       });
     }
+
+    if (bulkFrontStyle) {
+      try {
+        await db
+          .update(products)
+          .set({
+            frontStyle: bulkFrontStyle,
+            frontStylePrompt:
+              bulkFrontStyle === 'custom' ? bulkFrontStylePrompt || null : null,
+            updatedAt: new Date(),
+          })
+          .where(eq(products.userId, user.id));
+      } catch (error) {
+        if (!isMissingFrontStyleColumnsError(error)) {
+          throw error;
+        }
+        await ensureFrontStyleColumns();
+        await db
+          .update(products)
+          .set({
+            frontStyle: bulkFrontStyle,
+            frontStylePrompt:
+              bulkFrontStyle === 'custom' ? bulkFrontStylePrompt || null : null,
+            updatedAt: new Date(),
+          })
+          .where(eq(products.userId, user.id));
+      }
+    }
+
+    const perProductEntries = parsePerProductFrontStyles(perProductFrontStyles);
+    if (perProductEntries.length > 0) {
+      try {
+        await applyPerProductFrontStyles(user.id, perProductEntries);
+      } catch (error) {
+        if (!isMissingFrontStyleColumnsError(error)) {
+          throw error;
+        }
+        await ensureFrontStyleColumns();
+        await applyPerProductFrontStyles(user.id, perProductEntries);
+      }
+    }
+
+    const oldUsername = existingProfile?.username;
+    if (oldUsername) {
+      revalidatePath(`/${oldUsername}`);
+      revalidatePath('/dashboard/profile');
+    }
+    revalidatePath(`/${username}`);
+    revalidatePath('/dashboard/profile');
+    revalidatePath('/dashboard/profile/config');
 
     return { success: 'Profile updated successfully.' };
   }
