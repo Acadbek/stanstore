@@ -1,6 +1,7 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import {
   Eye,
   Users,
@@ -10,7 +11,15 @@ import {
   MousePointerClick,
   Link2,
   MapPin,
+  Package,
+  ArrowRight,
+  Loader2,
 } from 'lucide-react';
+import Link from 'next/link';
+import useSWR from 'swr';
+import { Product } from '@/lib/db/schema';
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const dayOptions = [
   { label: '7 kun', value: '7' },
@@ -232,7 +241,7 @@ function UtmCard({
   );
 }
 
-export default function DashboardPage() {
+function DashboardStats() {
   const emptyData = {
     totalPageviews: 0,
     uniqueVisitors: 0,
@@ -253,7 +262,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <section className="flex-1 lg:p-8">
+    <>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <h1 className="text-lg lg:text-2xl font-medium text-gray-900">
           Dashboard
@@ -331,6 +340,54 @@ export default function DashboardPage() {
           />
         </div>
       </div>
+    </>
+  );
+}
+
+function EmptyDashboard() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[70vh] px-6 text-center">
+      <div className="w-16 h-16 rounded-2xl bg-orange-100 flex items-center justify-center mb-4">
+        <Package className="h-8 w-8 text-orange-500" />
+      </div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">Ishni boshlaylik!</h2>
+      <p className="text-gray-500 mb-8 max-w-sm">
+        Birinchi productni yaratish uchun profilingiz uchun theme tanlang
+      </p>
+      <Link href="/dashboard/themes">
+        <Button className="bg-orange-500 hover:bg-orange-600 text-white text-base px-8 py-3 h-auto font-semibold">
+          Create Product
+          <ArrowRight className="ml-2 h-5 w-5" />
+        </Button>
+      </Link>
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  const { data: products, isLoading } = useSWR<Product[]>('/api/products', fetcher);
+
+  if (isLoading || !products) {
+    return (
+      <section className="flex-1 lg:p-8">
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+        </div>
+      </section>
+    );
+  }
+
+  if (products.length === 0) {
+    return (
+      <section className="flex-1 lg:p-8">
+        <EmptyDashboard />
+      </section>
+    );
+  }
+
+  return (
+    <section className="flex-1 lg:p-8">
+      <DashboardStats />
     </section>
   );
 }

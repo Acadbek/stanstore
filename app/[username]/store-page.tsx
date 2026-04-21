@@ -183,6 +183,8 @@ export default function StorePage({
   const socialLinks = profile.socialLinks as SocialLinks | null;
   const serifFont = 'Hedvig Serif, serif';
   const sansFont = 'Hedvig Sans, Geist Sans, sans-serif';
+  const headingFontFamily = s.headingFont === 'serif' ? serifFont : sansFont;
+  const bodyFontFamily = s.bodyFont === 'serif' ? serifFont : sansFont;
   const profileRing = s.avatarRing || 'rgba(255, 255, 255, 0.88)';
 
   useEffect(() => {
@@ -329,7 +331,9 @@ export default function StorePage({
         >
           <div className="flex gap-4">
             {product.imageUrl ? (
-              <div className={`h-28 w-24 shrink-0 overflow-hidden ${imageClass}`}>
+              <div
+                className={`h-28 w-24 shrink-0 overflow-hidden ${imageClass}`}
+              >
                 <img
                   src={product.imageUrl}
                   alt={product.title}
@@ -352,10 +356,16 @@ export default function StorePage({
               >
                 {product.title}
               </h3>
-              <p className="mt-1 line-clamp-3 text-sm" style={{ color: frontStyle.mutedColor }}>
+              <p
+                className="mt-1 line-clamp-3 text-sm"
+                style={{ color: frontStyle.mutedColor }}
+              >
                 {descriptionText || 'Product description'}
               </p>
-              <p className="mt-2 text-lg" style={{ color: frontStyle.accentColor }}>
+              <p
+                className="mt-2 text-lg"
+                style={{ color: frontStyle.accentColor }}
+              >
                 {priceLabel}
               </p>
             </div>
@@ -427,7 +437,10 @@ export default function StorePage({
             >
               {product.title}
             </h3>
-            <p className="mt-1 line-clamp-2 text-xs" style={{ color: frontStyle.mutedColor }}>
+            <p
+              className="mt-1 line-clamp-2 text-xs"
+              style={{ color: frontStyle.mutedColor }}
+            >
               {descriptionText || 'Product description'}
             </p>
           </div>
@@ -481,7 +494,9 @@ export default function StorePage({
         <div
           className={`grid w-full gap-10 md:grid-cols-[minmax(280px,38%)_minmax(0,62%)] md:gap-14 xl:gap-20 ${embedded ? 'px-6 py-6 md:h-full md:min-h-0 md:py-0 lg:px-8' : 'md:min-h-screen'}`}
         >
-          <aside className={`md:sticky md:top-0 md:flex md:items-center md:py-10 ${embedded ? 'md:h-full' : 'md:h-screen'}`}>
+          <aside
+            className={`md:sticky md:top-0 md:flex md:items-center md:py-10 ${embedded ? 'md:h-full' : 'md:h-screen'}`}
+          >
             <div className="mx-auto flex w-full max-w-md flex-col items-center text-center md:max-w-sm">
               <Avatar
                 className="h-28 w-28 md:h-32 md:w-32"
@@ -496,7 +511,7 @@ export default function StorePage({
                   style={{
                     background: s.avatarFallback,
                     color: s.avatarFallbackText,
-                    fontFamily: serifFont,
+                    fontFamily: headingFontFamily,
                   }}
                 >
                   {(profile.displayName || profile.username || 'U')
@@ -511,7 +526,10 @@ export default function StorePage({
               <div className="mt-8 space-y-3">
                 <h1
                   className="text-4xl leading-none tracking-tight md:text-[3.2rem]"
-                  style={{ color: s.headingColor, fontFamily: serifFont }}
+                  style={{
+                    color: s.headingColor,
+                    fontFamily: headingFontFamily,
+                  }}
                 >
                   {profile.displayName || profile.username}
                 </h1>
@@ -519,7 +537,7 @@ export default function StorePage({
                 {profile.headline && (
                   <p
                     className="text-xs uppercase tracking-[0.16em] sm:text-sm sm:tracking-[0.18em]"
-                    style={{ color: s.mutedColor, fontFamily: sansFont }}
+                    style={{ color: s.mutedColor, fontFamily: bodyFontFamily }}
                   >
                     {profile.headline}
                   </p>
@@ -529,7 +547,7 @@ export default function StorePage({
               {profile.bio && (
                 <p
                   className="mt-6 max-w-md text-sm leading-7 md:text-[0.95rem]"
-                  style={{ color: s.textColor, fontFamily: sansFont }}
+                  style={{ color: s.textColor, fontFamily: bodyFontFamily }}
                 >
                   {profile.bio}
                 </p>
@@ -555,13 +573,15 @@ export default function StorePage({
                         const el = e.currentTarget as HTMLElement;
                         el.style.color = s.socialIconHover;
                         el.style.transform = 'translateY(-2px)';
-                        el.style.boxShadow = '0 16px 34px rgba(15, 23, 42, 0.10)';
+                        el.style.boxShadow =
+                          '0 16px 34px rgba(15, 23, 42, 0.10)';
                       }}
                       onMouseLeave={(e) => {
                         const el = e.currentTarget as HTMLElement;
                         el.style.color = s.socialIconColor;
                         el.style.transform = 'translateY(0)';
-                        el.style.boxShadow = '0 10px 28px rgba(15, 23, 42, 0.05)';
+                        el.style.boxShadow =
+                          '0 10px 28px rgba(15, 23, 42, 0.05)';
                       }}
                     >
                       {social.icon}
@@ -585,8 +605,8 @@ export default function StorePage({
                   cols === 1
                     ? 'grid-cols-1'
                     : cols === 2
-                        ? 'grid-cols-2'
-                    : cols === 4
+                      ? 'grid-cols-2'
+                      : cols === 4
                         ? 'grid-cols-2 sm:grid-cols-4'
                         : 'grid-cols-1 sm:grid-cols-3';
 
@@ -661,139 +681,13 @@ export default function StorePage({
                               </div>
                             </div>
                           )}
-                          </ProductLink>
-                        ))}
-                      </div>
-                    );
-                  }
+                        </ProductLink>
+                      ))}
+                    </div>
+                  );
+                }
 
-                  if (tmpl === 'overlay') {
-                    return (
-                      <div className={`grid ${colClass} gap-4 md:gap-5`}>
-                        {products.map((product) => (
-                          <ProductLink
-                            key={product.id}
-                            product={product}
-                            username={profile.username}
-                          >
-                            <div
-                              className="group relative overflow-hidden transition-all duration-200"
-                              style={{ borderRadius: r }}
-                              onMouseEnter={(e) => {
-                                const el = e.currentTarget as HTMLElement;
-                                el.style.boxShadow = s.cardHoverShadow;
-                              }}
-                              onMouseLeave={(e) => {
-                                const el = e.currentTarget as HTMLElement;
-                                el.style.boxShadow = 'none';
-                              }}
-                            >
-                              <div className="h-44">
-                                {product.imageUrl ? (
-                                  <img
-                                    src={product.imageUrl}
-                                    alt={product.title}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div
-                                    className="w-full h-full flex items-center justify-center"
-                                    style={{ background: s.productBadge }}
-                                  >
-                                    <span
-                                      className="text-4xl font-bold"
-                                      style={{ color: s.productBadgeText }}
-                                    >
-                                      {(product.title[0] || '').toUpperCase()}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                              <div
-                                className="absolute inset-x-0 bottom-0 p-3"
-                                style={{
-                                  background:
-                                    'linear-gradient(to top, rgba(0,0,0,0.75), transparent)',
-                                }}
-                              >
-                                <h3 className="font-semibold text-sm text-white truncate">
-                                  {product.title}
-                                </h3>
-                                <div className="flex items-center justify-between mt-1">
-                                  <span className="text-xs text-white/70">
-                                    {product.type}
-                                  </span>
-                                  <span className="text-sm font-bold text-white">
-                                    {formatPrice(product.price)}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          </ProductLink>
-                        ))}
-                      </div>
-                    );
-                  }
-
-                  if (tmpl === 'minimal') {
-                    return (
-                      <div className={`grid ${colClass} gap-4 md:gap-5`}>
-                        {products.map((product) => (
-                          <ProductLink
-                            key={product.id}
-                            product={product}
-                            username={profile.username}
-                          >
-                            <div
-                              className="group border p-4 transition-all duration-200"
-                              style={{
-                                background: s.cardBg,
-                                borderColor: s.cardBorder,
-                                borderRadius: r,
-                              }}
-                              onMouseEnter={(e) => {
-                                const el = e.currentTarget as HTMLElement;
-                                el.style.boxShadow = s.cardHoverShadow;
-                                el.style.borderColor = s.cardHoverBorder;
-                              }}
-                              onMouseLeave={(e) => {
-                                const el = e.currentTarget as HTMLElement;
-                                el.style.boxShadow = 'none';
-                                el.style.borderColor = s.cardBorder;
-                              }}
-                            >
-                              <h3
-                                className="font-semibold text-sm mb-1 truncate"
-                                style={{ color: s.headingColor }}
-                              >
-                                {product.title}
-                              </h3>
-                              {product.description && (
-                                <p
-                                  className="text-xs line-clamp-2 mb-2"
-                                  style={{ color: s.mutedColor }}
-                                >
-                                  {product.description}
-                                </p>
-                              )}
-                              <div
-                                className="pt-2 mt-auto"
-                                style={{ borderTop: `1px solid ${s.cardBorder}` }}
-                              >
-                                <span
-                                  className="text-sm font-bold"
-                                  style={{ color: s.priceColor }}
-                                >
-                                  {formatPrice(product.price)}
-                                </span>
-                              </div>
-                            </div>
-                          </ProductLink>
-                        ))}
-                      </div>
-                    );
-                  }
-
+                if (tmpl === 'overlay') {
                   return (
                     <div className={`grid ${colClass} gap-4 md:gap-5`}>
                       {products.map((product) => (
@@ -803,7 +697,75 @@ export default function StorePage({
                           username={profile.username}
                         >
                           <div
-                            className="group border p-4 transition-all duration-200 h-full flex flex-col"
+                            className="group relative overflow-hidden transition-all duration-200"
+                            style={{ borderRadius: r }}
+                            onMouseEnter={(e) => {
+                              const el = e.currentTarget as HTMLElement;
+                              el.style.boxShadow = s.cardHoverShadow;
+                            }}
+                            onMouseLeave={(e) => {
+                              const el = e.currentTarget as HTMLElement;
+                              el.style.boxShadow = 'none';
+                            }}
+                          >
+                            <div className="h-44">
+                              {product.imageUrl ? (
+                                <img
+                                  src={product.imageUrl}
+                                  alt={product.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div
+                                  className="w-full h-full flex items-center justify-center"
+                                  style={{ background: s.productBadge }}
+                                >
+                                  <span
+                                    className="text-4xl font-bold"
+                                    style={{ color: s.productBadgeText }}
+                                  >
+                                    {(product.title[0] || '').toUpperCase()}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <div
+                              className="absolute inset-x-0 bottom-0 p-3"
+                              style={{
+                                background:
+                                  'linear-gradient(to top, rgba(0,0,0,0.75), transparent)',
+                              }}
+                            >
+                              <h3 className="font-semibold text-sm text-white truncate">
+                                {product.title}
+                              </h3>
+                              <div className="flex items-center justify-between mt-1">
+                                <span className="text-xs text-white/70">
+                                  {product.type}
+                                </span>
+                                <span className="text-sm font-bold text-white">
+                                  {formatPrice(product.price)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </ProductLink>
+                      ))}
+                    </div>
+                  );
+                }
+
+                if (tmpl === 'minimal') {
+                  return (
+                    <div className={`grid ${colClass} gap-4 md:gap-5`}>
+                      {products.map((product) => (
+                        <ProductLink
+                          key={product.id}
+                          product={product}
+                          username={profile.username}
+                        >
+                          <div
+                            className="group border p-4 transition-all duration-200"
                             style={{
                               background: s.cardBg,
                               borderColor: s.cardBorder,
@@ -820,51 +782,22 @@ export default function StorePage({
                               el.style.borderColor = s.cardBorder;
                             }}
                           >
-                            {product.imageUrl ? (
-                              <div
-                                className="mb-4 h-32 w-full overflow-hidden"
-                                style={{ background: s.pageBg, borderRadius: r }}
+                            <h3
+                              className="font-semibold text-sm mb-1 truncate"
+                              style={{ color: s.headingColor }}
+                            >
+                              {product.title}
+                            </h3>
+                            {product.description && (
+                              <p
+                                className="text-xs line-clamp-2 mb-2"
+                                style={{ color: s.mutedColor }}
                               >
-                                <img
-                                  src={product.imageUrl}
-                                  alt={product.title}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                            ) : (
-                              <div
-                                className="mb-4 flex h-32 w-full items-center justify-center"
-                                style={{
-                                  background: s.productBadge,
-                                  borderRadius: r,
-                                }}
-                              >
-                                <span
-                                  className="text-3xl font-bold"
-                                  style={{ color: s.productBadgeText }}
-                                >
-                                  {(product.title[0] || '').toUpperCase()}
-                                </span>
-                              </div>
+                                {product.description}
+                              </p>
                             )}
-                            <div className="flex-1 min-w-0">
-                              <h3
-                                className="font-semibold text-sm mb-1 truncate"
-                                style={{ color: s.headingColor }}
-                              >
-                                {product.title}
-                              </h3>
-                              {product.description && (
-                                <p
-                                  className="mb-3 text-xs line-clamp-2"
-                                  style={{ color: s.mutedColor }}
-                                >
-                                  {product.description}
-                                </p>
-                              )}
-                            </div>
                             <div
-                              className="mt-auto flex items-center justify-between pt-3"
+                              className="pt-2 mt-auto"
                               style={{ borderTop: `1px solid ${s.cardBorder}` }}
                             >
                               <span
@@ -873,35 +806,122 @@ export default function StorePage({
                               >
                                 {formatPrice(product.price)}
                               </span>
-                              <span
-                                className="text-xs font-medium"
-                                style={{ color: s.mutedColor }}
-                              >
-                                {product.type}
-                              </span>
                             </div>
                           </div>
                         </ProductLink>
                       ))}
                     </div>
                   );
-                })()}
+                }
 
-              {products.length === 0 && (
-                <p
-                  className="text-center text-sm py-8"
-                  style={{ color: s.mutedColor }}
-                >
-                  No products yet.
-                </p>
-              )}
+                return (
+                  <div className={`grid ${colClass} gap-4 md:gap-5`}>
+                    {products.map((product) => (
+                      <ProductLink
+                        key={product.id}
+                        product={product}
+                        username={profile.username}
+                      >
+                        <div
+                          className="group border p-4 transition-all duration-200 h-full flex flex-col"
+                          style={{
+                            background: s.cardBg,
+                            borderColor: s.cardBorder,
+                            borderRadius: r,
+                          }}
+                          onMouseEnter={(e) => {
+                            const el = e.currentTarget as HTMLElement;
+                            el.style.boxShadow = s.cardHoverShadow;
+                            el.style.borderColor = s.cardHoverBorder;
+                          }}
+                          onMouseLeave={(e) => {
+                            const el = e.currentTarget as HTMLElement;
+                            el.style.boxShadow = 'none';
+                            el.style.borderColor = s.cardBorder;
+                          }}
+                        >
+                          {product.imageUrl ? (
+                            <div
+                              className="mb-4 h-32 w-full overflow-hidden"
+                              style={{ background: s.pageBg, borderRadius: r }}
+                            >
+                              <img
+                                src={product.imageUrl}
+                                alt={product.title}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div
+                              className="mb-4 flex h-32 w-full items-center justify-center"
+                              style={{
+                                background: s.productBadge,
+                                borderRadius: r,
+                              }}
+                            >
+                              <span
+                                className="text-3xl font-bold"
+                                style={{ color: s.productBadgeText }}
+                              >
+                                {(product.title[0] || '').toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <h3
+                              className="font-semibold text-sm mb-1 truncate"
+                              style={{ color: s.headingColor }}
+                            >
+                              {product.title}
+                            </h3>
+                            {product.description && (
+                              <p
+                                className="mb-3 text-xs line-clamp-2"
+                                style={{ color: s.mutedColor }}
+                              >
+                                {product.description}
+                              </p>
+                            )}
+                          </div>
+                          <div
+                            className="mt-auto flex items-center justify-between pt-3"
+                            style={{ borderTop: `1px solid ${s.cardBorder}` }}
+                          >
+                            <span
+                              className="text-sm font-bold"
+                              style={{ color: s.priceColor }}
+                            >
+                              {formatPrice(product.price)}
+                            </span>
+                            <span
+                              className="text-xs font-medium"
+                              style={{ color: s.mutedColor }}
+                            >
+                              {product.type}
+                            </span>
+                          </div>
+                        </div>
+                      </ProductLink>
+                    ))}
+                  </div>
+                );
+              })()}
 
+            {products.length === 0 && (
               <p
-                className="mt-14 pb-8 pt-4 text-center text-xs md:mt-16 md:pb-10 md:pt-6"
-                style={{ color: s.footerColor, fontFamily: sansFont }}
+                className="text-center text-sm py-8"
+                style={{ color: s.mutedColor }}
               >
-                Powered by ACME
+                No products yet.
               </p>
+            )}
+
+            <p
+              className="mt-14 pb-8 pt-4 text-center text-xs md:mt-16 md:pb-10 md:pt-6"
+              style={{ color: s.footerColor, fontFamily: bodyFontFamily }}
+            >
+              Powered by ACME
+            </p>
           </section>
         </div>
       </div>

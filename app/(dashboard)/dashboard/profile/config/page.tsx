@@ -52,6 +52,7 @@ import {
   themes,
   getTheme,
   getThemeCategories,
+  applyThemeToProfile,
   type ThemeConfig,
 } from '@/lib/themes';
 import useSWR, { mutate } from 'swr';
@@ -1460,8 +1461,18 @@ export default function ProfileConfigPage() {
   );
   const [productColumns, setProductColumns] = useState<number>(3);
   const [cardTemplate, setCardTemplate] = useState<string>('standard');
+  const [themeInitialized, setThemeInitialized] = useState(false);
 
   const { data } = useSWR<ProfileData>('/api/profile', fetcher);
+
+  const handleThemeChange = useCallback((themeId: string) => {
+    setSelectedTheme(themeId);
+    const themeProps = applyThemeToProfile(themeId);
+    setSelectedRadius(themeProps.borderRadius);
+    setSelectedBtnRadius(themeProps.buttonBorderRadius);
+    setProductColumns(themeProps.productColumns);
+    setCardTemplate(themeProps.cardTemplate);
+  }, []);
 
   useEffect(() => {
     if (state.success) {
@@ -1470,20 +1481,15 @@ export default function ProfileConfigPage() {
   }, [state.success]);
 
   useEffect(() => {
-    if (data?.profile) {
-      if (selectedTheme === null) {
-        setSelectedTheme(data.profile.theme || 'default');
-      }
-      if (selectedRadius === null) {
-        setSelectedRadius(data.profile.borderRadius || 'md');
-      }
-      if (selectedBtnRadius === null) {
-        setSelectedBtnRadius(data.profile.buttonBorderRadius || 'md');
-      }
+    if (data?.profile && !themeInitialized) {
+      setSelectedTheme(data.profile.theme || 'default');
+      setSelectedRadius(data.profile.borderRadius || 'md');
+      setSelectedBtnRadius(data.profile.buttonBorderRadius || 'md');
       setProductColumns(data.profile.productColumns || 3);
       setCardTemplate(data.profile.cardTemplate || 'standard');
+      setThemeInitialized(true);
     }
-  }, [data, selectedTheme, selectedRadius, selectedBtnRadius]);
+  }, [data, themeInitialized]);
 
   const profile = data?.profile;
 
@@ -1538,7 +1544,7 @@ export default function ProfileConfigPage() {
                 selectedBtnRadius={selectedBtnRadius}
                 productColumns={productColumns}
                 cardTemplate={cardTemplate}
-                onThemeChange={setSelectedTheme}
+                onThemeChange={handleThemeChange}
                 onRadiusChange={setSelectedRadius}
                 onBtnRadiusChange={setSelectedBtnRadius}
                 onColumnsChange={setProductColumns}
