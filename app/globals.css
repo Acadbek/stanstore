@@ -1228,8 +1228,9 @@
 .slash-command-menu {
   display: flex;
   max-height: 360px;
-  overflow: hidden;
+  overflow: visible;
   z-index: 50;
+  position: relative;
 }
 
 .slash-command-list {
@@ -1298,32 +1299,28 @@
 }
 
 .slash-command-preview {
+  position: relative;
+  min-width: 220px;
   max-width: 260px;
-  align-self: center;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  display: block;
+  overflow: visible;
 }
 
-.slash-command-preview-label {
-  padding: 0.375rem 0.75rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: #9ca3af;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.slash-command-preview-float {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  pointer-events: none;
 }
 
-.slash-command-preview-content {
+.slash-command-preview-inner {
   background: white;
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
   box-shadow:
     0 4px 6px -1px rgba(0, 0, 0, 0.1),
     0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  flex: 1;
   padding: 0.5rem 0.75rem 0.75rem;
-  overflow-y: auto;
   display: flex;
   align-items: center;
   justify-content: center;

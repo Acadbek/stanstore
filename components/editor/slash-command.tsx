@@ -6,11 +6,13 @@ import tippy from 'tippy.js';
 import { Suggestion } from '@tiptap/suggestion';
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
   useState,
 } from 'react';
+import { AnimatePresence, LayoutGroup, motion } from 'motion/react';
 import {
   Type,
   Heading1,
@@ -419,10 +421,25 @@ const CommandList = forwardRef<CommandListRef, CommandListProps>(
   ({ items, command }, ref) => {
     const [selectedIndex, setSelectedIndex] = useState(0);
     const containerRef = useRef<HTMLDivElement>(null);
+    const itemRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+    const [previewY, setPreviewY] = useState(0);
 
     useEffect(() => {
       setSelectedIndex(0);
     }, [items]);
+
+    const updatePreviewPosition = useCallback(() => {
+      const el = itemRefs.current.get(selectedIndex);
+      if (el && containerRef.current) {
+        const containerRect = containerRef.current.getBoundingClientRect();
+        const itemRect = el.getBoundingClientRect();
+        setPreviewY(itemRect.top - containerRect.top);
+      }
+    }, [selectedIndex]);
+
+    useEffect(() => {
+      updatePreviewPosition();
+    }, [updatePreviewPosition, items]);
 
     useEffect(() => {
       if (containerRef.current) {
@@ -479,6 +496,9 @@ const CommandList = forwardRef<CommandListRef, CommandListProps>(
               return (
                 <button
                   key={item.title}
+                  ref={(el) => {
+                    if (el) itemRefs.current.set(index, el);
+                  }}
                   type="button"
                   className={`slash-command-item ${index === selectedIndex ? 'is-selected' : ''}`}
                   onClick={() => command(item)}
@@ -498,14 +518,26 @@ const CommandList = forwardRef<CommandListRef, CommandListProps>(
             })}
           </div>
         </div>
-        <div className="slash-command-preview">
-          <div className="slash-command-preview-label">Preview</div>
-          <div className="slash-command-preview-content">
-            {selectedItem?.preview ?? (
-              <span className="text-gray-400 text-xs">No preview</span>
-            )}
+        <LayoutGroup>
+          <div className="slash-command-preview">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={selectedItem?.title}
+                className="slash-command-preview-float"
+                initial={{ opacity: 0, y: previewY - 10 }}
+                animate={{ opacity: 1, y: previewY }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15, ease: 'easeOut' }}
+              >
+                <div className="slash-command-preview-inner">
+                  {selectedItem?.preview ?? (
+                    <span className="text-gray-400 text-xs">No preview</span>
+                  )}
+                </div>
+              </motion.div>
+            </AnimatePresence>
           </div>
-        </div>
+        </LayoutGroup>
       </div>
     );
   }
