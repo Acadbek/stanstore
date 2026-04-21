@@ -1154,8 +1154,8 @@
   text-align: center;
 }
 .slash-command-preview {
-  flex: 1;
-  min-width: 280px;
+  flex: 0 1 auto;
+  max-width: 260px;
   border-left: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
@@ -1174,6 +1174,9 @@
   flex: 1;
   padding: 0.5rem 0.75rem 0.75rem;
   overflow-y: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Slash Command Preview Items */

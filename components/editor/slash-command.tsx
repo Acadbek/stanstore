@@ -387,67 +387,6 @@ const commandItems: CommandItem[] = [
     ),
   },
   {
-    title: 'Geist Sans',
-    description: 'Apply Geist Sans font',
-    keywords: ['font', 'geist', 'sans'],
-    icon: Type,
-    command: (editor) =>
-      editor.chain().focus().setFontFamily("'Geist Sans'").run(),
-    preview: (
-      <div
-        className="scp-text"
-        style={{ fontFamily: "'Geist Sans', sans-serif" }}
-      >
-        Geist Sans font preview
-      </div>
-    ),
-  },
-  {
-    title: 'Geist Mono',
-    description: 'Apply Geist Mono font',
-    keywords: ['font', 'geist', 'mono', 'code'],
-    icon: Type,
-    command: (editor) =>
-      editor.chain().focus().setFontFamily("'Geist Mono'").run(),
-    preview: (
-      <div
-        className="scp-text"
-        style={{ fontFamily: "'Geist Mono', monospace" }}
-      >
-        Geist Mono font preview
-      </div>
-    ),
-  },
-  {
-    title: 'Hedvig Sans',
-    description: 'Apply Hedvig Sans font',
-    keywords: ['font', 'hedvig', 'sans'],
-    icon: Type,
-    command: (editor) =>
-      editor.chain().focus().setFontFamily("'Hedvig Sans'").run(),
-    preview: (
-      <div
-        className="scp-text"
-        style={{ fontFamily: "'Hedvig Sans', sans-serif" }}
-      >
-        Hedvig Sans font preview
-      </div>
-    ),
-  },
-  {
-    title: 'Hedvig Serif',
-    description: 'Apply Hedvig Serif font',
-    keywords: ['font', 'hedvig', 'serif'],
-    icon: Type,
-    command: (editor) =>
-      editor.chain().focus().setFontFamily("'Hedvig Serif'").run(),
-    preview: (
-      <div className="scp-text" style={{ fontFamily: "'Hedvig Serif', serif" }}>
-        Hedvig Serif font preview
-      </div>
-    ),
-  },
-  {
     title: 'Clear Formatting',
     description: 'Remove all styles',
     icon: RemoveFormatting,
@@ -456,21 +395,6 @@ const commandItems: CommandItem[] = [
     preview: (
       <div className="scp-text">
         <s style={{ textDecorationColor: '#ef4444' }}>formatted</s> → plain
-      </div>
-    ),
-  },
-  {
-    title: 'Reset Font',
-    description: 'Reset to default font',
-    keywords: ['font', 'reset', 'default', 'manrope'],
-    icon: RemoveFormatting,
-    command: (editor) => editor.chain().focus().unsetFontFamily().run(),
-    preview: (
-      <div className="scp-text">
-        <span style={{ fontFamily: 'monospace', fontSize: '0.7em' }}>
-          Custom
-        </span>{' '}
-        → <span>Default (Manrope)</span>
       </div>
     ),
   },
