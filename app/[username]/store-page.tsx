@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { Profile, Product } from '@/lib/db/schema';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
 import { getTheme } from '@/lib/themes';
+import { resolveFrontStyle } from '@/lib/product-front-style';
 import posthog from 'posthog-js';
-import type LocomotiveScroll from 'locomotive-scroll';
 
 const radiusMap: Record<string, string> = {
   none: '0px',
@@ -18,6 +18,13 @@ const radiusMap: Record<string, string> = {
 };
 
 const getRadius = (id?: string | null) => radiusMap[id || 'md'] || '6px';
+
+function stripHtml(value: string | null | undefined) {
+  return (value || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 type StoreData = {
   profile: Profile;
@@ -172,11 +179,11 @@ export default function StorePage({
   const theme = getTheme(profile.theme || 'default');
   const s = theme.styles;
   const r = getRadius(profile.borderRadius);
+  const br = getRadius(profile.buttonBorderRadius);
   const socialLinks = profile.socialLinks as SocialLinks | null;
   const serifFont = 'Hedvig Serif, serif';
   const sansFont = 'Hedvig Sans, Geist Sans, sans-serif';
   const profileRing = s.avatarRing || 'rgba(255, 255, 255, 0.88)';
-  const smoothScrollRef = useRef<LocomotiveScroll | null>(null);
 
   useEffect(() => {
     posthog.capture('store_visit', {
@@ -184,48 +191,6 @@ export default function StorePage({
       displayName: profile.displayName,
     });
   }, [profile.username, profile.displayName]);
-
-  useEffect(() => {
-    if (embedded) return;
-
-    let cancelled = false;
-  
-    async function initSmoothScroll() {
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        return;
-      }
-
-      const { default: LocomotiveScroll } = await import('locomotive-scroll');
-
-      if (cancelled || smoothScrollRef.current) {
-        return;
-      }
-
-      smoothScrollRef.current = new LocomotiveScroll({
-        lenisOptions: {
-          smoothWheel: true,
-          syncTouch: false,
-          lerp: 0.58,
-          wheelMultiplier: 1.6,
-          touchMultiplier: 1.5,
-          autoResize: true,
-        },
-        autoStart: true,
-      });
-
-      requestAnimationFrame(() => {
-        smoothScrollRef.current?.resize();
-      });
-    }
-
-    initSmoothScroll();
-
-    return () => {
-      cancelled = true;
-      smoothScrollRef.current?.destroy();
-      smoothScrollRef.current = null;
-    };
-  }, [embedded]);
 
   const socialItems: {
     url: string | null | undefined;
@@ -258,6 +223,247 @@ export default function StorePage({
   const formatPrice = (price: number | null) => {
     if (!price) return 'Free';
     return `$${(price / 100).toFixed(2)}`;
+  };
+
+  const getButtonLabel = (product: Product) => {
+    if (product.type === 'booking') return 'Book now';
+    if (product.type === 'link') return 'Open link';
+    if (!product.price) return 'Get it free';
+    return 'Get this product';
+  };
+
+  const renderFrontOverride = (product: Product) => {
+    const frontStyle = resolveFrontStyle(
+      product.frontStyle,
+      product.frontStylePrompt
+    );
+
+    if (!frontStyle) {
+      return null;
+    }
+
+    const titleClass =
+      frontStyle.titleFont === 'serif' ? 'font-serif' : 'font-semibold';
+    const imageClass =
+      frontStyle.imageShape === 'circle' ? 'rounded-full' : 'rounded-xl';
+    const priceLabel = formatPrice(product.price);
+    const descriptionText = stripHtml(product.description);
+    const buttonLabel = getButtonLabel(product);
+
+    if (frontStyle.preset === 'pill') {
+      return (
+        <div
+          className="group flex items-center gap-3 border p-3 transition-all duration-200"
+          style={{
+            background: frontStyle.bgColor,
+            borderColor: frontStyle.borderColor,
+            borderRadius: 9999,
+          }}
+          onMouseEnter={(e) => {
+            const el = e.currentTarget as HTMLElement;
+            el.style.boxShadow = s.cardHoverShadow;
+          }}
+          onMouseLeave={(e) => {
+            const el = e.currentTarget as HTMLElement;
+            el.style.boxShadow = 'none';
+          }}
+        >
+          {product.imageUrl ? (
+            <div className={`h-12 w-12 shrink-0 overflow-hidden ${imageClass}`}>
+              <img
+                src={product.imageUrl}
+                alt={product.title}
+                className="h-full w-full object-cover"
+              />
+            </div>
+          ) : (
+            <div
+              className={`flex h-12 w-12 shrink-0 items-center justify-center ${imageClass}`}
+              style={{ background: frontStyle.accentColor, color: '#fff' }}
+            >
+              {(product.title[0] || '').toUpperCase()}
+            </div>
+          )}
+          <h3
+            className={`min-w-0 flex-1 truncate text-base ${titleClass}`}
+            style={{ color: frontStyle.textColor }}
+          >
+            {product.title}
+          </h3>
+          {frontStyle.arrow ? (
+            <span
+              className="shrink-0 text-lg"
+              style={{ color: frontStyle.textColor }}
+            >
+              -&gt;
+            </span>
+          ) : (
+            <span
+              className="shrink-0 text-sm font-semibold"
+              style={{ color: frontStyle.accentColor }}
+            >
+              {priceLabel}
+            </span>
+          )}
+        </div>
+      );
+    }
+
+    if (frontStyle.preset === 'editorial') {
+      return (
+        <div
+          className="group border p-4 transition-all duration-200"
+          style={{
+            background: frontStyle.bgColor,
+            borderColor: frontStyle.borderColor,
+            borderRadius: '14px',
+          }}
+          onMouseEnter={(e) => {
+            const el = e.currentTarget as HTMLElement;
+            el.style.boxShadow = s.cardHoverShadow;
+          }}
+          onMouseLeave={(e) => {
+            const el = e.currentTarget as HTMLElement;
+            el.style.boxShadow = 'none';
+          }}
+        >
+          <div className="flex gap-4">
+            {product.imageUrl ? (
+              <div className={`h-28 w-24 shrink-0 overflow-hidden ${imageClass}`}>
+                <img
+                  src={product.imageUrl}
+                  alt={product.title}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            ) : (
+              <div
+                className={`flex h-28 w-24 shrink-0 items-center justify-center ${imageClass}`}
+                style={{ background: frontStyle.accentColor, color: '#fff' }}
+              >
+                {(product.title[0] || '').toUpperCase()}
+              </div>
+            )}
+
+            <div className="min-w-0 flex-1">
+              <h3
+                className={`text-xl leading-tight ${titleClass}`}
+                style={{ color: frontStyle.textColor }}
+              >
+                {product.title}
+              </h3>
+              <p className="mt-1 line-clamp-3 text-sm" style={{ color: frontStyle.mutedColor }}>
+                {descriptionText || 'Product description'}
+              </p>
+              <p className="mt-2 text-lg" style={{ color: frontStyle.accentColor }}>
+                {priceLabel}
+              </p>
+            </div>
+          </div>
+
+          {frontStyle.buttonVariant !== 'none' && (
+            <button
+              type="button"
+              className="mt-3 h-10 w-full text-sm font-semibold"
+              style={{
+                borderRadius: '10px',
+                border: `1px solid ${frontStyle.accentColor}`,
+                background:
+                  frontStyle.buttonVariant === 'solid'
+                    ? frontStyle.accentColor
+                    : 'transparent',
+                color:
+                  frontStyle.buttonVariant === 'solid'
+                    ? '#fff'
+                    : frontStyle.accentColor,
+              }}
+            >
+              {buttonLabel}
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className="group border p-4 transition-all duration-200"
+        style={{
+          background: frontStyle.bgColor,
+          borderColor: frontStyle.borderColor,
+          borderRadius: r,
+        }}
+        onMouseEnter={(e) => {
+          const el = e.currentTarget as HTMLElement;
+          el.style.boxShadow = s.cardHoverShadow;
+        }}
+        onMouseLeave={(e) => {
+          const el = e.currentTarget as HTMLElement;
+          el.style.boxShadow = 'none';
+        }}
+      >
+        <div className="flex items-start gap-3">
+          {product.imageUrl ? (
+            <div className={`h-14 w-14 shrink-0 overflow-hidden ${imageClass}`}>
+              <img
+                src={product.imageUrl}
+                alt={product.title}
+                className="h-full w-full object-cover"
+              />
+            </div>
+          ) : (
+            <div
+              className={`flex h-14 w-14 shrink-0 items-center justify-center ${imageClass}`}
+              style={{ background: frontStyle.accentColor, color: '#fff' }}
+            >
+              {(product.title[0] || '').toUpperCase()}
+            </div>
+          )}
+
+          <div className="min-w-0 flex-1">
+            <h3
+              className={`truncate text-sm ${titleClass}`}
+              style={{ color: frontStyle.textColor }}
+            >
+              {product.title}
+            </h3>
+            <p className="mt-1 line-clamp-2 text-xs" style={{ color: frontStyle.mutedColor }}>
+              {descriptionText || 'Product description'}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-3 flex items-center justify-between text-xs">
+          <span className="font-semibold uppercase tracking-wide text-gray-400">
+            {product.type}
+          </span>
+          <span className="font-bold" style={{ color: frontStyle.accentColor }}>
+            {priceLabel}
+          </span>
+        </div>
+
+        {frontStyle.buttonVariant !== 'none' && (
+          <button
+            type="button"
+            className="mt-3 h-10 w-full text-sm font-semibold"
+            style={{
+              borderRadius: br,
+              border: `1px solid ${frontStyle.accentColor}`,
+              background:
+                frontStyle.buttonVariant === 'solid'
+                  ? frontStyle.accentColor
+                  : 'transparent',
+              color:
+                frontStyle.buttonVariant === 'solid'
+                  ? '#fff'
+                  : frontStyle.accentColor,
+            }}
+          >
+            {buttonLabel}
+          </button>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -393,6 +599,7 @@ export default function StorePage({
                           product={product}
                           username={profile.username}
                         >
+                          {renderFrontOverride(product) || (
                             <div
                               className="group flex items-center gap-3 border p-3 transition-all duration-200"
                               style={{
@@ -453,6 +660,7 @@ export default function StorePage({
                                 </span>
                               </div>
                             </div>
+                          )}
                           </ProductLink>
                         ))}
                       </div>
