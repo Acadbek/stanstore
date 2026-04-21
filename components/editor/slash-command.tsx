@@ -38,6 +38,7 @@ import {
   Image as ImageIcon,
   RemoveFormatting,
   Youtube,
+  CalendarDays,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -236,6 +237,15 @@ const commandItems: CommandItem[] = [
     icon: Youtube,
     command: () => {
       window.dispatchEvent(new Event('tiptap-open-youtube-modal'));
+    },
+  },
+  {
+    title: 'Google Calendar',
+    description: 'Embed a Google Calendar or booking page',
+    keywords: ['google', 'calendar', 'appointment', 'booking', 'schedule'],
+    icon: CalendarDays,
+    command: () => {
+      window.dispatchEvent(new Event('tiptap-open-google-calendar-modal'));
     },
   },
   {

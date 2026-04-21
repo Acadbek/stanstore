@@ -12,7 +12,16 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Loader2, PlusCircle, Eye, EyeOff, Trash2, Pencil, Sparkles, ArrowRight } from 'lucide-react';
+import {
+  Loader2,
+  PlusCircle,
+  Eye,
+  EyeOff,
+  Trash2,
+  Pencil,
+  Sparkles,
+  ArrowRight,
+} from 'lucide-react';
 import { createProduct, updateProduct, deleteProduct, toggleProductPublish } from './actions';
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { Product } from '@/lib/db/schema';
@@ -1002,6 +1011,13 @@ export default function ProductsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const isFormOpen = showForm || editingProduct !== null;
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('googleCalendarModal') === '1') {
+      setShowForm(true);
+    }
+  }, []);
 
   return (
     <div className="flex flex-1">

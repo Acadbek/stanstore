@@ -18,6 +18,10 @@ import { Callout } from './callout';
 import { Carousel, CarouselItem } from './carousel';
 import { QuoteBlock } from './quote-block';
 import { YoutubeEmbed } from './youtube-embed';
+import {
+  GoogleCalendarEmbed,
+  extractGoogleCalendarEmbedAttrs,
+} from './google-calendar-embed';
 import { TocSidebar } from './toc-sidebar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,6 +62,12 @@ import {
   Undo2,
   Redo2,
   MoreHorizontal,
+  CalendarDays,
+  CheckCircle2,
+  AlertCircle,
+  Copy,
+  Unplug,
+  Loader2,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { generateReactHelpers } from '@uploadthing/react';
@@ -92,6 +102,18 @@ type AiSuggestion = {
   id: string;
   label: string;
   text: string;
+};
+
+type GoogleCalendarStatus = {
+  connected: boolean;
+  email: string | null;
+  expiresAt: string | null;
+  connectedAt: string | null;
+  updatedAt: string | null;
+  redirectUri: string | null;
+  missingEnv: string[];
+  isConfigured: boolean;
+  authUrl: string;
 };
 
 function ToolbarButton({
@@ -238,6 +260,22 @@ export default function RichEditor({
   const [isYoutubeModalOpen, setIsYoutubeModalOpen] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const youtubeUrlInputRef = useRef<HTMLInputElement>(null);
+  const [isGoogleCalendarModalOpen, setIsGoogleCalendarModalOpen] =
+    useState(false);
+  const [googleCalendarValue, setGoogleCalendarValue] = useState('');
+  const googleCalendarInputRef = useRef<HTMLTextAreaElement>(null);
+  const [googleCalendarStatus, setGoogleCalendarStatus] =
+    useState<GoogleCalendarStatus | null>(null);
+  const [isGoogleCalendarStatusLoading, setIsGoogleCalendarStatusLoading] =
+    useState(false);
+  const [googleCalendarCallbackState, setGoogleCalendarCallbackState] =
+    useState<string | null>(null);
+  const [googleCalendarCallbackDetail, setGoogleCalendarCallbackDetail] =
+    useState<string | null>(null);
+  const [isGoogleCalendarDisconnecting, setIsGoogleCalendarDisconnecting] =
+    useState(false);
+  const [didCopyGoogleCalendarRedirectUri, setDidCopyGoogleCalendarRedirectUri] =
+    useState(false);
   const [currentFont, setCurrentFont] = useState('Manrope');
   const savedSelectionRef = useRef<{ from: number; to: number } | null>(null);
   const debugLogRef = useRef<string[]>([]);
@@ -355,6 +393,7 @@ export default function RichEditor({
       CarouselItem,
       Carousel,
       YoutubeEmbed as any,
+      GoogleCalendarEmbed as any,
       TextStyle,
       FontFamily,
     ],
@@ -659,6 +698,19 @@ export default function RichEditor({
       window.removeEventListener('tiptap-open-youtube-modal', onOpen);
   }, []);
 
+  useEffect(() => {
+    const onOpen = () => {
+      setGoogleCalendarValue('');
+      setIsGoogleCalendarModalOpen(true);
+    };
+    window.addEventListener('tiptap-open-google-calendar-modal', onOpen);
+    return () =>
+      window.removeEventListener(
+        'tiptap-open-google-calendar-modal',
+        onOpen
+      );
+  }, []);
+
   const applyQuoteStyle = useCallback(
     (style: QuoteStyle) => {
       if (!editor) return;
@@ -838,6 +890,30 @@ export default function RichEditor({
     setYoutubeUrl('');
   }, []);
 
+  const closeGoogleCalendarModal = useCallback(() => {
+    setIsGoogleCalendarModalOpen(false);
+    setGoogleCalendarValue('');
+  }, []);
+
+  const loadGoogleCalendarStatus = useCallback(async () => {
+    setIsGoogleCalendarStatusLoading(true);
+    try {
+      const response = await fetch('/api/google-calendar/status', {
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        setGoogleCalendarStatus(null);
+        return;
+      }
+
+      const data = (await response.json()) as GoogleCalendarStatus;
+      setGoogleCalendarStatus(data);
+    } finally {
+      setIsGoogleCalendarStatusLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!isYoutubeModalOpen) return;
     const frame = window.requestAnimationFrame(() => {
@@ -853,6 +929,54 @@ export default function RichEditor({
     };
   }, [isYoutubeModalOpen, closeYoutubeModal]);
 
+  useEffect(() => {
+    if (!isGoogleCalendarModalOpen) return;
+    const frame = window.requestAnimationFrame(() => {
+      googleCalendarInputRef.current?.focus();
+    });
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeGoogleCalendarModal();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isGoogleCalendarModalOpen, closeGoogleCalendarModal]);
+
+  useEffect(() => {
+    if (!isGoogleCalendarModalOpen) return;
+    loadGoogleCalendarStatus();
+  }, [isGoogleCalendarModalOpen, loadGoogleCalendarStatus]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('googleCalendar');
+    const detail = params.get('googleCalendarDetail');
+    const shouldOpenModal = params.get('googleCalendarModal') === '1';
+
+    if (!status && !detail && !shouldOpenModal) return;
+
+    if (status) {
+      setGoogleCalendarCallbackState(status);
+    }
+    if (detail) {
+      setGoogleCalendarCallbackDetail(detail);
+    }
+    if (shouldOpenModal || status) {
+      setIsGoogleCalendarModalOpen(true);
+    }
+
+    params.delete('googleCalendar');
+    params.delete('googleCalendarDetail');
+    params.delete('googleCalendarModal');
+    const next =
+      `${window.location.pathname}${
+        params.toString() ? `?${params.toString()}` : ''
+      }${window.location.hash}`;
+    window.history.replaceState({}, '', next);
+  }, []);
+
   if (!editor) return null;
 
   const applyYoutubeEmbed = () => {
@@ -867,6 +991,67 @@ export default function RichEditor({
     }
     closeYoutubeModal();
   };
+
+  const applyGoogleCalendarEmbed = () => {
+    const attrs = extractGoogleCalendarEmbedAttrs(googleCalendarValue);
+    if (!attrs) return;
+
+    editor.chain().focus().setGoogleCalendarEmbed(attrs).run();
+    closeGoogleCalendarModal();
+  };
+
+  const connectGoogleCalendar = () => {
+    window.location.href =
+      '/api/google-calendar/auth?returnTo=' +
+      encodeURIComponent('/dashboard/products?googleCalendarModal=1');
+  };
+
+  const disconnectGoogleCalendar = async () => {
+    setIsGoogleCalendarDisconnecting(true);
+    try {
+      await fetch('/api/google-calendar/disconnect', { method: 'DELETE' });
+      await loadGoogleCalendarStatus();
+    } finally {
+      setIsGoogleCalendarDisconnecting(false);
+    }
+  };
+
+  const copyGoogleCalendarRedirectUri = async () => {
+    if (!googleCalendarStatus?.redirectUri) return;
+    await navigator.clipboard.writeText(googleCalendarStatus.redirectUri);
+    setDidCopyGoogleCalendarRedirectUri(true);
+    window.setTimeout(() => setDidCopyGoogleCalendarRedirectUri(false), 1800);
+  };
+
+  const googleCalendarMessageMap: Record<
+    string,
+    { tone: 'success' | 'error'; text: string }
+  > = {
+    connected: {
+      tone: 'success',
+      text: 'Google Calendar muvaffaqiyatli ulandi.',
+    },
+    missing_config: {
+      tone: 'error',
+      text: 'OAuth env qiymatlari to‘liq emas.',
+    },
+    access_denied: {
+      tone: 'error',
+      text: 'Google ruxsati rad etildi.',
+    },
+    invalid_state: {
+      tone: 'error',
+      text: 'OAuth state tekshiruvi o‘tmadi.',
+    },
+    token_exchange_failed: {
+      tone: 'error',
+      text: 'Google token almashish jarayonida xatolik yuz berdi.',
+    },
+  };
+
+  const googleCalendarMessage = googleCalendarCallbackState
+    ? googleCalendarMessageMap[googleCalendarCallbackState]
+    : null;
 
   const extractVideoIdFromUrl = (url: string): string | null => {
     try {
@@ -1216,6 +1401,15 @@ export default function RichEditor({
               >
                 <Youtube className="h-4 w-4 mr-2" />
                 YouTube Video
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setGoogleCalendarValue('');
+                  setIsGoogleCalendarModalOpen(true);
+                }}
+              >
+                <CalendarDays className="h-4 w-4 mr-2" />
+                Google Calendar
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() =>
@@ -1569,6 +1763,209 @@ export default function RichEditor({
                 onClick={applyYoutubeEmbed}
               >
                 Add Video
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isGoogleCalendarModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/30"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              closeGoogleCalendarModal();
+            }}
+          />
+          <div
+            className="relative w-full max-w-lg rounded-xl border border-gray-200 bg-white p-4 shadow-lg"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Google Calendar"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-gray-900 truncate">
+                  Google Calendar
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Paste Google Calendar iframe code or a
+                  {' '}
+                  <code className="font-mono text-[11px]">calendar.google.com</code>
+                  {' '}
+                  link
+                </p>
+              </div>
+              <button
+                type="button"
+                className="shrink-0 text-gray-400 hover:text-gray-700 px-2 py-1 rounded-md"
+                onClick={closeGoogleCalendarModal}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {googleCalendarMessage && (
+                <div
+                  className={`rounded-lg border px-3 py-2 text-sm ${
+                    googleCalendarMessage.tone === 'success'
+                      ? 'border-green-200 bg-green-50 text-green-700'
+                      : 'border-red-200 bg-red-50 text-red-700'
+                  }`}
+                >
+                  {googleCalendarMessage.text}
+                  {googleCalendarCallbackDetail && (
+                    <div className="mt-1 break-words text-xs opacity-80">
+                      {googleCalendarCallbackDetail}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">
+                      Google account
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Avval Google Calendar account ulanishi kerak.
+                    </p>
+                  </div>
+                  <div className="shrink-0">
+                    {isGoogleCalendarStatusLoading ? (
+                      <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-500">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Checking...
+                      </span>
+                    ) : googleCalendarStatus?.connected ? (
+                      <span className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-medium text-green-700">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Connected
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                        <AlertCircle className="h-3.5 w-3.5" />
+                        Not connected
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="googleCalendarRedirectUri">
+                    Authorized redirect URI
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="googleCalendarRedirectUri"
+                      value={googleCalendarStatus?.redirectUri || ''}
+                      readOnly
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={copyGoogleCalendarRedirectUri}
+                      disabled={!googleCalendarStatus?.redirectUri}
+                    >
+                      <Copy className="mr-2 h-4 w-4" />
+                      {didCopyGoogleCalendarRedirectUri ? 'Copied' : 'Copy'}
+                    </Button>
+                  </div>
+                </div>
+
+                {googleCalendarStatus?.email && (
+                  <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+                    Connected account:{' '}
+                    <span className="font-medium">
+                      {googleCalendarStatus.email}
+                    </span>
+                  </div>
+                )}
+
+                {Boolean(googleCalendarStatus?.missingEnv?.length) && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                    Missing env: {googleCalendarStatus?.missingEnv.join(', ')}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-2">
+                  {googleCalendarStatus?.connected && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={disconnectGoogleCalendar}
+                      disabled={isGoogleCalendarDisconnecting}
+                    >
+                      <Unplug className="mr-2 h-4 w-4" />
+                      {isGoogleCalendarDisconnecting
+                        ? 'Disconnecting...'
+                        : 'Disconnect'}
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                    disabled={!googleCalendarStatus?.isConfigured}
+                    onClick={connectGoogleCalendar}
+                  >
+                    <CalendarDays className="mr-2 h-4 w-4" />
+                    {googleCalendarStatus?.connected
+                      ? 'Reconnect Google'
+                      : 'Connect Google'}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="googleCalendarValue">Embed code or URL</Label>
+                <textarea
+                  id="googleCalendarValue"
+                  ref={googleCalendarInputRef}
+                  value={googleCalendarValue}
+                  onChange={(e) => setGoogleCalendarValue(e.target.value)}
+                  placeholder='<iframe src="https://calendar.google.com/..."></iframe>'
+                  className="min-h-32 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-700 shadow-sm outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
+                  disabled={!googleCalendarStatus?.connected}
+                  onKeyDown={(e) => {
+                    if (
+                      e.key === 'Enter' &&
+                      (e.metaKey || e.ctrlKey)
+                    ) {
+                      e.preventDefault();
+                      applyGoogleCalendarEmbed();
+                    }
+                  }}
+                />
+                <p className="text-xs text-gray-500">
+                  {googleCalendarStatus?.connected
+                    ? 'Google tomonidan berilgan inline embed kodi eng ishonchli variant.'
+                    : 'Avval Google account ulab oling, keyin calendar embed link yoki iframe code kiriting.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={closeGoogleCalendarModal}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="bg-orange-500 hover:bg-orange-600 text-white"
+                onClick={applyGoogleCalendarEmbed}
+                disabled={
+                  !googleCalendarStatus?.connected ||
+                  !extractGoogleCalendarEmbedAttrs(googleCalendarValue)
+                }
+              >
+                Add Calendar
               </Button>
             </div>
           </div>
