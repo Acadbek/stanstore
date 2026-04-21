@@ -14,19 +14,39 @@ type LegacyProductRow = {
   product_url: string | null;
   image_url: string | null;
   type: string;
+  front_style: string | null;
+  front_style_prompt: string | null;
+  card_template: string | null;
   is_published: boolean;
   created_at: Date | string;
   updated_at: Date | string;
 };
 
-function isMissingFrontStyleColumnsError(error: unknown) {
+function isMissingColumnError(error: unknown) {
   const message = error instanceof Error ? error.message.toLowerCase() : '';
   return (
     message.includes('front_style') ||
     message.includes('front style') ||
     message.includes('front_style_prompt') ||
-    message.includes('front style prompt')
+    message.includes('front style prompt') ||
+    message.includes('card_template') ||
+    message.includes('card template')
   );
+}
+
+async function ensureProductColumns() {
+  await db.execute(sql`
+    ALTER TABLE products
+    ADD COLUMN IF NOT EXISTS front_style varchar(20) NOT NULL DEFAULT 'inherit'
+  `);
+  await db.execute(sql`
+    ALTER TABLE products
+    ADD COLUMN IF NOT EXISTS front_style_prompt text
+  `);
+  await db.execute(sql`
+    ALTER TABLE products
+    ADD COLUMN IF NOT EXISTS card_template varchar(20)
+  `);
 }
 
 function normalizeDate(value: Date | string) {
@@ -47,8 +67,9 @@ function mapLegacyProduct(row: LegacyProductRow) {
     productUrl: row.product_url,
     imageUrl: row.image_url,
     type: row.type,
-    frontStyle: 'inherit',
-    frontStylePrompt: null,
+    frontStyle: row.front_style || 'inherit',
+    frontStylePrompt: row.front_style_prompt || null,
+    cardTemplate: row.card_template || null,
     isPublished: row.is_published,
     createdAt: normalizeDate(row.created_at),
     updatedAt: normalizeDate(row.updated_at),
@@ -212,10 +233,11 @@ export async function getPublicStoreData(username: string) {
       .where(and(eq(products.userId, profile.userId), eq(products.isPublished, true)))
       .orderBy(desc(products.createdAt));
   } catch (error) {
-    if (!isMissingFrontStyleColumnsError(error)) {
+    if (!isMissingColumnError(error)) {
       throw error;
     }
 
+    await ensureProductColumns();
     const rows = await db.execute<LegacyProductRow>(sql`
       SELECT
         id,
@@ -227,6 +249,9 @@ export async function getPublicStoreData(username: string) {
         product_url,
         image_url,
         type,
+        front_style,
+        front_style_prompt,
+        card_template,
         is_published,
         created_at,
         updated_at
@@ -248,10 +273,11 @@ export async function getProductsByUserId(userId: number) {
       .where(eq(products.userId, userId))
       .orderBy(desc(products.createdAt));
   } catch (error) {
-    if (!isMissingFrontStyleColumnsError(error)) {
+    if (!isMissingColumnError(error)) {
       throw error;
     }
 
+    await ensureProductColumns();
     const rows = await db.execute<LegacyProductRow>(sql`
       SELECT
         id,
@@ -263,6 +289,9 @@ export async function getProductsByUserId(userId: number) {
         product_url,
         image_url,
         type,
+        front_style,
+        front_style_prompt,
+        card_template,
         is_published,
         created_at,
         updated_at
@@ -285,10 +314,11 @@ export async function getProductById(productId: number) {
 
     return result.length > 0 ? result[0] : null;
   } catch (error) {
-    if (!isMissingFrontStyleColumnsError(error)) {
+    if (!isMissingColumnError(error)) {
       throw error;
     }
 
+    await ensureProductColumns();
     const rows = await db.execute<LegacyProductRow>(sql`
       SELECT
         id,
@@ -300,6 +330,9 @@ export async function getProductById(productId: number) {
         product_url,
         image_url,
         type,
+        front_style,
+        front_style_prompt,
+        card_template,
         is_published,
         created_at,
         updated_at
@@ -322,7 +355,7 @@ export async function getProductBySlug(slug: string) {
 
     return result.length > 0 ? result[0] : null;
   } catch (error) {
-    if (!isMissingFrontStyleColumnsError(error)) {
+    if (!isMissingColumnError(error)) {
       throw error;
     }
 
