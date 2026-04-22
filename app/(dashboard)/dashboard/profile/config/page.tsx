@@ -33,7 +33,6 @@ import {
   Eye,
   Plus,
   GalleryHorizontal,
-  Sparkles,
   ArrowRight,
 } from 'lucide-react';
 import Cropper from 'react-easy-crop';
@@ -103,9 +102,9 @@ const btnRadiusOptions = [
 ] as const;
 
 const FRONT_STYLE_PRESETS: { id: FrontStyleId; label: string }[] = [
-  { id: 'pill', label: 'Simple Row' },
-  { id: 'cta', label: 'CTA Card' },
-  { id: 'editorial', label: 'Editorial' },
+  { id: 'pill', label: 'Min' },
+  { id: 'cta', label: 'Norm' },
+  { id: 'editorial', label: 'Info' },
 ];
 
 const getRadiusCss = (id: string) =>
@@ -747,8 +746,8 @@ function ProductCardsGrid({
   br: string;
   columns: number;
   cardTemplate: string;
-  perProductFrontStyles: Record<number, 'pill' | 'cta'>;
-  onPerProductFrontStyleChange: (productId: number, style: 'pill' | 'cta') => void;
+  perProductFrontStyles: Record<number, 'pill' | 'cta' | 'editorial'>;
+  onPerProductFrontStyleChange: (productId: number, style: 'pill' | 'cta' | 'editorial') => void;
   isCustomFrontStyleEnabled: boolean;
 }) {
   const items = products.slice(0, 8).map((product) => ({
@@ -778,7 +777,7 @@ function ProductCardsGrid({
   const renderFrontOverride = (item: (typeof items)[number]) => {
     const selectedStyle =
       perProductFrontStyles[item.id] ||
-      (item.frontStyle === 'pill' ? 'pill' : 'cta');
+      (item.frontStyle === 'pill' || item.frontStyle === 'editorial' ? item.frontStyle : 'cta');
     const resolved = resolveFrontStyle(
       selectedStyle,
       ''
@@ -793,8 +792,8 @@ function ProductCardsGrid({
         <div
           className="flex items-center gap-3 border p-3"
           style={{
-            background: resolved.bgColor,
-            borderColor: resolved.borderColor,
+            background: s.cardBg,
+            borderColor: s.cardBorder,
             borderRadius: 9999,
           }}
         >
@@ -805,18 +804,18 @@ function ProductCardsGrid({
           ) : (
             <div
               className={`flex h-11 w-11 shrink-0 items-center justify-center ${imageClass}`}
-              style={{ background: resolved.accentColor, color: '#fff' }}
+              style={{ background: s.buttonBg, color: s.buttonText }}
             >
               {(item.title[0] || 'P').toUpperCase()}
             </div>
           )}
-          <p className={`min-w-0 flex-1 truncate text-sm ${titleClass}`} style={{ color: resolved.textColor }}>
+          <p className={`min-w-0 flex-1 truncate text-sm ${titleClass}`} style={{ color: s.headingColor }}>
             {item.title}
           </p>
           {resolved.arrow ? (
-            <ArrowRight className="h-4 w-4" style={{ color: resolved.textColor }} />
+            <ArrowRight className="h-4 w-4" style={{ color: s.headingColor }} />
           ) : (
-            <span className="text-xs font-semibold" style={{ color: resolved.accentColor }}>
+            <span className="text-xs font-semibold" style={{ color: s.buttonBg }}>
               {item.price}
             </span>
           )}
@@ -829,8 +828,8 @@ function ProductCardsGrid({
         <div
           className="border p-3"
           style={{
-            background: resolved.bgColor,
-            borderColor: resolved.borderColor,
+            background: s.cardBg,
+            borderColor: s.cardBorder,
             borderRadius: '14px',
           }}
         >
@@ -842,19 +841,19 @@ function ProductCardsGrid({
             ) : (
               <div
                 className={`flex h-20 w-16 shrink-0 items-center justify-center ${imageClass}`}
-                style={{ background: resolved.accentColor, color: '#fff' }}
+                style={{ background: s.buttonBg, color: s.buttonText }}
               >
                 {(item.title[0] || 'P').toUpperCase()}
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <p className={`line-clamp-2 text-sm ${titleClass}`} style={{ color: resolved.textColor }}>
+              <p className={`line-clamp-2 text-sm ${titleClass}`} style={{ color: s.headingColor }}>
                 {item.title}
               </p>
-              <p className="mt-1 line-clamp-2 text-xs" style={{ color: resolved.mutedColor }}>
+              <p className="mt-1 line-clamp-2 text-xs" style={{ color: s.mutedColor }}>
                 {item.description}
               </p>
-              <p className="mt-1 text-sm" style={{ color: resolved.accentColor }}>
+              <p className="mt-1 text-sm" style={{ color: s.buttonBg }}>
                 {item.price}
               </p>
             </div>
@@ -865,10 +864,10 @@ function ProductCardsGrid({
               className="mt-2 w-full border px-3 py-1.5 text-xs font-semibold"
               style={{
                 borderRadius: br,
-                borderColor: resolved.accentColor,
-                color: resolved.buttonVariant === 'solid' ? '#fff' : resolved.accentColor,
+                borderColor: s.buttonBg,
+                color: resolved.buttonVariant === 'solid' ? s.buttonText : s.buttonBg,
                 background:
-                  resolved.buttonVariant === 'solid' ? resolved.accentColor : 'transparent',
+                  resolved.buttonVariant === 'solid' ? s.buttonBg : 'transparent',
               }}
             >
               Get this product
@@ -882,8 +881,8 @@ function ProductCardsGrid({
       <div
         className="border p-3"
         style={{
-          background: resolved.bgColor,
-          borderColor: resolved.borderColor,
+          background: s.cardBg,
+          borderColor: s.cardBorder,
           borderRadius: cr,
         }}
       >
@@ -895,23 +894,23 @@ function ProductCardsGrid({
           ) : (
             <div
               className={`flex h-12 w-12 shrink-0 items-center justify-center ${imageClass}`}
-              style={{ background: resolved.accentColor, color: '#fff' }}
+              style={{ background: s.buttonBg, color: s.buttonText }}
             >
               {(item.title[0] || 'P').toUpperCase()}
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <p className={`truncate text-sm ${titleClass}`} style={{ color: resolved.textColor }}>
+            <p className={`truncate text-sm ${titleClass}`} style={{ color: s.headingColor }}>
               {item.title}
             </p>
-            <p className="mt-1 line-clamp-2 text-xs" style={{ color: resolved.mutedColor }}>
+            <p className="mt-1 line-clamp-2 text-xs" style={{ color: s.mutedColor }}>
               {item.description}
             </p>
           </div>
         </div>
         <div className="mt-2 flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-wide text-gray-400">{item.type}</span>
-          <span className="text-xs font-bold" style={{ color: resolved.accentColor }}>
+          <span className="text-[10px] uppercase tracking-wide" style={{ color: s.mutedColor }}>{item.type}</span>
+          <span className="text-xs font-bold" style={{ color: s.buttonBg }}>
             {item.price}
           </span>
         </div>
@@ -921,10 +920,10 @@ function ProductCardsGrid({
             className="mt-2 w-full border px-3 py-1.5 text-xs font-semibold"
             style={{
               borderRadius: br,
-              borderColor: resolved.accentColor,
-              color: resolved.buttonVariant === 'solid' ? '#fff' : resolved.accentColor,
+              borderColor: s.buttonBg,
+              color: resolved.buttonVariant === 'solid' ? s.buttonText : s.buttonBg,
               background:
-                resolved.buttonVariant === 'solid' ? resolved.accentColor : 'transparent',
+                resolved.buttonVariant === 'solid' ? s.buttonBg : 'transparent',
             }}
           >
             Get this product
@@ -939,31 +938,35 @@ function ProductCardsGrid({
       {items.map((item) => {
         const selectedStyle =
           perProductFrontStyles[item.id] ||
-          (item.frontStyle === 'pill' ? 'pill' : 'cta');
+          (item.frontStyle === 'pill' || item.frontStyle === 'editorial' ? item.frontStyle : 'cta');
 
         const styleSwitch = isCustomFrontStyleEnabled ? (
-          <div className="mb-2 flex items-center gap-1 rounded-md border border-gray-200 bg-white p-1">
+          <>
             <button
               type="button"
               onClick={() => onPerProductFrontStyleChange(item.id, 'pill')}
-              className={`rounded px-2 py-1 text-[10px] font-semibold transition-colors ${selectedStyle === 'pill'
-                  ? 'bg-orange-100 text-orange-700'
-                  : 'text-gray-600 hover:bg-gray-100'
-                }`}
+              className="mb-1 rounded px-2 py-1 text-[10px] font-semibold transition-colors"
+              style={selectedStyle === 'pill' ? { background: s.buttonBg, color: s.buttonText } : { color: s.mutedColor }}
             >
-              Simple Row
+              Min
             </button>
             <button
               type="button"
               onClick={() => onPerProductFrontStyleChange(item.id, 'cta')}
-              className={`rounded px-2 py-1 text-[10px] font-semibold transition-colors ${selectedStyle === 'cta'
-                  ? 'bg-orange-100 text-orange-700'
-                  : 'text-gray-600 hover:bg-gray-100'
-                }`}
+              className="mb-1 rounded px-2 py-1 text-[10px] font-semibold transition-colors"
+              style={selectedStyle === 'cta' ? { background: s.buttonBg, color: s.buttonText } : { color: s.mutedColor }}
             >
-              CTA Card
+              Norm
             </button>
-          </div>
+            <button
+              type="button"
+              onClick={() => onPerProductFrontStyleChange(item.id, 'editorial')}
+              className="mb-1 rounded px-2 py-1 text-[10px] font-semibold transition-colors"
+              style={selectedStyle === 'editorial' ? { background: s.buttonBg, color: s.buttonText } : { color: s.mutedColor }}
+            >
+              Info
+            </button>
+          </>
         ) : null;
 
         const frontCard = isCustomFrontStyleEnabled ? renderFrontOverride(item) : null;
@@ -1021,8 +1024,8 @@ function StorePreview({
   products: Product[];
   productColumns: number;
   cardTemplate: string;
-  perProductFrontStyles: Record<number, 'pill' | 'cta'>;
-  onPerProductFrontStyleChange: (productId: number, style: 'pill' | 'cta') => void;
+  perProductFrontStyles: Record<number, 'pill' | 'cta' | 'editorial'>;
+  onPerProductFrontStyleChange: (productId: number, style: 'pill' | 'cta' | 'editorial') => void;
   isCustomFrontStyleEnabled: boolean;
 }) {
   const s = theme.styles;
@@ -1367,7 +1370,7 @@ function ProfileFormWithData({
   bulkFrontStyle: ProductFrontStyleOption;
   isCustomFrontStyleEnabled: boolean;
   bulkFrontStylePrompt: string;
-  perProductFrontStyles: Record<number, 'pill' | 'cta'>;
+  perProductFrontStyles: Record<number, 'pill' | 'cta' | 'editorial'>;
   profileData?: ProfileData;
   state: ActionState;
   formAction: (formData: FormData) => void;
@@ -1560,17 +1563,8 @@ function ThemeConfigSection({
   onBtnRadiusChange,
   onColumnsChange,
   onCardTemplateChange,
-  bulkFrontStyle,
-  bulkFrontStylePromptInput,
   isCustomFrontStyleEnabled,
-  isMoreOpen,
-  isApplyingFrontPrompt,
-  onFrontStyleChange,
-  onFrontStylePromptInputChange,
   onCustomFrontStyleToggle,
-  onToggleFrontMore,
-  onApplyFrontPrompt,
-  profile,
 }: {
   selectedTheme: string;
   selectedRadius: string;
@@ -1582,17 +1576,8 @@ function ThemeConfigSection({
   onBtnRadiusChange: (id: string) => void;
   onColumnsChange: (n: number) => void;
   onCardTemplateChange: (id: string) => void;
-  bulkFrontStyle: ProductFrontStyleOption;
-  bulkFrontStylePromptInput: string;
   isCustomFrontStyleEnabled: boolean;
-  isMoreOpen: boolean;
-  isApplyingFrontPrompt: boolean;
-  onFrontStyleChange: (style: ProductFrontStyleOption) => void;
-  onFrontStylePromptInputChange: (value: string) => void;
   onCustomFrontStyleToggle: (enabled: boolean) => void;
-  onToggleFrontMore: () => void;
-  onApplyFrontPrompt: () => void;
-  profile: Profile | null | undefined;
 }) {
   const theme = getTheme(selectedTheme);
   const cards = getUniqueThemeCards();
@@ -1759,37 +1744,8 @@ function ThemeConfigSection({
           )}
 
           {isCustomFrontStyleEnabled && (
-            <div className="mt-3 rounded-xl border border-orange-100 bg-orange-50/50 p-3 space-y-2">
-              <Label htmlFor="bulkFrontStylePrompt" className="text-xs text-gray-700">
-                Describe your card style
-              </Label>
-              <textarea
-                id="bulkFrontStylePrompt"
-                value={bulkFrontStylePromptInput}
-                onChange={(event) => onFrontStylePromptInputChange(event.target.value)}
-                rows={3}
-                className="w-full rounded-md border border-gray-200 bg-white p-2 text-sm outline-none focus:border-orange-400"
-                placeholder="Example: image on left, title next to it, arrow on right"
-              />
-              <Button
-                type="button"
-                size="sm"
-                className="bg-orange-500 hover:bg-orange-600 text-white"
-                onClick={onApplyFrontPrompt}
-                disabled={isApplyingFrontPrompt}
-              >
-                {isApplyingFrontPrompt ? (
-                  <>
-                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-                    Interpreting...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="mr-1 h-3.5 w-3.5" />
-                    Apply Description
-                  </>
-                )}
-              </Button>
+            <div className="mt-3 rounded-xl border border-orange-100 bg-orange-50/50 p-3 text-xs text-gray-600">
+              Per-product front styles are active. Use the switches above each card in the preview to toggle between Simple Row and CTA Card layouts.
             </div>
           )}
         </div>
@@ -1844,11 +1800,9 @@ export default function ProfileConfigPage() {
   const [bulkFrontStylePrompt, setBulkFrontStylePrompt] = useState('');
   const [bulkFrontStylePromptInput, setBulkFrontStylePromptInput] = useState('');
   const [isCustomFrontStyleEnabled, setIsCustomFrontStyleEnabled] = useState(false);
-  const [isFrontMoreOpen, setIsFrontMoreOpen] = useState(false);
-  const [isApplyingFrontPrompt, setIsApplyingFrontPrompt] = useState(false);
   const hasHydratedBulkFrontStyle = useRef(false);
   const [perProductFrontStyles, setPerProductFrontStyles] = useState<
-    Record<number, 'pill' | 'cta'>
+    Record<number, 'pill' | 'cta' | 'editorial'>
   >({});
   const hasHydratedPerProductFrontStyles = useRef(false);
 
@@ -1891,14 +1845,14 @@ export default function ProfileConfigPage() {
         setBulkFrontStylePrompt(initialPrompt);
         setBulkFrontStylePromptInput(getDisplayFrontStylePrompt(initialPrompt));
         setIsCustomFrontStyleEnabled(initialStyle === 'custom');
-        setIsFrontMoreOpen(initialStyle === 'custom');
         hasHydratedBulkFrontStyle.current = true;
       }
 
       if (!hasHydratedPerProductFrontStyles.current) {
-        const nextStyles: Record<number, 'pill' | 'cta'> = {};
+        const nextStyles: Record<number, 'pill' | 'cta' | 'editorial'> = {};
         for (const product of productsData) {
-          nextStyles[product.id] = product.frontStyle === 'pill' ? 'pill' : 'cta';
+          const fs = product.frontStyle;
+          nextStyles[product.id] = fs === 'pill' || fs === 'editorial' ? fs : 'cta';
         }
         setPerProductFrontStyles(nextStyles);
         hasHydratedPerProductFrontStyles.current = true;
@@ -1906,54 +1860,10 @@ export default function ProfileConfigPage() {
     }
   }, [data, productsData, selectedTheme, selectedRadius, selectedBtnRadius]);
 
-  const applyBulkFrontPrompt = useCallback(async () => {
-    const prompt = bulkFrontStylePromptInput.trim();
-    if (!prompt) return;
-
-    setIsApplyingFrontPrompt(true);
-    try {
-      const response = await fetch('/api/style/interpret', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
-      });
-
-      if (!response.ok) throw new Error('failed');
-
-      const result = (await response.json()) as {
-        frontStyle?: string;
-        normalizedPrompt?: string;
-        displayPrompt?: string;
-      };
-
-      const nextStyle = result.frontStyle;
-      const nextPrompt = result.normalizedPrompt || prompt;
-      const displayPrompt = result.displayPrompt || prompt;
-
-      if (nextStyle && isFrontStyleId(nextStyle)) {
-        setBulkFrontStyle(nextStyle);
-      } else {
-        setBulkFrontStyle('custom');
-      }
-      setIsCustomFrontStyleEnabled(true);
-      setBulkFrontStylePrompt(nextPrompt);
-      setBulkFrontStylePromptInput(displayPrompt);
-      setIsFrontMoreOpen(true);
-    } catch {
-      setBulkFrontStyle('custom');
-      setIsCustomFrontStyleEnabled(true);
-      setBulkFrontStylePrompt(prompt);
-      setBulkFrontStylePromptInput(prompt);
-      setIsFrontMoreOpen(true);
-    } finally {
-      setIsApplyingFrontPrompt(false);
-    }
-  }, [bulkFrontStylePromptInput]);
-
   const profile = data?.profile;
   const products = productsData || [];
   const handlePerProductFrontStyleChange = useCallback(
-    (productId: number, style: 'pill' | 'cta') => {
+    (productId: number, style: 'pill' | 'cta' | 'editorial') => {
       setPerProductFrontStyles((prev) => ({ ...prev, [productId]: style }));
     },
     []
@@ -2010,38 +1920,20 @@ export default function ProfileConfigPage() {
                 selectedBtnRadius={selectedBtnRadius}
                 productColumns={productColumns}
                 cardTemplate={cardTemplate}
-                bulkFrontStyle={bulkFrontStyle}
-                bulkFrontStylePromptInput={bulkFrontStylePromptInput}
                 isCustomFrontStyleEnabled={isCustomFrontStyleEnabled}
-                isMoreOpen={isFrontMoreOpen}
-                isApplyingFrontPrompt={isApplyingFrontPrompt}
                 onThemeChange={setSelectedTheme}
                 onRadiusChange={setSelectedRadius}
                 onBtnRadiusChange={setSelectedBtnRadius}
                 onColumnsChange={setProductColumns}
                 onCardTemplateChange={setCardTemplate}
-                onFrontStyleChange={(style) => {
-                  setBulkFrontStyle(style);
-                  if (style !== 'custom') {
-                    setIsFrontMoreOpen(false);
-                    return;
-                  }
-                  setIsFrontMoreOpen(true);
-                }}
                 onCustomFrontStyleToggle={(enabled) => {
                   setIsCustomFrontStyleEnabled(enabled);
                   if (!enabled) {
                     setBulkFrontStyle('cta');
-                    setIsFrontMoreOpen(false);
                     return;
                   }
                   setBulkFrontStyle('custom');
-                  setIsFrontMoreOpen(true);
                 }}
-                onFrontStylePromptInputChange={setBulkFrontStylePromptInput}
-                onToggleFrontMore={() => setIsFrontMoreOpen((prev) => !prev)}
-                onApplyFrontPrompt={applyBulkFrontPrompt}
-                profile={profile}
               />
               <div className="lg:sticky lg:top-24 self-start">
                 <StorePreview

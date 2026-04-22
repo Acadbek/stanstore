@@ -376,8 +376,11 @@ const commandItems: CommandItem[] = [
     description: 'Embed a YouTube video',
     keywords: ['youtube', 'video', 'embed'],
     icon: Youtube,
-    command: () => {
-      window.dispatchEvent(new Event('tiptap-open-youtube-modal'));
+    command: (editor) => {
+      // Use setTimeout to ensure slash menu cleanup completes before modal opens
+      setTimeout(() => {
+        window.dispatchEvent(new Event('tiptap-open-youtube-modal'));
+      }, 0);
     },
     preview: (
       <div className="scp-youtube-preview">
