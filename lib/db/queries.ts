@@ -151,7 +151,13 @@ function mapLegacyProfile(row: LegacyProfileRow) {
     cardTemplate: row.card_template || 'standard',
     socialLinks:
       row.social_links && typeof row.social_links === 'object'
-        ? row.social_links
+        ? (row.social_links as {
+            instagram: string | null;
+            twitter: string | null;
+            youtube: string | null;
+            tiktok: string | null;
+            website: string | null;
+          })
         : null,
     createdAt: normalizeDate(row.created_at),
     updatedAt: normalizeDate(row.updated_at),
