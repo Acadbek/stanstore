@@ -40,7 +40,7 @@ export default function DashboardLayout({
   const [isCollapsed, setIsCollapsed] = useState(true);
 
   return (
-    <div className="flex w-full min-h-[calc(100dvh-68px)] lg:h-[calc(100dvh-68px)] lg:overflow-hidden">
+    <div className="flex w-full min-h-dvh lg:h-dvh lg:overflow-hidden">
       <aside
         className={`bg-white lg:bg-gray-50 border-r border-gray-200 lg:block lg:h-full shrink-0 ${
           isSidebarOpen ? 'block' : 'hidden'
@@ -112,7 +112,7 @@ export default function DashboardLayout({
         </button>
       )}
 
-      <main className="flex-1 min-w-0 lg:h-full lg:min-h-0 lg:overflow-y-auto">
+      <main className="flex-1 min-w-0 p-4 lg:p-0 lg:h-full lg:min-h-0 lg:overflow-y-auto">
         {children}
       </main>
     </div>

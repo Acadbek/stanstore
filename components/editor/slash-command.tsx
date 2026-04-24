@@ -6,11 +6,13 @@ import tippy from 'tippy.js';
 import { Suggestion } from '@tiptap/suggestion';
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
   useState,
 } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   Type,
   Heading1,
@@ -51,6 +53,7 @@ interface CommandItem {
   keywords?: string[];
   icon: LucideIcon;
   command: (editor: Editor) => void;
+  preview?: React.ReactNode;
 }
 
 const commandItems: CommandItem[] = [
@@ -59,6 +62,11 @@ const commandItems: CommandItem[] = [
     description: 'Plain text block',
     icon: Type,
     command: (editor) => editor.chain().focus().setParagraph().run(),
+    preview: (
+      <div className="scp-text">
+        Plain text block for writing paragraphs and general content.
+      </div>
+    ),
   },
   {
     title: 'Heading 1',
@@ -66,6 +74,7 @@ const commandItems: CommandItem[] = [
     icon: Heading1,
     command: (editor) =>
       editor.chain().focus().toggleHeading({ level: 1 }).run(),
+    preview: <div className="scp-h1">Heading 1</div>,
   },
   {
     title: 'Heading 2',
@@ -73,6 +82,7 @@ const commandItems: CommandItem[] = [
     icon: Heading2,
     command: (editor) =>
       editor.chain().focus().toggleHeading({ level: 2 }).run(),
+    preview: <div className="scp-h2">Heading 2</div>,
   },
   {
     title: 'Heading 3',
@@ -80,18 +90,33 @@ const commandItems: CommandItem[] = [
     icon: Heading3,
     command: (editor) =>
       editor.chain().focus().toggleHeading({ level: 3 }).run(),
+    preview: <div className="scp-h3">Heading 3</div>,
   },
   {
     title: 'Bullet List',
     description: 'Unordered list',
     icon: List,
     command: (editor) => editor.chain().focus().toggleBulletList().run(),
+    preview: (
+      <ul className="scp-list">
+        <li>List item one</li>
+        <li>List item two</li>
+        <li>List item three</li>
+      </ul>
+    ),
   },
   {
     title: 'Ordered List',
     description: 'Numbered list',
     icon: ListOrdered,
     command: (editor) => editor.chain().focus().toggleOrderedList().run(),
+    preview: (
+      <ol className="scp-list scp-ordered">
+        <li>First item</li>
+        <li>Second item</li>
+        <li>Third item</li>
+      </ol>
+    ),
   },
   {
     title: 'Checkbox',
@@ -99,6 +124,19 @@ const commandItems: CommandItem[] = [
     keywords: ['checklist', 'task', 'todo'],
     icon: CheckSquare,
     command: (editor) => editor.chain().focus().toggleTaskList().run(),
+    preview: (
+      <div className="scp-checkbox-list">
+        <label className="scp-checkbox">
+          <span className="scp-checkbox-box" /> Buy groceries
+        </label>
+        <label className="scp-checkbox">
+          <span className="scp-checkbox-box scp-checked" /> Finish report
+        </label>
+        <label className="scp-checkbox">
+          <span className="scp-checkbox-box" /> Call dentist
+        </label>
+      </div>
+    ),
   },
   {
     title: 'Quote',
@@ -106,6 +144,11 @@ const commandItems: CommandItem[] = [
     keywords: ['qoute', 'blockquote', 'citation'],
     icon: Quote,
     command: (editor) => editor.chain().focus().toggleBlockquote().run(),
+    preview: (
+      <blockquote className="scp-quote scp-quote-line">
+        The only way to do great work is to love what you do.
+      </blockquote>
+    ),
   },
   {
     title: 'Quote ("")',
@@ -123,96 +166,184 @@ const commandItems: CommandItem[] = [
       }
       editor.chain().focus().toggleBlockquote({ quoteStyle: 'double' }).run();
     },
+    preview: (
+      <blockquote className="scp-quote scp-quote-double">
+        The only way to do great work is to love what you do.
+      </blockquote>
+    ),
   },
   {
     title: 'Code Block',
     description: 'Code snippet',
     icon: Code,
     command: (editor) => editor.chain().focus().toggleCodeBlock().run(),
+    preview: (
+      <pre className="scp-code-block">
+        <code>
+          const greeting = &apos;Hello&apos;;{'\n'}console.log(greeting);
+        </code>
+      </pre>
+    ),
   },
   {
     title: 'Divider',
     description: 'Horizontal line',
     icon: Minus,
     command: (editor) => editor.chain().focus().setHorizontalRule().run(),
+    preview: (
+      <div className="scp-divider-preview">
+        <div className="scp-divider-line" />
+      </div>
+    ),
   },
   {
     title: 'Callout: Info',
     description: 'Info callout block',
     icon: Info,
     command: (editor) => editor.chain().focus().setCallout('info').run(),
+    preview: (
+      <div className="scp-callout scp-callout-info">
+        <Info className="scp-callout-icon" />
+        <span>Helpful information for the reader.</span>
+      </div>
+    ),
   },
   {
     title: 'Callout: Hint',
     description: 'Hint callout block',
     icon: Lightbulb,
     command: (editor) => editor.chain().focus().setCallout('hint').run(),
+    preview: (
+      <div className="scp-callout scp-callout-hint">
+        <Lightbulb className="scp-callout-icon" />
+        <span>A useful tip to keep in mind.</span>
+      </div>
+    ),
   },
   {
     title: 'Callout: Warning',
     description: 'Warning callout block',
     icon: AlertTriangle,
     command: (editor) => editor.chain().focus().setCallout('warning').run(),
+    preview: (
+      <div className="scp-callout scp-callout-warning">
+        <AlertTriangle className="scp-callout-icon" />
+        <span>Be careful when editing this section.</span>
+      </div>
+    ),
   },
   {
     title: 'Callout: Error',
     description: 'Error callout block',
     icon: XCircle,
     command: (editor) => editor.chain().focus().setCallout('error').run(),
+    preview: (
+      <div className="scp-callout scp-callout-error">
+        <XCircle className="scp-callout-icon" />
+        <span>Something went wrong. Try again.</span>
+      </div>
+    ),
   },
   {
     title: 'Callout: Success',
     description: 'Success callout block',
     icon: CheckCircle2,
     command: (editor) => editor.chain().focus().setCallout('success').run(),
+    preview: (
+      <div className="scp-callout scp-callout-success">
+        <CheckCircle2 className="scp-callout-icon" />
+        <span>Operation completed successfully!</span>
+      </div>
+    ),
   },
   {
     title: 'Bold',
     description: 'Thicken text',
     icon: Bold,
     command: (editor) => editor.chain().focus().toggleBold().run(),
+    preview: (
+      <div className="scp-text">
+        <strong>Bold text</strong> makes words stand out.
+      </div>
+    ),
   },
   {
     title: 'Italic',
     description: 'Emphasize text',
     icon: Italic,
     command: (editor) => editor.chain().focus().toggleItalic().run(),
+    preview: (
+      <div className="scp-text">
+        <em>Italic text</em> adds emphasis.
+      </div>
+    ),
   },
   {
     title: 'Underline',
     description: 'Underline text',
     icon: Underline,
     command: (editor) => editor.chain().focus().toggleUnderline().run(),
+    preview: (
+      <div className="scp-text">
+        <u>Underlined text</u> draws attention.
+      </div>
+    ),
   },
   {
     title: 'Strikethrough',
     description: 'Cross out text',
     icon: Strikethrough,
     command: (editor) => editor.chain().focus().toggleStrike().run(),
+    preview: (
+      <div className="scp-text">
+        <s>Strikethrough</s> marks deleted content.
+      </div>
+    ),
   },
   {
     title: 'Code',
     description: 'Inline code',
     icon: Code,
     command: (editor) => editor.chain().focus().toggleCode().run(),
+    preview: (
+      <div className="scp-text">
+        Use <code className="scp-inline-code">inline code</code> for technical
+        terms.
+      </div>
+    ),
   },
   {
     title: 'Align Left',
     description: 'Left align text',
     icon: AlignLeft,
     command: (editor) => editor.chain().focus().setTextAlign('left').run(),
+    preview: (
+      <div className="scp-text" style={{ textAlign: 'left' }}>
+        Text aligned to the left side.
+      </div>
+    ),
   },
   {
     title: 'Align Center',
     description: 'Center align text',
     icon: AlignCenter,
     command: (editor) => editor.chain().focus().setTextAlign('center').run(),
+    preview: (
+      <div className="scp-text" style={{ textAlign: 'center' }}>
+        Centered text
+      </div>
+    ),
   },
   {
     title: 'Align Right',
     description: 'Right align text',
     icon: AlignRight,
     command: (editor) => editor.chain().focus().setTextAlign('right').run(),
+    preview: (
+      <div className="scp-text" style={{ textAlign: 'right' }}>
+        Right-aligned text
+      </div>
+    ),
   },
   {
     title: 'Link',
@@ -221,6 +352,11 @@ const commandItems: CommandItem[] = [
     command: () => {
       window.dispatchEvent(new Event('tiptap-open-link-modal'));
     },
+    preview: (
+      <div className="scp-text">
+        Click this <span className="scp-link">hyperlink</span> to navigate.
+      </div>
+    ),
   },
   {
     title: 'Image',
@@ -229,6 +365,12 @@ const commandItems: CommandItem[] = [
     command: () => {
       window.dispatchEvent(new Event('tiptap-open-image-picker'));
     },
+    preview: (
+      <div className="scp-image-preview">
+        <ImageIcon className="scp-image-placeholder-icon" />
+        <span>Uploaded image</span>
+      </div>
+    ),
   },
   {
     title: 'YouTube',
@@ -286,13 +428,11 @@ const commandItems: CommandItem[] = [
     icon: RemoveFormatting,
     command: (editor) =>
       editor.chain().focus().unsetAllMarks().clearNodes().run(),
-  },
-  {
-    title: 'Reset Font',
-    description: 'Reset to default font',
-    keywords: ['font', 'reset', 'default', 'manrope'],
-    icon: RemoveFormatting,
-    command: (editor) => editor.chain().focus().unsetFontFamily().run(),
+    preview: (
+      <div className="scp-text">
+        <s style={{ textDecorationColor: '#ef4444' }}>formatted</s> → plain
+      </div>
+    ),
   },
 ];
 
@@ -315,10 +455,25 @@ const CommandList = forwardRef<CommandListRef, CommandListProps>(
   ({ items, command }, ref) => {
     const [selectedIndex, setSelectedIndex] = useState(0);
     const containerRef = useRef<HTMLDivElement>(null);
+    const itemRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+    const [previewY, setPreviewY] = useState(0);
 
     useEffect(() => {
       setSelectedIndex(0);
     }, [items]);
+
+    const updatePreviewPosition = useCallback(() => {
+      const el = itemRefs.current.get(selectedIndex);
+      if (el && containerRef.current) {
+        const containerRect = containerRef.current.getBoundingClientRect();
+        const itemRect = el.getBoundingClientRect();
+        setPreviewY(itemRect.top - containerRect.top);
+      }
+    }, [selectedIndex]);
+
+    useEffect(() => {
+      updatePreviewPosition();
+    }, [updatePreviewPosition, items]);
 
     useEffect(() => {
       if (containerRef.current) {
@@ -355,6 +510,8 @@ const CommandList = forwardRef<CommandListRef, CommandListProps>(
       },
     }));
 
+    const selectedItem = items[selectedIndex];
+
     if (items.length === 0) {
       return (
         <div className="slash-command-menu">
@@ -364,28 +521,60 @@ const CommandList = forwardRef<CommandListRef, CommandListProps>(
     }
 
     return (
-      <div ref={containerRef} className="slash-command-menu">
-        <div className="slash-command-label">Block type</div>
-        {items.map((item, index) => {
-          const Icon = item.icon;
-          return (
-            <button
-              key={item.title}
-              type="button"
-              className={`slash-command-item ${index === selectedIndex ? 'is-selected' : ''}`}
-              onClick={() => command(item)}
-              onMouseEnter={() => setSelectedIndex(index)}
-            >
-              <Icon className="h-4 w-4 shrink-0 text-gray-500" />
-              <div className="flex flex-col">
-                <span className="slash-command-item-title">{item.title}</span>
-                <span className="slash-command-item-desc">
-                  {item.description}
-                </span>
-              </div>
-            </button>
-          );
-        })}
+      <div className="slash-command-menu">
+        <div className="slash-command-list">
+          <div className="slash-command-label">Block type</div>
+          <div ref={containerRef} className="slash-command-items">
+            {items.map((item, index) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.title}
+                  ref={(el) => {
+                    if (el) itemRefs.current.set(index, el);
+                  }}
+                  type="button"
+                  className={`slash-command-item ${index === selectedIndex ? 'is-selected' : ''}`}
+                  onClick={() => command(item)}
+                  onMouseEnter={() => setSelectedIndex(index)}
+                >
+                  <Icon className="h-4 w-4 shrink-0 text-gray-500" />
+                  <div className="flex flex-col">
+                    <span className="slash-command-item-title">
+                      {item.title}
+                    </span>
+                    <span className="slash-command-item-desc">
+                      {item.description}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="slash-command-preview">
+          <motion.div
+            className="slash-command-preview-float"
+            animate={{ y: previewY }}
+            transition={{ duration: 0.12, ease: 'easeOut' }}
+          >
+            <div className="slash-command-preview-inner">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={selectedItem?.title}
+                  initial={{ opacity: 0.4, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.97 }}
+                  transition={{ duration: 0.1, ease: 'easeOut' }}
+                >
+                  {selectedItem?.preview ?? (
+                    <span className="text-gray-400 text-xs">No preview</span>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        </div>
       </div>
     );
   }
@@ -452,6 +641,7 @@ export const SlashCommandExtension = Extension.create({
                 placement: 'bottom-start',
                 arrow: false,
                 animation: false,
+                maxWidth: 600,
               });
             },
             onUpdate(props: {

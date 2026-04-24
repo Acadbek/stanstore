@@ -52,6 +52,7 @@ import {
   themes,
   getTheme,
   getThemeCategories,
+  applyThemeToProfile,
   type ThemeConfig,
 } from '@/lib/themes';
 import useSWR, { mutate } from 'swr';
@@ -437,11 +438,10 @@ function ThemePickerCard({
     <button
       type="button"
       onClick={onClick}
-      className={`group relative rounded-xl border-2 p-1 transition-all text-left w-full ${
-        isSelected
-          ? 'border-orange-500 '
-          : 'border-gray-200 hover:border-gray-300'
-      }`}
+      className={`group relative rounded-xl border-2 p-1 transition-all text-left w-full ${isSelected
+        ? 'border-orange-500 '
+        : 'border-gray-200 hover:border-gray-300'
+        }`}
     >
       <div
         className="rounded-lg p-3 h-24 flex flex-col justify-between overflow-hidden"
@@ -510,11 +510,10 @@ function RadiusPickerRow({
             key={opt.id}
             type="button"
             onClick={() => onSelect(opt.id)}
-            className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${
-              isActive
-                ? 'border-orange-500  bg-orange-50'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
+            className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${isActive
+              ? 'border-orange-500  bg-orange-50'
+              : 'border-gray-200 hover:border-gray-300'
+              }`}
           >
             <div
               className="w-8 h-8 border-2 border-current"
@@ -1178,7 +1177,7 @@ function ThemeCardWithPopover({
           <ThemePickerCard
             theme={theme}
             isSelected={isSelected}
-            onClick={() => {}}
+            onClick={() => { }}
           />
           <div className="absolute -top-1.5 -left-1.5 z-10 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
             {variants.length}
@@ -1202,9 +1201,8 @@ function ThemeCardWithPopover({
                 key={v.id}
                 type="button"
                 onClick={() => onSelect(v.id)}
-                className={`relative flex flex-col items-center gap-1 p-1 rounded-lg transition-all ${
-                  isThis ? 'bg-orange-50' : 'hover:bg-gray-50'
-                }`}
+                className={`relative flex flex-col items-center gap-1 p-1 rounded-lg transition-all ${isThis ? 'bg-orange-50' : 'hover:bg-gray-50'
+                  }`}
               >
                 <div className="flex gap-0.5">
                   <div
@@ -1344,11 +1342,10 @@ function ThemeConfigSection({
                   key={n}
                   type="button"
                   onClick={() => onColumnsChange(n)}
-                  className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${
-                    isActive
-                      ? 'border-orange-500  bg-orange-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                  className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${isActive
+                    ? 'border-orange-500  bg-orange-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                    }`}
                 >
                   <div className="flex gap-0.5">
                     {Array.from({ length: Math.min(n, 4) }).map((_, i) => (
@@ -1392,11 +1389,10 @@ function ThemeConfigSection({
                   key={t.id}
                   type="button"
                   onClick={() => onCardTemplateChange(t.id)}
-                  className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${
-                    isActive
-                      ? 'border-orange-500 bg-orange-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                  className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${isActive
+                    ? 'border-orange-500 bg-orange-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                    }`}
                 >
                   <div
                     className="w-8 h-6 rounded border"
@@ -1460,8 +1456,18 @@ export default function ProfileConfigPage() {
   );
   const [productColumns, setProductColumns] = useState<number>(3);
   const [cardTemplate, setCardTemplate] = useState<string>('standard');
+  const [themeInitialized, setThemeInitialized] = useState(false);
 
   const { data } = useSWR<ProfileData>('/api/profile', fetcher);
+
+  const handleThemeChange = useCallback((themeId: string) => {
+    setSelectedTheme(themeId);
+    const themeProps = applyThemeToProfile(themeId);
+    setSelectedRadius(themeProps.borderRadius);
+    setSelectedBtnRadius(themeProps.buttonBorderRadius);
+    setProductColumns(themeProps.productColumns);
+    setCardTemplate(themeProps.cardTemplate);
+  }, []);
 
   useEffect(() => {
     if (state.success) {
@@ -1470,20 +1476,15 @@ export default function ProfileConfigPage() {
   }, [state.success]);
 
   useEffect(() => {
-    if (data?.profile) {
-      if (selectedTheme === null) {
-        setSelectedTheme(data.profile.theme || 'default');
-      }
-      if (selectedRadius === null) {
-        setSelectedRadius(data.profile.borderRadius || 'md');
-      }
-      if (selectedBtnRadius === null) {
-        setSelectedBtnRadius(data.profile.buttonBorderRadius || 'md');
-      }
+    if (data?.profile && !themeInitialized) {
+      setSelectedTheme(data.profile.theme || 'default');
+      setSelectedRadius(data.profile.borderRadius || 'md');
+      setSelectedBtnRadius(data.profile.buttonBorderRadius || 'md');
       setProductColumns(data.profile.productColumns || 3);
       setCardTemplate(data.profile.cardTemplate || 'standard');
+      setThemeInitialized(true);
     }
-  }, [data, selectedTheme, selectedRadius, selectedBtnRadius]);
+  }, [data, themeInitialized]);
 
   const profile = data?.profile;
 
@@ -1493,9 +1494,9 @@ export default function ProfileConfigPage() {
     selectedBtnRadius !== null;
 
   return (
-    <section className="flex-1 lg:p-8">
-      <div className="fixed top-0 left-0 right-0 z-10 border-b bg-white/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-end">
+    <section className="flex-1">
+      <div className="sticky top-0 z-10 border-b bg-white/80 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 h-16 flex items-center justify-end">
           <div className="flex items-center gap-4">
             <Button
               type="submit"
@@ -1516,7 +1517,7 @@ export default function ProfileConfigPage() {
         </div>
       </div>
       <Suspense fallback={<ProfileSkeleton />}>
-        <div className="space-y-6 pt-16">
+        <div className="space-y-6 px-4 py-6 lg:px-8">
           {state.error && (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {state.error}
@@ -1538,14 +1539,14 @@ export default function ProfileConfigPage() {
                 selectedBtnRadius={selectedBtnRadius}
                 productColumns={productColumns}
                 cardTemplate={cardTemplate}
-                onThemeChange={setSelectedTheme}
+                onThemeChange={handleThemeChange}
                 onRadiusChange={setSelectedRadius}
                 onBtnRadiusChange={setSelectedBtnRadius}
                 onColumnsChange={setProductColumns}
                 onCardTemplateChange={setCardTemplate}
                 profile={profile}
               />
-              <div className="lg:sticky lg:top-4 self-start">
+              <div className="lg:sticky lg:top-20 self-start lg:h-[calc(100vh-8rem)]">
                 <StorePreview
                   theme={getTheme(selectedTheme)}
                   cardRadius={selectedRadius}

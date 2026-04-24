@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useSWRConfig } from 'swr';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1008,7 +1009,17 @@ function ProductSkeleton() {
 }
 
 export default function ProductsPage() {
-  const [showForm, setShowForm] = useState(false);
+  return (
+    <Suspense fallback={<ProductSkeleton />}>
+      <ProductsPageContent />
+    </Suspense>
+  );
+}
+
+function ProductsPageContent() {
+  const searchParams = useSearchParams();
+  const shouldAutoCreate = searchParams.get('create') === 'true';
+  const [showForm, setShowForm] = useState(shouldAutoCreate);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const isFormOpen = showForm || editingProduct !== null;
 
@@ -1018,6 +1029,10 @@ export default function ProductsPage() {
       setShowForm(true);
     }
   }, []);
+    if (shouldAutoCreate) {
+      window.history.replaceState(null, '', '/dashboard/products');
+    }
+  }, [shouldAutoCreate]);
 
   return (
     <div className="flex flex-1">
@@ -1036,30 +1051,28 @@ export default function ProductsPage() {
           </div>
         </div>
 
-        <Suspense fallback={<ProductSkeleton />}>
-          <div className="space-y-6">
-            {editingProduct && (
-              <ProductForm
-                mode="edit"
-                initialData={editingProduct}
-                onSuccess={() => setEditingProduct(null)}
-                onCancel={() => setEditingProduct(null)}
-              />
-            )}
-
-            {showForm && (
-              <ProductForm
-                mode="create"
-                onSuccess={() => setShowForm(false)}
-                onCancel={() => setShowForm(false)}
-              />
-            )}
-
-            <ProductList
-              onEdit={(product) => setEditingProduct(product)}
+        <div className="space-y-6">
+          {editingProduct && (
+            <ProductForm
+              mode="edit"
+              initialData={editingProduct}
+              onSuccess={() => setEditingProduct(null)}
+              onCancel={() => setEditingProduct(null)}
             />
-          </div>
-        </Suspense>
+          )}
+
+          {showForm && (
+            <ProductForm
+              mode="create"
+              onSuccess={() => setShowForm(false)}
+              onCancel={() => setShowForm(false)}
+            />
+          )}
+
+          <ProductList
+            onEdit={(product) => setEditingProduct(product)}
+          />
+        </div>
       </section>
 
       {isFormOpen && (
