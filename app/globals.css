@@ -66,6 +66,7 @@
   color utility to any element that depends on these defaults.
 */
 @layer base {
+
   *,
   ::after,
   ::before,
@@ -118,8 +119,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('https://cdn.jsdelivr.net/fontsource/fonts/hedvig-sans@latest/latin-400-normal.woff2')
-    format('woff2');
+  src: url('https://cdn.jsdelivr.net/fontsource/fonts/hedvig-sans@latest/latin-400-normal.woff2') format('woff2');
 }
 
 @font-face {
@@ -127,8 +127,7 @@
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url('https://cdn.jsdelivr.net/fontsource/fonts/hedvig-sans@latest/latin-700-normal.woff2')
-    format('woff2');
+  src: url('https://cdn.jsdelivr.net/fontsource/fonts/hedvig-sans@latest/latin-700-normal.woff2') format('woff2');
 }
 
 @font-face {
@@ -136,8 +135,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('https://cdn.jsdelivr.net/fontsource/fonts/hedvig-serif@latest/latin-400-normal.woff2')
-    format('woff2');
+  src: url('https://cdn.jsdelivr.net/fontsource/fonts/hedvig-serif@latest/latin-400-normal.woff2') format('woff2');
 }
 
 @font-face {
@@ -145,8 +143,7 @@
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url('https://cdn.jsdelivr.net/fontsource/fonts/hedvig-serif@latest/latin-700-normal.woff2')
-    format('woff2');
+  src: url('https://cdn.jsdelivr.net/fontsource/fonts/hedvig-serif@latest/latin-700-normal.woff2') format('woff2');
 }
 
 @layer base {
@@ -479,29 +476,29 @@
   margin-bottom: 0.35rem;
 }
 
-.tiptap ul[data-type='taskList'] li > label {
+.tiptap ul[data-type='taskList'] li>label {
   display: inline-flex;
   align-items: center;
   margin-top: 0.15rem;
 }
 
-.tiptap ul[data-type='taskList'] li > label input[type='checkbox'] {
+.tiptap ul[data-type='taskList'] li>label input[type='checkbox'] {
   width: 1rem;
   height: 1rem;
   accent-color: #f97316;
 }
 
-.tiptap ul[data-type='taskList'] li > div {
+.tiptap ul[data-type='taskList'] li>div {
   flex: 1;
   min-width: 0;
 }
 
-.tiptap ul[data-type='taskList'] li > div p {
+.tiptap ul[data-type='taskList'] li>div p {
   margin: 0;
   line-height: 1.55;
 }
 
-.tiptap ul[data-type='taskList'] li[data-checked='true'] > div {
+.tiptap ul[data-type='taskList'] li[data-checked='true']>div {
   color: #9ca3af;
   text-decoration: line-through;
 }
@@ -635,10 +632,7 @@
 }
 
 .tiptap .carousel.is-carousel::-webkit-scrollbar,
-.tiptap
-  .carousel[data-count]:not([data-count='1']):not(
-    [data-count='2']
-  )::-webkit-scrollbar {
+.tiptap .carousel[data-count]:not([data-count='1']):not([data-count='2'])::-webkit-scrollbar {
   display: none;
 }
 
@@ -648,9 +642,7 @@
 }
 
 .tiptap .carousel.is-carousel .carousel-card,
-.tiptap
-  .carousel[data-count]:not([data-count='1']):not([data-count='2'])
-  .carousel-card {
+.tiptap .carousel[data-count]:not([data-count='1']):not([data-count='2']) .carousel-card {
   min-width: 100%;
   scroll-snap-align: start;
 }
@@ -663,11 +655,11 @@
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
 }
 
-.tiptap .carousel-card > :first-child {
+.tiptap .carousel-card> :first-child {
   margin-top: 0;
 }
 
-.tiptap .carousel-card > :last-child {
+.tiptap .carousel-card> :last-child {
   margin-bottom: 0;
 }
 
@@ -687,9 +679,9 @@
 }
 
 .tiptap [data-youtube-embed] .yt-icon {
-  width: 40px;
+  width: 56px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: 12px;
   background: #ff0000;
   display: flex;
   align-items: center;
@@ -697,10 +689,10 @@
 }
 
 .tiptap [data-youtube-embed] .yt-icon svg {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   fill: white;
-  margin-left: 2px;
+  margin-left: 3px;
 }
 
 .tiptap [data-youtube-embed] .yt-label {
@@ -739,14 +731,14 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: rgba(255, 0, 0, 0.85);
+  width: 64px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(255, 0, 0, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
   transition:
     transform 0.15s ease,
     background 0.15s ease;
@@ -758,10 +750,10 @@
 }
 
 .tiptap [data-youtube-embed] .yt-play-btn svg {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   fill: white;
-  margin-left: 3px;
+  margin-left: 4px;
 }
 
 .tiptap [style*="font-family: 'Geist Sans'"],
@@ -968,8 +960,7 @@
 }
 
 .product-content .carousel.is-carousel,
-.product-content
-  .carousel[data-count]:not([data-count='1']):not([data-count='2']) {
+.product-content .carousel[data-count]:not([data-count='1']):not([data-count='2']) {
   display: flex;
   gap: 0.75rem;
   overflow-x: auto;
@@ -980,23 +971,17 @@
 }
 
 .product-content .carousel.is-carousel::-webkit-scrollbar,
-.product-content
-  .carousel[data-count]:not([data-count='1']):not(
-    [data-count='2']
-  )::-webkit-scrollbar {
+.product-content .carousel[data-count]:not([data-count='1']):not([data-count='2'])::-webkit-scrollbar {
   display: none;
 }
 
 .product-content .carousel.is-carousel,
-.product-content
-  .carousel[data-count]:not([data-count='1']):not([data-count='2']) {
+.product-content .carousel[data-count]:not([data-count='1']):not([data-count='2']) {
   scrollbar-width: none;
 }
 
 .product-content .carousel.is-carousel .carousel-card,
-.product-content
-  .carousel[data-count]:not([data-count='1']):not([data-count='2'])
-  .carousel-card {
+.product-content .carousel[data-count]:not([data-count='1']):not([data-count='2']) .carousel-card {
   min-width: 82%;
   scroll-snap-align: center;
   scroll-snap-stop: always;
@@ -1021,11 +1006,11 @@
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
 }
 
-.product-content .carousel-card > :first-child {
+.product-content .carousel-card> :first-child {
   margin-top: 0;
 }
 
-.product-content .carousel-card > :last-child {
+.product-content .carousel-card> :last-child {
   margin-bottom: 0;
 }
 
@@ -1180,7 +1165,7 @@
   margin-bottom: 0.35rem;
 }
 
-.product-content ul[data-type='taskList'] li > label {
+.product-content ul[data-type='taskList'] li>label {
   display: flex;
   align-items: center;
   gap: 0.25rem;
@@ -1188,23 +1173,23 @@
   margin-top: 0.15rem;
 }
 
-.product-content ul[data-type='taskList'] li > label input[type='checkbox'] {
+.product-content ul[data-type='taskList'] li>label input[type='checkbox'] {
   width: 1rem;
   height: 1rem;
   accent-color: #f97316;
 }
 
-.product-content ul[data-type='taskList'] li > div {
+.product-content ul[data-type='taskList'] li>div {
   flex: 1;
   min-width: 0;
 }
 
-.product-content ul[data-type='taskList'] li > div p {
+.product-content ul[data-type='taskList'] li>div p {
   margin: 0;
   line-height: 1.55;
 }
 
-.product-content ul[data-type='taskList'] li[data-checked='true'] > div {
+.product-content ul[data-type='taskList'] li[data-checked='true']>div {
   color: #9ca3af;
   text-decoration: line-through;
 }
@@ -1322,7 +1307,8 @@
     0 2px 4px -1px rgba(0, 0, 0, 0.06);
   padding: 0.5rem 0.75rem 0.75rem;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   justify-content: center;
 }
 
@@ -1566,24 +1552,116 @@
 
 .scp-youtube-preview {
   width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  flex: 1 1 auto;
 }
 
-.scp-youtube-placeholder {
+.scp-youtube-card {
+  background: #ffffff;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.scp-youtube-thumbnail {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  height: 90px;
+  background: linear-gradient(135deg, #a1a8b0 0%, #6b7280 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  padding: 0.75rem;
-  background: #1f2937;
-  border-radius: 0.375rem;
-  color: #f9fafb;
-  font-size: 0.75rem;
 }
 
-.scp-youtube-icon {
-  width: 16px;
-  height: 16px;
-  color: #ef4444;
+.scp-youtube-watermark {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.scp-youtube-play-btn {
+  width: 36px;
+  height: 26px;
+  background: #ef4444;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.scp-youtube-duration {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #ffffff;
+  font-size: 0.6rem;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 2px;
+  line-height: 1;
+}
+
+.scp-youtube-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+}
+
+.scp-youtube-bar-text {
+  color: #ffffff;
+  font-size: 0.6rem;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.scp-youtube-meta {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px;
+}
+
+.scp-youtube-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #d1d5db;
+  flex-shrink: 0;
+}
+
+.scp-youtube-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  padding-top: 2px;
+}
+
+.scp-youtube-line {
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  width: 100%;
+}
+
+.scp-youtube-line--short {
+  width: 60%;
 }
 
 .drag-handle:active {

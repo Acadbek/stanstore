@@ -33,6 +33,7 @@ import {
   Eye,
   Plus,
   GalleryHorizontal,
+  ArrowRight,
 } from 'lucide-react';
 import Cropper from 'react-easy-crop';
 import {
@@ -47,7 +48,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { updateProfile, updateAvatar, deleteAvatar } from '../actions';
-import { Profile, User } from '@/lib/db/schema';
+import { Profile, Product, User } from '@/lib/db/schema';
 import {
   themes,
   getTheme,
@@ -55,11 +56,16 @@ import {
   applyThemeToProfile,
   type ThemeConfig,
 } from '@/lib/themes';
+import {
+  getDisplayFrontStylePrompt,
+  isFrontStyleId,
+  resolveFrontStyle,
+  type FrontStyleId,
+} from '@/lib/product-front-style';
 import useSWR, { mutate } from 'swr';
 import { Suspense } from 'react';
 import { generateReactHelpers } from '@uploadthing/react';
 import type { OurFileRouter } from '@/lib/uploadthing';
-import Link from 'next/link';
 
 const { useUploadThing } = generateReactHelpers<OurFileRouter>();
 
@@ -69,6 +75,8 @@ type ProfileData = {
   user: User;
   profile: Profile | null;
 };
+
+type ProductFrontStyleOption = FrontStyleId;
 
 type ActionState = {
   error?: string;
@@ -92,6 +100,12 @@ const btnRadiusOptions = [
   { id: 'lg', label: 'Large', css: '8px' },
   { id: 'full', label: 'Full', css: '9999px' },
 ] as const;
+
+const FRONT_STYLE_PRESETS: { id: FrontStyleId; label: string }[] = [
+  { id: 'pill', label: 'Min' },
+  { id: 'cta', label: 'Norm' },
+  { id: 'editorial', label: 'Info' },
+];
 
 const getRadiusCss = (id: string) =>
   borderRadiusOptions.find((r) => r.id === id)?.css ?? '6px';
@@ -170,10 +184,9 @@ async function getCroppedImg(
   });
 }
 
-function AvatarSection() {
-  const { data } = useSWR<ProfileData>('/api/profile', fetcher);
-  const profile = data?.profile;
-  const user = data?.user;
+function AvatarSection({ profileData }: { profileData?: ProfileData }) {
+  const profile = profileData?.profile;
+  const user = profileData?.user;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [cropOpen, setCropOpen] = useState(false);
@@ -235,16 +248,16 @@ function AvatarSection() {
   const hasAvatar = !!profile?.avatarUrl;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Profile Photo</CardTitle>
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-base">Profile Photo</CardTitle>
         <CardDescription>
           Upload a profile photo to personalize your page.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center gap-6">
-          <div className="relative group">
+        <div className="flex flex-col sm:flex-row items-center gap-6">
+          <div className="relative group shrink-0">
             <input
               ref={fileInputRef}
               type="file"
@@ -257,13 +270,14 @@ function AvatarSection() {
               <>
                 <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
                   <DialogTrigger asChild>
-                    <div className="cursor-pointer">
-                      <Avatar className="h-24 w-24">
+                    <div className="cursor-pointer rounded-full ring-4 ring-gray-50 hover:ring-orange-100 transition-all">
+                      <Avatar className="h-28 w-28 shadow-sm">
                         <AvatarImage
                           src={profile?.avatarUrl || ''}
                           alt={profile?.displayName || user?.name || ''}
+                          className="object-cover"
                         />
-                        <AvatarFallback className="text-lg">
+                        <AvatarFallback className="text-xl bg-gray-100">
                           {(
                             profile?.displayName ||
                             user?.name ||
@@ -291,16 +305,17 @@ function AvatarSection() {
                   </DialogContent>
                 </Dialog>
 
-                <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 pointer-events-none">
+                <div className="absolute -bottom-1 -right-1 flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       setPreviewOpen(true);
                     }}
-                    className="pointer-events-auto p-1.5 rounded-full bg-white/90 hover:bg-white text-gray-700 transition-colors"
+                    className="p-1.5 rounded-full bg-white border shadow-sm hover:bg-gray-50 text-gray-600 transition-colors"
+                    title="Preview"
                   >
-                    <Eye className="h-4 w-4" />
+                    <Eye className="h-3.5 w-3.5" />
                   </button>
                   <button
                     type="button"
@@ -308,9 +323,10 @@ function AvatarSection() {
                       e.stopPropagation();
                       handleAvatarDelete();
                     }}
-                    className="pointer-events-auto p-1.5 rounded-full bg-white/90 hover:bg-red-50 hover:text-red-500 text-gray-700 transition-colors"
+                    className="p-1.5 rounded-full bg-white border shadow-sm hover:bg-red-50 hover:text-red-500 text-gray-600 transition-colors"
+                    title="Remove"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </>
@@ -439,8 +455,8 @@ function ThemePickerCard({
       type="button"
       onClick={onClick}
       className={`group relative rounded-xl border-2 p-1 transition-all text-left w-full ${isSelected
-        ? 'border-orange-500 '
-        : 'border-gray-200 hover:border-gray-300'
+          ? 'border-orange-500 '
+          : 'border-gray-200 hover:border-gray-300'
         }`}
     >
       <div
@@ -511,8 +527,8 @@ function RadiusPickerRow({
             type="button"
             onClick={() => onSelect(opt.id)}
             className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${isActive
-              ? 'border-orange-500  bg-orange-50'
-              : 'border-gray-200 hover:border-gray-300'
+                ? 'border-orange-500  bg-orange-50'
+                : 'border-gray-200 hover:border-gray-300'
               }`}
           >
             <div
@@ -717,21 +733,40 @@ function ProductCardMinimal({
 }
 
 function ProductCardsGrid({
+  products,
   s,
   cr,
+  br,
   columns,
   cardTemplate,
+  perProductFrontStyles,
+  onPerProductFrontStyleChange,
+  isCustomFrontStyleEnabled,
 }: {
+  products: Product[];
   s: ThemeConfig['styles'];
   cr: string;
+  br: string;
   columns: number;
   cardTemplate: string;
+  perProductFrontStyles: Record<number, 'pill' | 'cta' | 'editorial'>;
+  onPerProductFrontStyleChange: (productId: number, style: 'pill' | 'cta' | 'editorial') => void;
+  isCustomFrontStyleEnabled: boolean;
 }) {
-  const items = [
-    { title: 'E-book Template', price: '$29.00', type: 'Digital' },
-    { title: 'Design Course', price: '$49.00', type: 'Course' },
-    { title: 'Icon Pack', price: '$9.00', type: 'Digital' },
-  ];
+  const items = products.slice(0, 8).map((product) => ({
+    id: product.id,
+    title: product.title || 'Untitled',
+    price: product.price ? `$${(product.price / 100).toFixed(2)}` : 'Free',
+    type: product.type || 'digital',
+    imageUrl: product.imageUrl || '',
+    description:
+      (product.description || '')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim() || 'Product description',
+    frontStyle: product.frontStyle || 'inherit',
+    frontStylePrompt: product.frontStylePrompt || '',
+  }));
 
   const colClass =
     columns === 1
@@ -742,20 +777,233 @@ function ProductCardsGrid({
           ? 'grid-cols-2 sm:grid-cols-4'
           : 'grid-cols-3';
 
-  const CardComponent =
-    cardTemplate === 'compact'
-      ? ProductCardCompact
-      : cardTemplate === 'overlay'
-        ? ProductCardOverlay
-        : cardTemplate === 'minimal'
-          ? ProductCardMinimal
-          : ProductCardStandard;
+  const renderFrontOverride = (item: (typeof items)[number]) => {
+    const selectedStyle =
+      perProductFrontStyles[item.id] ||
+      (item.frontStyle === 'pill' || item.frontStyle === 'editorial' ? item.frontStyle : 'cta');
+    const resolved = resolveFrontStyle(
+      selectedStyle,
+      ''
+    );
+    if (!resolved) return null;
+
+    const titleClass = resolved.titleFont === 'serif' ? 'font-serif' : 'font-semibold';
+    const imageClass = resolved.imageShape === 'circle' ? 'rounded-full' : 'rounded-xl';
+
+    if (resolved.preset === 'pill') {
+      return (
+        <div
+          className="flex items-center gap-3 border p-3"
+          style={{
+            background: s.cardBg,
+            borderColor: s.cardBorder,
+            borderRadius: 9999,
+          }}
+        >
+          {item.imageUrl ? (
+            <div className={`h-11 w-11 shrink-0 overflow-hidden ${imageClass}`}>
+              <img src={item.imageUrl} alt={item.title} className="h-full w-full object-cover" />
+            </div>
+          ) : (
+            <div
+              className={`flex h-11 w-11 shrink-0 items-center justify-center ${imageClass}`}
+              style={{ background: s.buttonBg, color: s.buttonText }}
+            >
+              {(item.title[0] || 'P').toUpperCase()}
+            </div>
+          )}
+          <p className={`min-w-0 flex-1 truncate text-sm ${titleClass}`} style={{ color: s.headingColor }}>
+            {item.title}
+          </p>
+          {resolved.arrow ? (
+            <ArrowRight className="h-4 w-4" style={{ color: s.headingColor }} />
+          ) : (
+            <span className="text-xs font-semibold" style={{ color: s.buttonBg }}>
+              {item.price}
+            </span>
+          )}
+        </div>
+      );
+    }
+
+    if (resolved.preset === 'editorial') {
+      return (
+        <div
+          className="border p-3"
+          style={{
+            background: s.cardBg,
+            borderColor: s.cardBorder,
+            borderRadius: '14px',
+          }}
+        >
+          <div className="flex gap-3">
+            {item.imageUrl ? (
+              <div className={`h-20 w-16 shrink-0 overflow-hidden ${imageClass}`}>
+                <img src={item.imageUrl} alt={item.title} className="h-full w-full object-cover" />
+              </div>
+            ) : (
+              <div
+                className={`flex h-20 w-16 shrink-0 items-center justify-center ${imageClass}`}
+                style={{ background: s.buttonBg, color: s.buttonText }}
+              >
+                {(item.title[0] || 'P').toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className={`line-clamp-2 text-sm ${titleClass}`} style={{ color: s.headingColor }}>
+                {item.title}
+              </p>
+              <p className="mt-1 line-clamp-2 text-xs" style={{ color: s.mutedColor }}>
+                {item.description}
+              </p>
+              <p className="mt-1 text-sm" style={{ color: s.buttonBg }}>
+                {item.price}
+              </p>
+            </div>
+          </div>
+          {resolved.buttonVariant !== 'none' && (
+            <button
+              type="button"
+              className="mt-2 w-full border px-3 py-1.5 text-xs font-semibold"
+              style={{
+                borderRadius: br,
+                borderColor: s.buttonBg,
+                color: resolved.buttonVariant === 'solid' ? s.buttonText : s.buttonBg,
+                background:
+                  resolved.buttonVariant === 'solid' ? s.buttonBg : 'transparent',
+              }}
+            >
+              Get this product
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className="border p-3"
+        style={{
+          background: s.cardBg,
+          borderColor: s.cardBorder,
+          borderRadius: cr,
+        }}
+      >
+        <div className="flex items-start gap-3">
+          {item.imageUrl ? (
+            <div className={`h-12 w-12 shrink-0 overflow-hidden ${imageClass}`}>
+              <img src={item.imageUrl} alt={item.title} className="h-full w-full object-cover" />
+            </div>
+          ) : (
+            <div
+              className={`flex h-12 w-12 shrink-0 items-center justify-center ${imageClass}`}
+              style={{ background: s.buttonBg, color: s.buttonText }}
+            >
+              {(item.title[0] || 'P').toUpperCase()}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className={`truncate text-sm ${titleClass}`} style={{ color: s.headingColor }}>
+              {item.title}
+            </p>
+            <p className="mt-1 line-clamp-2 text-xs" style={{ color: s.mutedColor }}>
+              {item.description}
+            </p>
+          </div>
+        </div>
+        <div className="mt-2 flex items-center justify-between">
+          <span className="text-[10px] uppercase tracking-wide" style={{ color: s.mutedColor }}>{item.type}</span>
+          <span className="text-xs font-bold" style={{ color: s.buttonBg }}>
+            {item.price}
+          </span>
+        </div>
+        {resolved.buttonVariant !== 'none' && (
+          <button
+            type="button"
+            className="mt-2 w-full border px-3 py-1.5 text-xs font-semibold"
+            style={{
+              borderRadius: br,
+              borderColor: s.buttonBg,
+              color: resolved.buttonVariant === 'solid' ? s.buttonText : s.buttonBg,
+              background:
+                resolved.buttonVariant === 'solid' ? s.buttonBg : 'transparent',
+            }}
+          >
+            Get this product
+          </button>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className={`grid ${colClass} gap-3`}>
-      {items.map((item) => (
-        <CardComponent key={item.title} {...item} s={s} cr={cr} />
-      ))}
+      {items.map((item) => {
+        const selectedStyle =
+          perProductFrontStyles[item.id] ||
+          (item.frontStyle === 'pill' || item.frontStyle === 'editorial' ? item.frontStyle : 'cta');
+
+        const styleSwitch = isCustomFrontStyleEnabled ? (
+          <>
+            <button
+              type="button"
+              onClick={() => onPerProductFrontStyleChange(item.id, 'pill')}
+              className="mb-1 rounded px-2 py-1 text-[10px] font-semibold transition-colors"
+              style={selectedStyle === 'pill' ? { background: s.buttonBg, color: s.buttonText } : { color: s.mutedColor }}
+            >
+              Min
+            </button>
+            <button
+              type="button"
+              onClick={() => onPerProductFrontStyleChange(item.id, 'cta')}
+              className="mb-1 rounded px-2 py-1 text-[10px] font-semibold transition-colors"
+              style={selectedStyle === 'cta' ? { background: s.buttonBg, color: s.buttonText } : { color: s.mutedColor }}
+            >
+              Norm
+            </button>
+            <button
+              type="button"
+              onClick={() => onPerProductFrontStyleChange(item.id, 'editorial')}
+              className="mb-1 rounded px-2 py-1 text-[10px] font-semibold transition-colors"
+              style={selectedStyle === 'editorial' ? { background: s.buttonBg, color: s.buttonText } : { color: s.mutedColor }}
+            >
+              Info
+            </button>
+          </>
+        ) : null;
+
+        const frontCard = isCustomFrontStyleEnabled ? renderFrontOverride(item) : null;
+        if (frontCard) {
+          return (
+            <div key={item.id}>
+              {styleSwitch}
+              {frontCard}
+            </div>
+          );
+        }
+
+        const CardComponent =
+          cardTemplate === 'compact'
+            ? ProductCardCompact
+            : cardTemplate === 'overlay'
+              ? ProductCardOverlay
+              : cardTemplate === 'minimal'
+                ? ProductCardMinimal
+                : ProductCardStandard;
+
+        return (
+          <div key={item.id}>
+            {styleSwitch}
+            <CardComponent
+              title={item.title}
+              price={item.price}
+              type={item.type}
+              s={s}
+              cr={cr}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -765,15 +1013,23 @@ function StorePreview({
   cardRadius,
   btnRadius,
   profile,
+  products,
   productColumns,
   cardTemplate,
+  perProductFrontStyles,
+  onPerProductFrontStyleChange,
+  isCustomFrontStyleEnabled,
 }: {
   theme: ThemeConfig;
   cardRadius: string;
   btnRadius: string;
   profile: Profile | null | undefined;
+  products: Product[];
   productColumns: number;
   cardTemplate: string;
+  perProductFrontStyles: Record<number, 'pill' | 'cta' | 'editorial'>;
+  onPerProductFrontStyleChange: (productId: number, style: 'pill' | 'cta' | 'editorial') => void;
+  isCustomFrontStyleEnabled: boolean;
 }) {
   const s = theme.styles;
   const cr = getRadiusCss(cardRadius);
@@ -838,12 +1094,31 @@ function StorePreview({
           </div>
 
           <div className="flex-1 min-w-0 space-y-3">
-            <ProductCardsGrid
-              s={s}
-              cr={cr}
-              columns={productColumns}
-              cardTemplate={cardTemplate}
-            />
+            {products.length > 0 ? (
+              <ProductCardsGrid
+                products={products}
+                s={s}
+                cr={cr}
+                br={br}
+                columns={productColumns}
+                cardTemplate={cardTemplate}
+                perProductFrontStyles={perProductFrontStyles}
+                onPerProductFrontStyleChange={onPerProductFrontStyleChange}
+                isCustomFrontStyleEnabled={isCustomFrontStyleEnabled}
+              />
+            ) : (
+              <div
+                className="border border-dashed p-6 text-center text-xs"
+                style={{
+                  borderRadius: cr,
+                  borderColor: s.cardBorder,
+                  color: s.mutedColor,
+                  background: s.cardBg,
+                }}
+              >
+                No products yet.
+              </div>
+            )}
 
             <div className="flex gap-2 pt-2">
               <button
@@ -905,9 +1180,9 @@ function ProfileForm({
 
   return (
     <form id="profile-config-form" className="space-y-8" action={formAction}>
-      <Card>
-        <CardHeader>
-          <CardTitle>Basic Information</CardTitle>
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base">Basic Information</CardTitle>
           <CardDescription>
             This information will be displayed on your public page.
           </CardDescription>
@@ -978,10 +1253,10 @@ function ProfileForm({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Link2 className="h-5 w-5" />
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Link2 className="h-4 w-4" />
             Social Links
           </CardTitle>
           <CardDescription>
@@ -1079,6 +1354,11 @@ function ProfileFormWithData({
   selectedBtnRadius,
   productColumns,
   cardTemplate,
+  bulkFrontStyle,
+  isCustomFrontStyleEnabled,
+  bulkFrontStylePrompt,
+  perProductFrontStyles,
+  profileData,
   state,
   formAction,
   isPending,
@@ -1090,21 +1370,36 @@ function ProfileFormWithData({
   selectedBtnRadius: string;
   productColumns: number;
   cardTemplate: string;
+  bulkFrontStyle: ProductFrontStyleOption;
+  isCustomFrontStyleEnabled: boolean;
+  bulkFrontStylePrompt: string;
+  perProductFrontStyles: Record<number, 'pill' | 'cta' | 'editorial'>;
+  profileData?: ProfileData;
   state: ActionState;
   formAction: (formData: FormData) => void;
   isPending: boolean;
   formRef: RefObject<HTMLFormElement | null>;
   formId: string;
 }) {
-  const { data } = useSWR<ProfileData>('/api/profile', fetcher);
-
   const wrappedFormAction = useCallback(
     (formData: FormData) => {
+      const finalBulkFrontStyle = isCustomFrontStyleEnabled
+        ? bulkFrontStyle
+        : 'cta';
       formData.append('theme', selectedTheme);
       formData.append('borderRadius', selectedRadius);
       formData.append('buttonBorderRadius', selectedBtnRadius);
       formData.append('productColumns', String(productColumns));
       formData.append('cardTemplate', cardTemplate);
+      formData.append('bulkFrontStyle', finalBulkFrontStyle);
+      formData.append(
+        'bulkFrontStylePrompt',
+        finalBulkFrontStyle === 'custom' ? bulkFrontStylePrompt : ''
+      );
+      formData.append(
+        'perProductFrontStyles',
+        JSON.stringify(perProductFrontStyles)
+      );
       formAction(formData);
     },
     [
@@ -1114,13 +1409,17 @@ function ProfileFormWithData({
       selectedBtnRadius,
       productColumns,
       cardTemplate,
+      bulkFrontStyle,
+      isCustomFrontStyleEnabled,
+      bulkFrontStylePrompt,
+      perProductFrontStyles,
     ]
   );
 
   return (
     <ProfileForm
       state={state}
-      initialData={data}
+      initialData={profileData}
       formAction={wrappedFormAction}
       isPending={isPending}
       formRef={formRef}
@@ -1267,7 +1566,8 @@ function ThemeConfigSection({
   onBtnRadiusChange,
   onColumnsChange,
   onCardTemplateChange,
-  profile,
+  isCustomFrontStyleEnabled,
+  onCustomFrontStyleToggle,
 }: {
   selectedTheme: string;
   selectedRadius: string;
@@ -1279,7 +1579,8 @@ function ThemeConfigSection({
   onBtnRadiusChange: (id: string) => void;
   onColumnsChange: (n: number) => void;
   onCardTemplateChange: (id: string) => void;
-  profile: Profile | null | undefined;
+  isCustomFrontStyleEnabled: boolean;
+  onCustomFrontStyleToggle: (enabled: boolean) => void;
 }) {
   const theme = getTheme(selectedTheme);
   const cards = getUniqueThemeCards();
@@ -1294,10 +1595,10 @@ function ThemeConfigSection({
   ];
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Palette className="h-5 w-5" />
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Palette className="h-4 w-4" />
           Appearance
         </CardTitle>
         <CardDescription>
@@ -1343,8 +1644,8 @@ function ThemeConfigSection({
                   type="button"
                   onClick={() => onColumnsChange(n)}
                   className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${isActive
-                    ? 'border-orange-500  bg-orange-50'
-                    : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-orange-500  bg-orange-50'
+                      : 'border-gray-200 hover:border-gray-300'
                     }`}
                 >
                   <div className="flex gap-0.5">
@@ -1390,8 +1691,8 @@ function ThemeConfigSection({
                   type="button"
                   onClick={() => onCardTemplateChange(t.id)}
                   className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${isActive
-                    ? 'border-orange-500 bg-orange-50'
-                    : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-orange-500 bg-orange-50'
+                      : 'border-gray-200 hover:border-gray-300'
                     }`}
                 >
                   <div
@@ -1408,6 +1709,48 @@ function ThemeConfigSection({
               );
             })}
           </div>
+        </div>
+
+        <div>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="text-sm font-medium text-gray-900 flex items-center gap-2">
+              <LayoutGrid className="h-4 w-4" />
+              Product Front Style
+            </h3>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isCustomFrontStyleEnabled}
+              onClick={() => onCustomFrontStyleToggle(!isCustomFrontStyleEnabled)}
+              className={`inline-flex items-center gap-2 rounded-full border px-2 py-1 text-xs font-semibold transition-colors ${isCustomFrontStyleEnabled
+                  ? 'border-orange-500 bg-orange-50 text-orange-700'
+                  : 'border-gray-200 bg-white text-gray-600'
+                }`}
+            >
+              <span>{isCustomFrontStyleEnabled ? 'ON' : 'OFF'}</span>
+              <span
+                className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${isCustomFrontStyleEnabled ? 'bg-orange-500' : 'bg-gray-300'
+                  }`}
+              >
+                <span
+                  className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${isCustomFrontStyleEnabled ? 'translate-x-4' : 'translate-x-0.5'
+                    }`}
+                />
+              </span>
+            </button>
+          </div>
+
+          {!isCustomFrontStyleEnabled && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
+              Default front style is active.
+            </div>
+          )}
+
+          {isCustomFrontStyleEnabled && (
+            <div className="mt-3 rounded-xl border border-orange-100 bg-orange-50/50 p-3 text-xs text-gray-600">
+              Per-product front styles are active. Use the switches above each card in the preview to toggle between Simple Row and CTA Card layouts.
+            </div>
+          )}
         </div>
 
         <div>
@@ -1456,37 +1799,78 @@ export default function ProfileConfigPage() {
   );
   const [productColumns, setProductColumns] = useState<number>(3);
   const [cardTemplate, setCardTemplate] = useState<string>('standard');
-  const [themeInitialized, setThemeInitialized] = useState(false);
+  const [bulkFrontStyle, setBulkFrontStyle] = useState<ProductFrontStyleOption>('cta');
+  const [bulkFrontStylePrompt, setBulkFrontStylePrompt] = useState('');
+  const [bulkFrontStylePromptInput, setBulkFrontStylePromptInput] = useState('');
+  const [isCustomFrontStyleEnabled, setIsCustomFrontStyleEnabled] = useState(false);
+  const hasHydratedBulkFrontStyle = useRef(false);
+  const [perProductFrontStyles, setPerProductFrontStyles] = useState<
+    Record<number, 'pill' | 'cta' | 'editorial'>
+  >({});
+  const hasHydratedPerProductFrontStyles = useRef(false);
 
-  const { data } = useSWR<ProfileData>('/api/profile', fetcher);
-
-  const handleThemeChange = useCallback((themeId: string) => {
-    setSelectedTheme(themeId);
-    const themeProps = applyThemeToProfile(themeId);
-    setSelectedRadius(themeProps.borderRadius);
-    setSelectedBtnRadius(themeProps.buttonBorderRadius);
-    setProductColumns(themeProps.productColumns);
-    setCardTemplate(themeProps.cardTemplate);
-  }, []);
+  const { data } = useSWR<ProfileData>('/api/profile', fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 10000,
+  });
+  const { data: productsData } = useSWR<Product[]>('/api/products', fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 10000,
+  });
 
   useEffect(() => {
     if (state.success) {
       mutate('/api/profile');
+      mutate('/api/products');
     }
   }, [state.success]);
 
   useEffect(() => {
-    if (data?.profile && !themeInitialized) {
-      setSelectedTheme(data.profile.theme || 'default');
-      setSelectedRadius(data.profile.borderRadius || 'md');
-      setSelectedBtnRadius(data.profile.buttonBorderRadius || 'md');
+    if (data?.profile && productsData) {
+      if (selectedTheme === null) {
+        setSelectedTheme(data.profile.theme || 'default');
+      }
+      if (selectedRadius === null) {
+        setSelectedRadius(data.profile.borderRadius || 'md');
+      }
+      if (selectedBtnRadius === null) {
+        setSelectedBtnRadius(data.profile.buttonBorderRadius || 'md');
+      }
       setProductColumns(data.profile.productColumns || 3);
       setCardTemplate(data.profile.cardTemplate || 'standard');
-      setThemeInitialized(true);
+
+      if (!hasHydratedBulkFrontStyle.current) {
+        const source = productsData[0];
+        const initialStyle =
+          source && isFrontStyleId(source.frontStyle) ? source.frontStyle : 'cta';
+        setBulkFrontStyle(initialStyle);
+        const initialPrompt = source?.frontStylePrompt || '';
+        setBulkFrontStylePrompt(initialPrompt);
+        setBulkFrontStylePromptInput(getDisplayFrontStylePrompt(initialPrompt));
+        setIsCustomFrontStyleEnabled(initialStyle === 'custom');
+        hasHydratedBulkFrontStyle.current = true;
+      }
+
+      if (!hasHydratedPerProductFrontStyles.current) {
+        const nextStyles: Record<number, 'pill' | 'cta' | 'editorial'> = {};
+        for (const product of productsData) {
+          const fs = product.frontStyle;
+          nextStyles[product.id] = fs === 'pill' || fs === 'editorial' ? fs : 'cta';
+        }
+        setPerProductFrontStyles(nextStyles);
+        hasHydratedPerProductFrontStyles.current = true;
+      }
     }
-  }, [data, themeInitialized]);
+  }, [data, productsData, selectedTheme, selectedRadius, selectedBtnRadius]);
 
   const profile = data?.profile;
+  const products = productsData || [];
+  const handlePerProductFrontStyleChange = useCallback(
+    (productId: number, style: 'pill' | 'cta' | 'editorial') => {
+      setPerProductFrontStyles((prev) => ({ ...prev, [productId]: style }));
+    },
+    []
+  );
 
   const isReady =
     selectedTheme !== null &&
@@ -1494,15 +1878,19 @@ export default function ProfileConfigPage() {
     selectedBtnRadius !== null;
 
   return (
-    <section className="flex-1">
-      <div className="sticky top-0 z-10 border-b bg-white/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 h-16 flex items-center justify-end">
-          <div className="flex items-center gap-4">
+    <section className="flex-1 lg:p-8 max-w-7xl mx-auto">
+      <div className="sticky top-0 z-30 -mx-4 lg:-mx-8 px-4 lg:px-8 border-b bg-white/90 backdrop-blur-md">
+        <div className="flex items-center justify-between h-16 gap-4">
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold tracking-tight">Profile Settings</h1>
+            <p className="text-xs text-muted-foreground hidden sm:block">Customize your public page and storefront</p>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
             <Button
               type="submit"
               form="profile-config-form"
               disabled={isPending}
-              className="bg-orange-500 hover:bg-orange-600"
+              className="bg-orange-500 hover:bg-orange-600 text-white shadow-sm"
             >
               {isPending ? (
                 <>
@@ -1517,7 +1905,7 @@ export default function ProfileConfigPage() {
         </div>
       </div>
       <Suspense fallback={<ProfileSkeleton />}>
-        <div className="space-y-6 px-4 py-6 lg:px-8">
+        <div className="space-y-6 pt-6">
           {state.error && (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {state.error}
@@ -1529,7 +1917,7 @@ export default function ProfileConfigPage() {
             </div>
           )}
 
-          <AvatarSection />
+          <AvatarSection profileData={data} />
 
           {isReady && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1539,21 +1927,33 @@ export default function ProfileConfigPage() {
                 selectedBtnRadius={selectedBtnRadius}
                 productColumns={productColumns}
                 cardTemplate={cardTemplate}
-                onThemeChange={handleThemeChange}
+                isCustomFrontStyleEnabled={isCustomFrontStyleEnabled}
+                onThemeChange={setSelectedTheme}
                 onRadiusChange={setSelectedRadius}
                 onBtnRadiusChange={setSelectedBtnRadius}
                 onColumnsChange={setProductColumns}
                 onCardTemplateChange={setCardTemplate}
-                profile={profile}
+                onCustomFrontStyleToggle={(enabled) => {
+                  setIsCustomFrontStyleEnabled(enabled);
+                  if (!enabled) {
+                    setBulkFrontStyle('cta');
+                    return;
+                  }
+                  setBulkFrontStyle('custom');
+                }}
               />
-              <div className="lg:sticky lg:top-20 self-start lg:h-[calc(100vh-8rem)]">
+              <div className="lg:sticky lg:top-24 self-start">
                 <StorePreview
                   theme={getTheme(selectedTheme)}
                   cardRadius={selectedRadius}
                   btnRadius={selectedBtnRadius}
+                  products={products}
                   productColumns={productColumns}
                   cardTemplate={cardTemplate}
+                  perProductFrontStyles={perProductFrontStyles}
+                  onPerProductFrontStyleChange={handlePerProductFrontStyleChange}
                   profile={profile}
+                  isCustomFrontStyleEnabled={isCustomFrontStyleEnabled}
                 />
               </div>
             </div>
@@ -1565,6 +1965,11 @@ export default function ProfileConfigPage() {
             selectedBtnRadius={selectedBtnRadius || 'md'}
             productColumns={productColumns}
             cardTemplate={cardTemplate}
+            bulkFrontStyle={bulkFrontStyle}
+            isCustomFrontStyleEnabled={isCustomFrontStyleEnabled}
+            bulkFrontStylePrompt={bulkFrontStylePrompt}
+            perProductFrontStyles={perProductFrontStyles}
+            profileData={data}
             state={state}
             formAction={formAction}
             isPending={isPending}

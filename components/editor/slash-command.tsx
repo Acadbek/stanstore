@@ -376,14 +376,36 @@ const commandItems: CommandItem[] = [
     description: 'Embed a YouTube video',
     keywords: ['youtube', 'video', 'embed'],
     icon: Youtube,
-    command: () => {
-      window.dispatchEvent(new Event('tiptap-open-youtube-modal'));
+    command: (editor) => {
+      // Use setTimeout to ensure slash menu cleanup completes before modal opens
+      setTimeout(() => {
+        window.dispatchEvent(new Event('tiptap-open-youtube-modal'));
+      }, 0);
     },
     preview: (
       <div className="scp-youtube-preview">
-        <div className="scp-youtube-placeholder">
-          <Youtube className="scp-youtube-icon" />
-          <span>▶ YouTube Video</span>
+        <div className="scp-youtube-card">
+          <div className="scp-youtube-thumbnail">
+            <svg className="scp-youtube-watermark" viewBox="0 0 24 24" fill="#ffffff" width="28" height="28">
+              <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z" />
+            </svg>
+            <div className="scp-youtube-play-btn">
+              <svg viewBox="0 0 24 24" fill="white" width="12" height="12">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </div>
+            <div className="scp-youtube-duration">12:34</div>
+            <div className="scp-youtube-bar">
+              <span className="scp-youtube-bar-text">youtube.com</span>
+            </div>
+          </div>
+          <div className="scp-youtube-meta">
+            <div className="scp-youtube-avatar" />
+            <div className="scp-youtube-lines">
+              <div className="scp-youtube-line" />
+              <div className="scp-youtube-line scp-youtube-line--short" />
+            </div>
+          </div>
         </div>
       </div>
     ),

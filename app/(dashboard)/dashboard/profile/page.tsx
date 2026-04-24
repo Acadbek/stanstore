@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, Pencil } from 'lucide-react';
 import Link from 'next/link';
@@ -8,7 +7,19 @@ import useSWR from 'swr';
 import { Profile, Product } from '@/lib/db/schema';
 import StorePage from '@/app/[username]/store-page';
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = async (url: string) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) {
+      throw new Error(`Request failed: ${res.status}`);
+    }
+    return res.json();
+  } finally {
+    clearTimeout(timeout);
+  }
+};
 
 type ProfileData = {
   user: { name?: string | null; email?: string | null };
@@ -21,22 +32,16 @@ type StoreData = {
 };
 
 export default function ProfilePage() {
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  const { data: profileData, error: profileError, mutate: mutateProfile } = useSWR<ProfileData>(
-    `/api/profile?_t=${refreshKey}`,
+  const { data: profileData, error: profileError } = useSWR<ProfileData>(
+    '/api/profile',
     fetcher,
-    { revalidateOnMount: true, revalidateOnFocus: true }
+    { revalidateOnFocus: false, dedupingInterval: 10000 }
   );
-  const { data: productsData, error: productsError, mutate: mutateProducts } = useSWR<Product[]>(
-    `/api/products?_t=${refreshKey}`,
+  const { data: productsData } = useSWR<Product[]>(
+    '/api/products',
     fetcher,
-    { revalidateOnMount: true, revalidateOnFocus: true }
+    { revalidateOnFocus: false, dedupingInterval: 10000 }
   );
-
-  useEffect(() => {
-    setRefreshKey((prev: number) => prev + 1);
-  }, []);
 
   if (profileError) {
     return (
@@ -48,7 +53,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (!profileData || (!productsData && !productsError)) {
+  if (!profileData) {
     return (
       <section className="flex-1 flex items-center justify-center min-h-[60vh]">
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -77,7 +82,7 @@ export default function ProfilePage() {
     );
   }
 
-  const publishedProducts = (productsData || []).filter(
+  const publishedProducts = ((productsData || []) as Product[]).filter(
     (product) => product.isPublished
   );
 

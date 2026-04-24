@@ -1,6 +1,7 @@
 
 'use client';
 
+import React from 'react';
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import type { NodeViewProps } from '@tiptap/react';
@@ -38,9 +39,9 @@ function extractVideoId(src: string): string | null {
 function YoutubeEmbedNodeView({ node }: NodeViewProps) {
   const src = (node.attrs.src as string) || '';
   const videoId = extractVideoId(src);
-  const thumbnailUrl = videoId
-    ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
-    : null;
+  const [imgSrc, setImgSrc] = React.useState(
+    videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null
+  );
 
   return (
     <NodeViewWrapper>
@@ -50,12 +51,17 @@ function YoutubeEmbedNodeView({ node }: NodeViewProps) {
         contentEditable={false}
         className="youtube-embed-placeholder"
       >
-        {thumbnailUrl ? (
+        {imgSrc ? (
           <div className="yt-thumbnail-wrap">
             <img
-              src={thumbnailUrl}
+              src={imgSrc}
               alt="YouTube thumbnail"
               className="yt-thumbnail"
+              onError={() => {
+                if (videoId) {
+                  setImgSrc(`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`);
+                }
+              }}
             />
             <div className="yt-play-btn">
               <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
