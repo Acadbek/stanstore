@@ -40,6 +40,7 @@ import {
   Image as ImageIcon,
   RemoveFormatting,
   Youtube,
+  CalendarDays,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -379,14 +380,47 @@ const commandItems: CommandItem[] = [
     command: () => {
       window.dispatchEvent(new Event('tiptap-open-youtube-modal'));
     },
-    preview: (
-      <div className="scp-youtube-preview">
-        <div className="scp-youtube-placeholder">
-          <Youtube className="scp-youtube-icon" />
-          <span>▶ YouTube Video</span>
-        </div>
-      </div>
-    ),
+  },
+  {
+    title: 'Google Calendar',
+    description: 'Embed a Google Calendar or booking page',
+    keywords: ['google', 'calendar', 'appointment', 'booking', 'schedule'],
+    icon: CalendarDays,
+    command: () => {
+      window.dispatchEvent(new Event('tiptap-open-google-calendar-modal'));
+    },
+  },
+  {
+    title: 'Geist Sans',
+    description: 'Apply Geist Sans font',
+    keywords: ['font', 'geist', 'sans'],
+    icon: Type,
+    command: (editor) =>
+      editor.chain().focus().setFontFamily("'Geist Sans'").run(),
+  },
+  {
+    title: 'Geist Mono',
+    description: 'Apply Geist Mono font',
+    keywords: ['font', 'geist', 'mono', 'code'],
+    icon: Type,
+    command: (editor) =>
+      editor.chain().focus().setFontFamily("'Geist Mono'").run(),
+  },
+  {
+    title: 'Hedvig Sans',
+    description: 'Apply Hedvig Sans font',
+    keywords: ['font', 'hedvig', 'sans'],
+    icon: Type,
+    command: (editor) =>
+      editor.chain().focus().setFontFamily("'Hedvig Sans'").run(),
+  },
+  {
+    title: 'Hedvig Serif',
+    description: 'Apply Hedvig Serif font',
+    keywords: ['font', 'hedvig', 'serif'],
+    icon: Type,
+    command: (editor) =>
+      editor.chain().focus().setFontFamily("'Hedvig Serif'").run(),
   },
   {
     title: 'Clear Formatting',

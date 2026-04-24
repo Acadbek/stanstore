@@ -13,7 +13,16 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Loader2, PlusCircle, Eye, EyeOff, Trash2, Pencil, Sparkles, ArrowRight } from 'lucide-react';
+import {
+  Loader2,
+  PlusCircle,
+  Eye,
+  EyeOff,
+  Trash2,
+  Pencil,
+  Sparkles,
+  ArrowRight,
+} from 'lucide-react';
 import { createProduct, updateProduct, deleteProduct, toggleProductPublish } from './actions';
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { Product } from '@/lib/db/schema';
@@ -1015,6 +1024,11 @@ function ProductsPageContent() {
   const isFormOpen = showForm || editingProduct !== null;
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('googleCalendarModal') === '1') {
+      setShowForm(true);
+    }
+  }, []);
     if (shouldAutoCreate) {
       window.history.replaceState(null, '', '/dashboard/products');
     }

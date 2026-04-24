@@ -1,6 +1,13 @@
 import { desc, and, eq, isNull, sql } from 'drizzle-orm';
-import { db } from './drizzle';
-import { activityLogs, teamMembers, teams, users, profiles, products } from './schema';
+import { db, withDatabaseFallback } from './drizzle';
+import {
+  activityLogs,
+  teamMembers,
+  teams,
+  users,
+  profiles,
+  products,
+} from './schema';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/session';
 
@@ -110,7 +117,7 @@ export async function updateTeamSubscription(
     .update(teams)
     .set({
       ...subscriptionData,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     })
     .where(eq(teams.id, teamId));
 }
@@ -119,7 +126,7 @@ export async function getUserWithTeam(userId: number) {
   const result = await db
     .select({
       user: users,
-      teamId: teamMembers.teamId
+      teamId: teamMembers.teamId,
     })
     .from(users)
     .leftJoin(teamMembers, eq(users.id, teamMembers.userId))
@@ -141,7 +148,7 @@ export async function getActivityLogs() {
       action: activityLogs.action,
       timestamp: activityLogs.timestamp,
       ipAddress: activityLogs.ipAddress,
-      userName: users.name
+      userName: users.name,
     })
     .from(activityLogs)
     .leftJoin(users, eq(activityLogs.userId, users.id))
@@ -167,35 +174,35 @@ export async function getTeamForUser() {
                 columns: {
                   id: true,
                   name: true,
-                  email: true
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   });
 
   return result?.team || null;
 }
 
 export async function getProfileByUserId(userId: number) {
-  const result = await db
-    .select()
-    .from(profiles)
-    .where(eq(profiles.userId, userId))
-    .limit(1);
+  const result = await withDatabaseFallback((database) =>
+    database.select().from(profiles).where(eq(profiles.userId, userId)).limit(1)
+  );
 
   return result.length > 0 ? result[0] : null;
 }
 
 export async function getProfileByUsername(username: string) {
-  const result = await db
-    .select()
-    .from(profiles)
-    .where(eq(profiles.username, username))
-    .limit(1);
+  const result = await withDatabaseFallback((database) =>
+    database
+      .select()
+      .from(profiles)
+      .where(eq(profiles.username, username))
+      .limit(1)
+  );
 
   return result.length > 0 ? result[0] : null;
 }
@@ -206,34 +213,43 @@ export async function getPublicStoreData(username: string) {
 
   let userProducts;
   try {
-    userProducts = await db
-      .select()
-      .from(products)
-      .where(and(eq(products.userId, profile.userId), eq(products.isPublished, true)))
-      .orderBy(desc(products.createdAt));
+    userProducts = await withDatabaseFallback((database) =>
+      database
+        .select()
+        .from(products)
+        .where(
+          and(
+            eq(products.userId, profile.userId),
+            eq(products.isPublished, true)
+          )
+        )
+        .orderBy(desc(products.createdAt))
+    );
   } catch (error) {
     if (!isMissingFrontStyleColumnsError(error)) {
       throw error;
     }
 
-    const rows = await db.execute<LegacyProductRow>(sql`
-      SELECT
-        id,
-        user_id,
-        slug,
-        title,
-        description,
-        price,
-        product_url,
-        image_url,
-        type,
-        is_published,
-        created_at,
-        updated_at
-      FROM products
-      WHERE user_id = ${profile.userId} AND is_published = true
-      ORDER BY created_at DESC
-    `);
+    const rows = await withDatabaseFallback((database) =>
+      database.execute<LegacyProductRow>(sql`
+        SELECT
+          id,
+          user_id,
+          slug,
+          title,
+          description,
+          price,
+          product_url,
+          image_url,
+          type,
+          is_published,
+          created_at,
+          updated_at
+        FROM products
+        WHERE user_id = ${profile.userId} AND is_published = true
+        ORDER BY created_at DESC
+      `)
+    );
     userProducts = rows.map(mapLegacyProduct);
   }
 
@@ -242,34 +258,38 @@ export async function getPublicStoreData(username: string) {
 
 export async function getProductsByUserId(userId: number) {
   try {
-    return await db
-      .select()
-      .from(products)
-      .where(eq(products.userId, userId))
-      .orderBy(desc(products.createdAt));
+    return await withDatabaseFallback((database) =>
+      database
+        .select()
+        .from(products)
+        .where(eq(products.userId, userId))
+        .orderBy(desc(products.createdAt))
+    );
   } catch (error) {
     if (!isMissingFrontStyleColumnsError(error)) {
       throw error;
     }
 
-    const rows = await db.execute<LegacyProductRow>(sql`
-      SELECT
-        id,
-        user_id,
-        slug,
-        title,
-        description,
-        price,
-        product_url,
-        image_url,
-        type,
-        is_published,
-        created_at,
-        updated_at
-      FROM products
-      WHERE user_id = ${userId}
-      ORDER BY created_at DESC
-    `);
+    const rows = await withDatabaseFallback((database) =>
+      database.execute<LegacyProductRow>(sql`
+        SELECT
+          id,
+          user_id,
+          slug,
+          title,
+          description,
+          price,
+          product_url,
+          image_url,
+          type,
+          is_published,
+          created_at,
+          updated_at
+        FROM products
+        WHERE user_id = ${userId}
+        ORDER BY created_at DESC
+      `)
+    );
 
     return rows.map(mapLegacyProduct);
   }
@@ -277,11 +297,13 @@ export async function getProductsByUserId(userId: number) {
 
 export async function getProductById(productId: number) {
   try {
-    const result = await db
-      .select()
-      .from(products)
-      .where(eq(products.id, productId))
-      .limit(1);
+    const result = await withDatabaseFallback((database) =>
+      database
+        .select()
+        .from(products)
+        .where(eq(products.id, productId))
+        .limit(1)
+    );
 
     return result.length > 0 ? result[0] : null;
   } catch (error) {
@@ -289,24 +311,26 @@ export async function getProductById(productId: number) {
       throw error;
     }
 
-    const rows = await db.execute<LegacyProductRow>(sql`
-      SELECT
-        id,
-        user_id,
-        slug,
-        title,
-        description,
-        price,
-        product_url,
-        image_url,
-        type,
-        is_published,
-        created_at,
-        updated_at
-      FROM products
-      WHERE id = ${productId}
-      LIMIT 1
-    `);
+    const rows = await withDatabaseFallback((database) =>
+      database.execute<LegacyProductRow>(sql`
+        SELECT
+          id,
+          user_id,
+          slug,
+          title,
+          description,
+          price,
+          product_url,
+          image_url,
+          type,
+          is_published,
+          created_at,
+          updated_at
+        FROM products
+        WHERE id = ${productId}
+        LIMIT 1
+      `)
+    );
 
     return rows.length > 0 ? mapLegacyProduct(rows[0]) : null;
   }
@@ -314,11 +338,9 @@ export async function getProductById(productId: number) {
 
 export async function getProductBySlug(slug: string) {
   try {
-    const result = await db
-      .select()
-      .from(products)
-      .where(eq(products.slug, slug))
-      .limit(1);
+    const result = await withDatabaseFallback((database) =>
+      database.select().from(products).where(eq(products.slug, slug)).limit(1)
+    );
 
     return result.length > 0 ? result[0] : null;
   } catch (error) {
@@ -326,24 +348,26 @@ export async function getProductBySlug(slug: string) {
       throw error;
     }
 
-    const rows = await db.execute<LegacyProductRow>(sql`
-      SELECT
-        id,
-        user_id,
-        slug,
-        title,
-        description,
-        price,
-        product_url,
-        image_url,
-        type,
-        is_published,
-        created_at,
-        updated_at
-      FROM products
-      WHERE slug = ${slug}
-      LIMIT 1
-    `);
+    const rows = await withDatabaseFallback((database) =>
+      database.execute<LegacyProductRow>(sql`
+        SELECT
+          id,
+          user_id,
+          slug,
+          title,
+          description,
+          price,
+          product_url,
+          image_url,
+          type,
+          is_published,
+          created_at,
+          updated_at
+        FROM products
+        WHERE slug = ${slug}
+        LIMIT 1
+      `)
+    );
 
     return rows.length > 0 ? mapLegacyProduct(rows[0]) : null;
   }
