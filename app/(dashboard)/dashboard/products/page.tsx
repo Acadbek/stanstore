@@ -27,7 +27,8 @@ import { ChatPanel } from '@/components/chat/chat-panel';
 import { Product } from '@/lib/db/schema';
 import useSWR, { mutate } from 'swr';
 import { Suspense } from 'react';
-import dynamic from 'next/dynamic';
+import type { BookingSettingsFormValue } from '@/components/booking/booking-settings-fields';
+import RichEditor from '@/components/editor/rich-editor';
 import {
   getDisplayFrontStylePrompt,
   isFrontStyleId,
@@ -35,10 +36,6 @@ import {
   type FrontStyleId,
   type ResolvedFrontStyle,
 } from '@/lib/product-front-style';
-
-const RichEditor = dynamic(() => import('@/components/editor/rich-editor'), {
-  ssr: false,
-});
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -55,6 +52,26 @@ const PRESET_STYLES: { id: FrontStyleId; label: string }[] = [
   { id: 'cta', label: 'CTA Card' },
   { id: 'editorial', label: 'Editorial' },
 ];
+
+function createDefaultBookingSettings(): BookingSettingsFormValue {
+  return {
+    timezone: 'Asia/Tashkent',
+    durationMinutes: '30',
+    intervalMinutes: '30',
+    bufferMinutes: '0',
+    minNoticeMinutes: '120',
+    maxDaysAhead: '30',
+    weeklyAvailability: {
+      monday: { enabled: true, start: '09:00', end: '17:00' },
+      tuesday: { enabled: true, start: '09:00', end: '17:00' },
+      wednesday: { enabled: true, start: '09:00', end: '17:00' },
+      thursday: { enabled: true, start: '09:00', end: '17:00' },
+      friday: { enabled: true, start: '09:00', end: '17:00' },
+      saturday: { enabled: false, start: '09:00', end: '17:00' },
+      sunday: { enabled: false, start: '09:00', end: '17:00' },
+    },
+  };
+}
 
 function formatPreviewPrice(price: string) {
   if (!price || Number(price) <= 0 || Number.isNaN(Number(price))) {
@@ -296,6 +313,10 @@ function ProductForm({
   );
   const [isMoreOpen, setIsMoreOpen] = useState(initialData?.frontStyle === 'custom');
   const [isInterpretingStyle, setIsInterpretingStyle] = useState(false);
+  const [bookingSettings, setBookingSettings] = useState<BookingSettingsFormValue>(
+    createDefaultBookingSettings()
+  );
+  const [isBookingSettingsLoading, setIsBookingSettingsLoading] = useState(false);
 
   useEffect(() => {
     if (mode === 'edit' && initialData) {
@@ -309,6 +330,7 @@ function ProductForm({
       setFrontStylePrompt(initialData.frontStylePrompt || '');
       setStylePromptInput(getDisplayFrontStylePrompt(initialData.frontStylePrompt || ''));
       setIsMoreOpen(initialData.frontStyle === 'custom');
+      setBookingSettings(createDefaultBookingSettings());
       return;
     }
 
@@ -323,8 +345,53 @@ function ProductForm({
       setFrontStylePrompt('');
       setStylePromptInput('');
       setIsMoreOpen(false);
+      setBookingSettings(createDefaultBookingSettings());
     }
   }, [mode, initialData?.id]);
+
+  useEffect(() => {
+    if (type !== 'booking') return;
+
+    if (mode === 'create' || !initialData?.id) {
+      return;
+    }
+
+    let cancelled = false;
+    const loadBookingSettings = async () => {
+      setIsBookingSettingsLoading(true);
+      try {
+        const response = await fetch(
+          `/api/booking/products/${initialData.id}/settings`,
+          { cache: 'no-store' }
+        );
+        if (!response.ok) return;
+        const result = (await response.json()) as BookingSettingsFormValue;
+        if (!cancelled) {
+          setBookingSettings({
+            timezone: result.timezone || 'Asia/Tashkent',
+            durationMinutes: String(result.durationMinutes || 30),
+            intervalMinutes: String(result.intervalMinutes || 30),
+            bufferMinutes: String(result.bufferMinutes || 0),
+            minNoticeMinutes: String(result.minNoticeMinutes || 120),
+            maxDaysAhead: String(result.maxDaysAhead || 30),
+            weeklyAvailability:
+              result.weeklyAvailability ||
+              createDefaultBookingSettings().weeklyAvailability,
+          });
+        }
+      } finally {
+        if (!cancelled) {
+          setIsBookingSettingsLoading(false);
+        }
+      }
+    };
+
+    loadBookingSettings();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [type, mode, initialData?.id]);
 
   const [state, formAction, isPending] = useActionState<ActionState, FormData>(
     async (prevState: ActionState, formData: FormData) => {
@@ -416,6 +483,9 @@ function ProductForm({
           onYoutubeThumbnail={(url) => {
             if (!imageUrl) setImageUrl(url);
           }}
+          googleCalendarMode="booking"
+          bookingSettings={bookingSettings}
+          onBookingSettingsChange={setBookingSettings}
         />
       </div>
       <div>
@@ -480,6 +550,85 @@ function ProductForm({
           onChange={(event) => setImageUrl(event.target.value)}
         />
       </div>
+      {type === 'booking' && (
+        <div className="sm:col-span-2 space-y-2">
+          <div className="rounded-2xl border border-orange-100 bg-orange-50/40 p-4">
+            <p className="text-sm font-semibold text-gray-900">
+              Booking setup
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Google Calendar tugmasini bosib bo‘sh kunlar, session davomiyligi va Meet booking sozlamalarini boshqaring.
+            </p>
+            {isBookingSettingsLoading ? (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Loading booking settings...
+              </p>
+            ) : (
+              <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-gray-600 sm:grid-cols-4">
+                <div className="rounded-xl border border-white/80 bg-white/80 p-3">
+                  <div className="font-medium text-gray-900">Timezone</div>
+                  <div className="mt-1">{bookingSettings.timezone}</div>
+                </div>
+                <div className="rounded-xl border border-white/80 bg-white/80 p-3">
+                  <div className="font-medium text-gray-900">Session</div>
+                  <div className="mt-1">{bookingSettings.durationMinutes} min</div>
+                </div>
+                <div className="rounded-xl border border-white/80 bg-white/80 p-3">
+                  <div className="font-medium text-gray-900">Notice</div>
+                  <div className="mt-1">{bookingSettings.minNoticeMinutes} min</div>
+                </div>
+                <div className="rounded-xl border border-white/80 bg-white/80 p-3">
+                  <div className="font-medium text-gray-900">Open days</div>
+                  <div className="mt-1">
+                    {
+                      Object.values(bookingSettings.weeklyAvailability).filter(
+                        (day) => day.enabled
+                      ).length
+                    }{' '}
+                    / 7
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <input
+            type="hidden"
+            name="bookingTimezone"
+            value={bookingSettings.timezone}
+          />
+          <input
+            type="hidden"
+            name="bookingDurationMinutes"
+            value={bookingSettings.durationMinutes}
+          />
+          <input
+            type="hidden"
+            name="bookingIntervalMinutes"
+            value={bookingSettings.intervalMinutes}
+          />
+          <input
+            type="hidden"
+            name="bookingBufferMinutes"
+            value={bookingSettings.bufferMinutes}
+          />
+          <input
+            type="hidden"
+            name="bookingMinNoticeMinutes"
+            value={bookingSettings.minNoticeMinutes}
+          />
+          <input
+            type="hidden"
+            name="bookingMaxDaysAhead"
+            value={bookingSettings.maxDaysAhead}
+          />
+          <input
+            type="hidden"
+            name="bookingAvailability"
+            value={JSON.stringify(bookingSettings.weeklyAvailability)}
+          />
+        </div>
+      )}
     </div>
   );
 
@@ -653,121 +802,14 @@ function ProductForm({
       ) : (
         <div>
           <form className="space-y-4" action={formAction}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="sm:col-span-2">
-            <RichEditor
-              content={descriptionHtml}
-              onChange={setDescriptionHtml}
-              placeholder="Describe your product in detail..."
-              onYoutubeThumbnail={(url) => {
-                if (!imageUrl) setImageUrl(url);
-              }}
-            />
-          </div>
-          <div>
-            <Label htmlFor="price" className="mb-2">
-              Price ($)
-            </Label>
-            <Input
-              id="price"
-              name="price"
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="0.00"
-              defaultValue={
-                initialData?.price ? (initialData.price / 100).toFixed(2) : ''
-              }
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Leave empty for free
-            </p>
-          </div>
-          <div>
-            <Label htmlFor="type" className="mb-2">
-              Type
-            </Label>
-            <select
-              id="type"
-              name="type"
-              defaultValue={initialData?.type || 'digital'}
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              <option value="digital">Digital Product</option>
-              <option value="link">Link</option>
-              <option value="booking">Booking</option>
-            </select>
-          </div>
-          <div className="sm:col-span-2">
-            <Label htmlFor="title" className="mb-2">
-              Title
-            </Label>
-            <Input
-              id="title"
-              name="title"
-              placeholder="My Awesome Product"
-              defaultValue={initialData?.title || ''}
-              required
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <Label htmlFor="productUrl" className="mb-2">
-              Product URL
-            </Label>
-            <Input
-              id="productUrl"
-              name="productUrl"
-              type="url"
-              placeholder="https://example.com/product"
-              defaultValue={initialData?.productUrl || ''}
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <Label htmlFor="imageUrl" className="mb-2">
-              Cover Image URL
-            </Label>
-            <Input
-              id="imageUrl"
-              name="imageUrl"
-              type="url"
-              placeholder="https://example.com/image.jpg"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-            />
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button
-            type="submit"
-            className="bg-orange-500 hover:bg-orange-600 text-white"
-            disabled={isPending}
-          >
-            {isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : mode === 'create' ? (
-              <>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add Product
-              </>
-            ) : (
-              'Save Changes'
+            {formFields}
+            {actionRow}
+            {state.error && <p className="text-red-500 text-sm">{state.error}</p>}
+            {state.success && (
+              <p className="text-green-500 text-sm">{state.success}</p>
             )}
-          </Button>
-          {onCancel && (
-            <Button type="button" variant="outline" onClick={onCancel}>
-              Cancel
-            </Button>
-          )}
+          </form>
         </div>
-        {state.error && <p className="text-red-500 text-sm">{state.error}</p>}
-        {state.success && (
-          <p className="text-green-500 text-sm">{state.success}</p>
-        )}
-      </form>
-    </div>
       )}
     </>
   );

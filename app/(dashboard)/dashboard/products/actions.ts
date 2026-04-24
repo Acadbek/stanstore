@@ -6,6 +6,11 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db/drizzle';
 import { products, profiles } from '@/lib/db/schema';
 import { validatedActionWithUser } from '@/lib/auth/middleware';
+import {
+  deleteBookingSettings,
+  normalizeBookingWeeklyAvailability,
+  upsertBookingSettings,
+} from '@/lib/booking';
 
 function generateSlug(title: string): string {
   return title
@@ -136,6 +141,56 @@ async function revalidateStorePaths(userId: number, productSlug?: string) {
   revalidatePath('/dashboard/products');
 }
 
+function clampInteger(value: string | undefined, fallback: number, min: number, max: number) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(parsed)));
+}
+
+function normalizeTimeZone(value: string | undefined) {
+  const timeZone = value?.trim() || 'UTC';
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone }).format(new Date());
+    return timeZone;
+  } catch {
+    return 'UTC';
+  }
+}
+
+function extractBookingSettings(data: {
+  type?: 'digital' | 'booking' | 'link';
+  bookingDurationMinutes?: string;
+  bookingIntervalMinutes?: string;
+  bookingBufferMinutes?: string;
+  bookingMinNoticeMinutes?: string;
+  bookingMaxDaysAhead?: string;
+  bookingTimezone?: string;
+  bookingAvailability?: string;
+}) {
+  if (data.type !== 'booking') {
+    return null;
+  }
+
+  let parsedAvailability: unknown = undefined;
+  if (data.bookingAvailability) {
+    try {
+      parsedAvailability = JSON.parse(data.bookingAvailability);
+    } catch {
+      parsedAvailability = undefined;
+    }
+  }
+
+  return {
+    timezone: normalizeTimeZone(data.bookingTimezone),
+    durationMinutes: clampInteger(data.bookingDurationMinutes, 30, 15, 240),
+    intervalMinutes: clampInteger(data.bookingIntervalMinutes, 30, 15, 240),
+    bufferMinutes: clampInteger(data.bookingBufferMinutes, 0, 0, 120),
+    minNoticeMinutes: clampInteger(data.bookingMinNoticeMinutes, 120, 0, 10080),
+    maxDaysAhead: clampInteger(data.bookingMaxDaysAhead, 30, 1, 365),
+    weeklyAvailability: normalizeBookingWeeklyAvailability(parsedAvailability),
+  };
+}
+
 const createProductSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
   description: z.string().max(50000).optional(),
@@ -145,6 +200,13 @@ const createProductSchema = z.object({
   type: z.enum(['digital', 'booking', 'link']).optional(),
   frontStyle: z.enum(['inherit', 'pill', 'cta', 'editorial', 'custom']).optional(),
   frontStylePrompt: z.string().max(3000).optional(),
+  bookingDurationMinutes: z.string().optional(),
+  bookingIntervalMinutes: z.string().optional(),
+  bookingBufferMinutes: z.string().optional(),
+  bookingMinNoticeMinutes: z.string().optional(),
+  bookingMaxDaysAhead: z.string().optional(),
+  bookingTimezone: z.string().max(100).optional(),
+  bookingAvailability: z.string().optional(),
 });
 
 export const createProduct = validatedActionWithUser(
@@ -159,6 +221,13 @@ export const createProduct = validatedActionWithUser(
       type,
       frontStyle,
       frontStylePrompt,
+      bookingDurationMinutes,
+      bookingIntervalMinutes,
+      bookingBufferMinutes,
+      bookingMinNoticeMinutes,
+      bookingMaxDaysAhead,
+      bookingTimezone,
+      bookingAvailability,
     } = data;
 
     let slug = generateSlug(title);
@@ -183,21 +252,44 @@ export const createProduct = validatedActionWithUser(
       isPublished: true,
     };
 
+    const bookingSettings = extractBookingSettings({
+      type,
+      bookingDurationMinutes,
+      bookingIntervalMinutes,
+      bookingBufferMinutes,
+      bookingMinNoticeMinutes,
+      bookingMaxDaysAhead,
+      bookingTimezone,
+      bookingAvailability,
+    });
+
+    let insertedProductId: number | null = null;
+
     try {
-      await db.insert(products).values({
+      const inserted = await db.insert(products).values({
         ...baseInsert,
         frontStyle: frontStyle || 'inherit',
         frontStylePrompt: frontStylePrompt || null,
-      });
+      }).returning({ id: products.id });
+      insertedProductId = inserted[0]?.id || null;
     } catch (error) {
       if (!isMissingFrontStyleColumnsError(error)) {
         throw error;
       }
       await ensureFrontStyleColumns();
-      await db.insert(products).values({
+      const inserted = await db.insert(products).values({
         ...baseInsert,
         frontStyle: frontStyle || 'inherit',
         frontStylePrompt: frontStylePrompt || null,
+      }).returning({ id: products.id });
+      insertedProductId = inserted[0]?.id || null;
+    }
+
+    if (insertedProductId && bookingSettings) {
+      await upsertBookingSettings({
+        productId: insertedProductId,
+        userId: user.id,
+        ...bookingSettings,
       });
     }
 
@@ -218,6 +310,13 @@ const updateProductSchema = z.object({
   frontStyle: z.enum(['inherit', 'pill', 'cta', 'editorial', 'custom']).optional(),
   frontStylePrompt: z.string().max(3000).optional(),
   isPublished: z.enum(['true', 'false']).optional(),
+  bookingDurationMinutes: z.string().optional(),
+  bookingIntervalMinutes: z.string().optional(),
+  bookingBufferMinutes: z.string().optional(),
+  bookingMinNoticeMinutes: z.string().optional(),
+  bookingMaxDaysAhead: z.string().optional(),
+  bookingTimezone: z.string().max(100).optional(),
+  bookingAvailability: z.string().optional(),
 });
 
 export const updateProduct = validatedActionWithUser(
@@ -234,6 +333,13 @@ export const updateProduct = validatedActionWithUser(
       frontStyle,
       frontStylePrompt,
       isPublished,
+      bookingDurationMinutes,
+      bookingIntervalMinutes,
+      bookingBufferMinutes,
+      bookingMinNoticeMinutes,
+      bookingMaxDaysAhead,
+      bookingTimezone,
+      bookingAvailability,
     } = data;
 
     const existing = await getOwnedProductRecord(id, user.id);
@@ -265,12 +371,24 @@ export const updateProduct = validatedActionWithUser(
       frontStylePrompt === undefined
         ? existing.frontStylePrompt
         : frontStylePrompt || null;
+    const finalType = type || existing.type;
+    const bookingSettings = extractBookingSettings({
+      type: finalType as 'digital' | 'booking' | 'link',
+      bookingDurationMinutes,
+      bookingIntervalMinutes,
+      bookingBufferMinutes,
+      bookingMinNoticeMinutes,
+      bookingMaxDaysAhead,
+      bookingTimezone,
+      bookingAvailability,
+    });
 
     try {
       await db
         .update(products)
         .set({
           ...baseUpdate,
+          type: finalType,
           frontStyle: finalFrontStyle,
           frontStylePrompt: finalFrontStylePrompt,
         })
@@ -284,10 +402,21 @@ export const updateProduct = validatedActionWithUser(
         .update(products)
         .set({
           ...baseUpdate,
+          type: finalType,
           frontStyle: finalFrontStyle,
           frontStylePrompt: finalFrontStylePrompt,
         })
         .where(eq(products.id, id));
+    }
+
+    if (bookingSettings) {
+      await upsertBookingSettings({
+        productId: id,
+        userId: user.id,
+        ...bookingSettings,
+      });
+    } else {
+      await deleteBookingSettings(id);
     }
 
     await revalidateStorePaths(user.id, existing.slug);

@@ -12,7 +12,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
 import {
   Type,
   Heading1,
@@ -561,27 +560,18 @@ const CommandList = forwardRef<CommandListRef, CommandListProps>(
           </div>
         </div>
         <div className="slash-command-preview">
-          <motion.div
+          <div
             className="slash-command-preview-float"
-            animate={{ y: previewY }}
-            transition={{ duration: 0.12, ease: 'easeOut' }}
+            style={{ transform: `translateY(${previewY}px)` }}
           >
             <div className="slash-command-preview-inner">
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={selectedItem?.title}
-                  initial={{ opacity: 0.4, scale: 0.97 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.97 }}
-                  transition={{ duration: 0.1, ease: 'easeOut' }}
-                >
-                  {selectedItem?.preview ?? (
-                    <span className="text-gray-400 text-xs">No preview</span>
-                  )}
-                </motion.div>
-              </AnimatePresence>
+              <div key={selectedItem?.title}>
+                {selectedItem?.preview ?? (
+                  <span className="text-gray-400 text-xs">No preview</span>
+                )}
+              </div>
             </div>
-          </motion.div>
+          </div>
         </div>
       </div>
     );

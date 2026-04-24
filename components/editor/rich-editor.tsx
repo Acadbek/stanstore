@@ -18,11 +18,16 @@ import { Callout } from './callout';
 import { Carousel, CarouselItem } from './carousel';
 import { QuoteBlock } from './quote-block';
 import { YoutubeEmbed } from './youtube-embed';
+import { BookingSummary, type BookingSummaryAttrs } from './booking-summary';
 import {
   GoogleCalendarEmbed,
   extractGoogleCalendarEmbedAttrs,
 } from './google-calendar-embed';
 import { TocSidebar } from './toc-sidebar';
+import {
+  BookingSettingsFields,
+  type BookingSettingsFormValue,
+} from '@/components/booking/booking-settings-fields';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -80,6 +85,9 @@ type RichEditorProps = {
   onChange: (html: string) => void;
   placeholder?: string;
   onYoutubeThumbnail?: (thumbnailUrl: string) => void;
+  googleCalendarMode?: 'embed' | 'booking';
+  bookingSettings?: BookingSettingsFormValue;
+  onBookingSettingsChange?: (next: BookingSettingsFormValue) => void;
 };
 
 type QuoteStyle = 'line' | 'double';
@@ -115,6 +123,47 @@ type GoogleCalendarStatus = {
   isConfigured: boolean;
   authUrl: string;
 };
+
+const BOOKING_DAY_ORDER = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+] as const;
+
+function formatBookingDayLabel(day: (typeof BOOKING_DAY_ORDER)[number]) {
+  return day.charAt(0).toUpperCase() + day.slice(1, 3);
+}
+
+function buildBookingSummaryAttrs(
+  settings: BookingSettingsFormValue
+): BookingSummaryAttrs {
+  const enabledDays = BOOKING_DAY_ORDER.filter(
+    (day) => settings.weeklyAvailability[day]?.enabled
+  );
+  const availabilityText =
+    enabledDays.length > 0
+      ? enabledDays
+          .map((day) => {
+            const slot = settings.weeklyAvailability[day];
+            return `${formatBookingDayLabel(day)} ${slot.start}-${slot.end}`;
+          })
+          .join(' • ')
+      : 'Availability will be configured later.';
+
+  return {
+    timezone: settings.timezone,
+    duration: `${settings.durationMinutes} min`,
+    interval: `${settings.intervalMinutes} min`,
+    notice: `${settings.minNoticeMinutes} min`,
+    daysAhead: `${settings.maxDaysAhead} days`,
+    availability: availabilityText,
+    location: 'Google Meet',
+  };
+}
 
 function ToolbarButton({
   onClick,
@@ -218,6 +267,9 @@ export default function RichEditor({
   onChange,
   placeholder,
   onYoutubeThumbnail,
+  googleCalendarMode = 'embed',
+  bookingSettings,
+  onBookingSettingsChange,
 }: RichEditorProps) {
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
@@ -393,6 +445,7 @@ export default function RichEditor({
       CarouselItem,
       Carousel,
       YoutubeEmbed as any,
+      BookingSummary as any,
       GoogleCalendarEmbed as any,
       TextStyle,
       FontFamily,
@@ -895,6 +948,44 @@ export default function RichEditor({
     setGoogleCalendarValue('');
   }, []);
 
+  const saveBookingSetupToEditor = useCallback(() => {
+    if (!editor || !bookingSettings) {
+      closeGoogleCalendarModal();
+      return;
+    }
+
+    const attrs = buildBookingSummaryAttrs(bookingSettings);
+    let existingPos: number | null = null;
+
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'bookingSummary') {
+        existingPos = pos;
+        return false;
+      }
+      return true;
+    });
+
+    if (existingPos !== null) {
+      const currentNode = editor.state.doc.nodeAt(existingPos);
+      if (currentNode) {
+        const transaction = editor.state.tr.replaceWith(
+          existingPos,
+          existingPos + currentNode.nodeSize,
+          editor.state.schema.nodes.bookingSummary.create(attrs)
+        );
+        editor.view.dispatch(transaction);
+      }
+    } else {
+      editor
+        .chain()
+        .focus()
+        .insertContent({ type: 'bookingSummary', attrs })
+        .run();
+    }
+
+    closeGoogleCalendarModal();
+  }, [bookingSettings, closeGoogleCalendarModal, editor]);
+
   const loadGoogleCalendarStatus = useCallback(async () => {
     setIsGoogleCalendarStatusLoading(true);
     try {
@@ -1052,6 +1143,12 @@ export default function RichEditor({
   const googleCalendarMessage = googleCalendarCallbackState
     ? googleCalendarMessageMap[googleCalendarCallbackState]
     : null;
+  const parsedGoogleCalendarEmbed =
+    extractGoogleCalendarEmbedAttrs(googleCalendarValue);
+  const isBookingGoogleCalendarMode =
+    googleCalendarMode === 'booking' &&
+    bookingSettings &&
+    onBookingSettingsChange;
 
   const extractVideoIdFromUrl = (url: string): string | null => {
     try {
@@ -1092,6 +1189,25 @@ export default function RichEditor({
     Boolean(inlineCompletion) ||
     isInlineCompletionLoading ||
     Boolean(inlineCompletionError);
+
+  const handleAddBlockPointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!editor) return;
+
+    const { $from } = editor.state.selection;
+    const insertPos =
+      $from.depth >= 1 ? $from.after(1) : editor.state.doc.content.size;
+
+    editor
+      .chain()
+      .focus()
+      .insertContentAt(insertPos, { type: 'paragraph' })
+      .run();
+
+    const slashPos = Math.min(insertPos + 1, editor.state.doc.content.size);
+    editor.chain().focus(slashPos).insertContent('/').run();
+  };
 
   return (
     <div
@@ -1409,7 +1525,9 @@ export default function RichEditor({
                 }}
               >
                 <CalendarDays className="h-4 w-4 mr-2" />
-                Google Calendar
+                {isBookingGoogleCalendarMode
+                  ? 'Booking Calendar'
+                  : 'Google Calendar'}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() =>
@@ -1436,22 +1554,7 @@ export default function RichEditor({
                   type="button"
                   className="drag-handle-add"
                   title="Add block"
-                  onPointerDown={(e: React.PointerEvent) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (!editor) return;
-                    const { from } = editor.state.selection;
-                    const $pos = editor.state.doc.resolve(from);
-                    const nodeEnd = $pos.end() + 1;
-                    editor
-                      .chain()
-                      .focus()
-                      .insertContentAt(nodeEnd, { type: 'paragraph' })
-                      .setTextSelection(nodeEnd + 1)
-                      .run();
-                    const tr = editor.state.tr.insertText('/');
-                    editor.view.dispatch(tr);
-                  }}
+                  onPointerDown={handleAddBlockPointerDown}
                 >
                   <Plus className="h-3 w-3" />
                 </button>
@@ -1779,22 +1882,32 @@ export default function RichEditor({
             }}
           />
           <div
-            className="relative w-full max-w-lg rounded-xl border border-gray-200 bg-white p-4 shadow-lg"
+            className="relative flex max-h-[85vh] w-full max-w-[620px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-label="Google Calendar"
           >
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-gray-900 truncate">
-                  Google Calendar
+                  {isBookingGoogleCalendarMode
+                    ? 'Google Calendar Booking'
+                    : 'Google Calendar'}
                 </h3>
                 <p className="text-xs text-gray-500">
-                  Paste Google Calendar iframe code or a
-                  {' '}
-                  <code className="font-mono text-[11px]">calendar.google.com</code>
-                  {' '}
-                  link
+                  {isBookingGoogleCalendarMode ? (
+                    ''
+                  ) : (
+                    <>
+                      Paste Google Calendar iframe code, booking page link, or a
+                      {' '}
+                      <code className="font-mono text-[11px]">calendar.google.com</code>
+                      {' / '}
+                      <code className="font-mono text-[11px]">calendar.app.google</code>
+                      {' '}
+                      link
+                    </>
+                  )}
                 </p>
               </div>
               <button
@@ -1807,7 +1920,8 @@ export default function RichEditor({
               </button>
             </div>
 
-            <div className="mt-4 space-y-3">
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+              <div className="space-y-3 pr-1">
               {googleCalendarMessage && (
                 <div
                   className={`rounded-lg border px-3 py-2 text-sm ${
@@ -1825,130 +1939,266 @@ export default function RichEditor({
                 </div>
               )}
 
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      Google account
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Avval Google Calendar account ulanishi kerak.
-                    </p>
+              {isBookingGoogleCalendarMode ? (
+                googleCalendarStatus?.connected ? (
+                  <div className="rounded-2xl border border-green-200 bg-green-50/70 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-white px-3 py-1 text-xs font-medium text-green-700">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Google Calendar connected
+                        </div>
+                        {googleCalendarStatus.email && (
+                          <p className="mt-3 text-sm font-medium text-gray-900">
+                            {googleCalendarStatus.email}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={disconnectGoogleCalendar}
+                          disabled={isGoogleCalendarDisconnecting}
+                        >
+                          <Unplug className="mr-2 h-4 w-4" />
+                          {isGoogleCalendarDisconnecting
+                            ? 'Disconnecting...'
+                            : 'Disconnect'}
+                        </Button>
+                        <Button
+                          type="button"
+                          className="bg-orange-500 hover:bg-orange-600 text-white"
+                          disabled={!googleCalendarStatus?.isConfigured}
+                          onClick={connectGoogleCalendar}
+                        >
+                          <CalendarDays className="mr-2 h-4 w-4" />
+                          Reconnect
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="shrink-0">
-                    {isGoogleCalendarStatusLoading ? (
-                      <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-500">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Checking...
-                      </span>
-                    ) : googleCalendarStatus?.connected ? (
-                      <span className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-medium text-green-700">
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        Connected
-                      </span>
-                    ) : (
+                ) : (
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          Connect Google Calendar
+                        </p>
+                        <p className="mt-1 text-xs text-gray-600">
+                          Bo‘sh vaqtlaringizni sync qilish, conflict’larni yashirish va booking paytida Google Meet yaratish uchun account ulang.
+                        </p>
+                      </div>
                       <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
                         <AlertCircle className="h-3.5 w-3.5" />
                         Not connected
                       </span>
+                    </div>
+
+                    {Boolean(googleCalendarStatus?.missingEnv?.length) && (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                        Missing env: {googleCalendarStatus?.missingEnv.join(', ')}
+                      </div>
                     )}
-                  </div>
-                </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="googleCalendarRedirectUri">
-                    Authorized redirect URI
-                  </Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="googleCalendarRedirectUri"
-                      value={googleCalendarStatus?.redirectUri || ''}
-                      readOnly
-                    />
                     <Button
                       type="button"
-                      variant="outline"
-                      onClick={copyGoogleCalendarRedirectUri}
-                      disabled={!googleCalendarStatus?.redirectUri}
+                      className="bg-orange-500 hover:bg-orange-600 text-white"
+                      disabled={!googleCalendarStatus?.isConfigured}
+                      onClick={connectGoogleCalendar}
                     >
-                      <Copy className="mr-2 h-4 w-4" />
-                      {didCopyGoogleCalendarRedirectUri ? 'Copied' : 'Copy'}
+                      <CalendarDays className="mr-2 h-4 w-4" />
+                      Connect Google
                     </Button>
                   </div>
-                </div>
-
-                {googleCalendarStatus?.email && (
-                  <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                    Connected account:{' '}
-                    <span className="font-medium">
-                      {googleCalendarStatus.email}
-                    </span>
+                )
+              ) : (
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        Google account
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Account ulash sync va booking workflow uchun kerak. Oddiy public embed linkni esa ulashsiz ham qo‘sha olasiz.
+                      </p>
+                    </div>
+                    <div className="shrink-0">
+                      {isGoogleCalendarStatusLoading ? (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-500">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Checking...
+                        </span>
+                      ) : googleCalendarStatus?.connected ? (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-medium text-green-700">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Connected
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                          <AlertCircle className="h-3.5 w-3.5" />
+                          Not connected
+                        </span>
+                      )}
+                    </div>
                   </div>
-                )}
 
-                {Boolean(googleCalendarStatus?.missingEnv?.length) && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                    Missing env: {googleCalendarStatus?.missingEnv.join(', ')}
-                  </div>
-                )}
-
-                <div className="flex items-center justify-end gap-2">
-                  {googleCalendarStatus?.connected && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={disconnectGoogleCalendar}
-                      disabled={isGoogleCalendarDisconnecting}
-                    >
-                      <Unplug className="mr-2 h-4 w-4" />
-                      {isGoogleCalendarDisconnecting
-                        ? 'Disconnecting...'
-                        : 'Disconnect'}
-                    </Button>
+                  {!googleCalendarStatus?.connected && (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="googleCalendarRedirectUri">
+                        Authorized redirect URI
+                      </Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="googleCalendarRedirectUri"
+                          value={googleCalendarStatus?.redirectUri || ''}
+                          readOnly
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={copyGoogleCalendarRedirectUri}
+                          disabled={!googleCalendarStatus?.redirectUri}
+                        >
+                          <Copy className="mr-2 h-4 w-4" />
+                          {didCopyGoogleCalendarRedirectUri ? 'Copied' : 'Copy'}
+                        </Button>
+                      </div>
+                    </div>
                   )}
-                  <Button
-                    type="button"
-                    className="bg-orange-500 hover:bg-orange-600 text-white"
-                    disabled={!googleCalendarStatus?.isConfigured}
-                    onClick={connectGoogleCalendar}
-                  >
-                    <CalendarDays className="mr-2 h-4 w-4" />
-                    {googleCalendarStatus?.connected
-                      ? 'Reconnect Google'
-                      : 'Connect Google'}
-                  </Button>
-                </div>
-              </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="googleCalendarValue">Embed code or URL</Label>
-                <textarea
-                  id="googleCalendarValue"
-                  ref={googleCalendarInputRef}
-                  value={googleCalendarValue}
-                  onChange={(e) => setGoogleCalendarValue(e.target.value)}
-                  placeholder='<iframe src="https://calendar.google.com/..."></iframe>'
-                  className="min-h-32 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-700 shadow-sm outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
-                  disabled={!googleCalendarStatus?.connected}
-                  onKeyDown={(e) => {
-                    if (
-                      e.key === 'Enter' &&
-                      (e.metaKey || e.ctrlKey)
-                    ) {
-                      e.preventDefault();
-                      applyGoogleCalendarEmbed();
-                    }
-                  }}
-                />
-                <p className="text-xs text-gray-500">
-                  {googleCalendarStatus?.connected
-                    ? 'Google tomonidan berilgan inline embed kodi eng ishonchli variant.'
-                    : 'Avval Google account ulab oling, keyin calendar embed link yoki iframe code kiriting.'}
-                </p>
+                  {googleCalendarStatus?.email && (
+                    <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+                      Connected account:{' '}
+                      <span className="font-medium">
+                        {googleCalendarStatus.email}
+                      </span>
+                    </div>
+                  )}
+
+                  {Boolean(googleCalendarStatus?.missingEnv?.length) && (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                      Missing env: {googleCalendarStatus?.missingEnv.join(', ')}
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-end gap-2">
+                    {googleCalendarStatus?.connected && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={disconnectGoogleCalendar}
+                        disabled={isGoogleCalendarDisconnecting}
+                      >
+                        <Unplug className="mr-2 h-4 w-4" />
+                        {isGoogleCalendarDisconnecting
+                          ? 'Disconnecting...'
+                          : 'Disconnect'}
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      className="bg-orange-500 hover:bg-orange-600 text-white"
+                      disabled={!googleCalendarStatus?.isConfigured}
+                      onClick={connectGoogleCalendar}
+                    >
+                      <CalendarDays className="mr-2 h-4 w-4" />
+                      {googleCalendarStatus?.connected
+                        ? 'Reconnect Google'
+                        : 'Connect Google'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {isBookingGoogleCalendarMode ? (
+                googleCalendarStatus?.connected && bookingSettings && onBookingSettingsChange ? (
+                  <div className="space-y-3">
+                    <BookingSettingsFields
+                      value={bookingSettings}
+                      onChange={onBookingSettingsChange}
+                      includeFormFields={false}
+                      compact
+                    />
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-700">
+                      Google Meet link va calendar invite booking qilinganda avtomatik yaratiladi.
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-sm text-gray-600">
+                    Avval Google account’ni ulang. Ulanganidan keyin bu yerda bo‘sh kunlar, session duration va notice vaqtini sozlaysiz.
+                  </div>
+                )
+              ) : (
+                <>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="googleCalendarValue">Embed code or URL</Label>
+                    <textarea
+                      id="googleCalendarValue"
+                      ref={googleCalendarInputRef}
+                      value={googleCalendarValue}
+                      onChange={(e) => setGoogleCalendarValue(e.target.value)}
+                      placeholder={'<iframe src="https://calendar.google.com/..."></iframe>\nhttps://calendar.app.google/...\nhttps://calendar.google.com/calendar/...'}
+                      className="min-h-32 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-700 shadow-sm outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
+                      onKeyDown={(e) => {
+                        if (
+                          e.key === 'Enter' &&
+                          (e.metaKey || e.ctrlKey)
+                        ) {
+                          e.preventDefault();
+                          applyGoogleCalendarEmbed();
+                        }
+                      }}
+                    />
+                    <p className="text-xs text-gray-500">
+                      Google tomonidan berilgan inline iframe kodi eng ishonchli variant. Public booking linklar ham avtomatik aniqlanadi.
+                    </p>
+                  </div>
+
+                  {googleCalendarValue.trim() && (
+                    <div
+                      className={`rounded-xl border px-3 py-3 text-sm ${
+                        parsedGoogleCalendarEmbed
+                          ? 'border-green-200 bg-green-50'
+                          : 'border-amber-200 bg-amber-50'
+                      }`}
+                    >
+                      {parsedGoogleCalendarEmbed ? (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            <span className="font-medium text-green-800">
+                              {parsedGoogleCalendarEmbed.kind === 'appointment'
+                                ? 'Booking page detected'
+                                : 'Calendar embed detected'}
+                            </span>
+                          </div>
+                          <p className="break-all text-xs text-green-700">
+                            {parsedGoogleCalendarEmbed.src}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-1 text-amber-800">
+                          <div className="flex items-center gap-2">
+                            <AlertCircle className="h-4 w-4" />
+                            <span className="font-medium">
+                              Google Calendar URL topilmadi
+                            </span>
+                          </div>
+                          <p className="text-xs">
+                            `iframe` kodi yoki Google Calendar public link kiriting.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
               </div>
             </div>
 
-            <div className="mt-5 flex items-center justify-end gap-2">
+            <div className="flex shrink-0 items-center justify-end gap-2 border-t border-gray-100 bg-white px-4 py-3">
               <Button
                 type="button"
                 variant="outline"
@@ -1959,13 +2209,18 @@ export default function RichEditor({
               <Button
                 type="button"
                 className="bg-orange-500 hover:bg-orange-600 text-white"
-                onClick={applyGoogleCalendarEmbed}
-                disabled={
-                  !googleCalendarStatus?.connected ||
-                  !extractGoogleCalendarEmbedAttrs(googleCalendarValue)
+                onClick={
+                  isBookingGoogleCalendarMode
+                    ? saveBookingSetupToEditor
+                    : applyGoogleCalendarEmbed
                 }
+                disabled={isBookingGoogleCalendarMode ? false : !parsedGoogleCalendarEmbed}
               >
-                Add Calendar
+                {isBookingGoogleCalendarMode
+                  ? googleCalendarStatus?.connected
+                    ? 'Save Booking Setup'
+                    : 'Close'
+                  : 'Add Calendar Embed'}
               </Button>
             </div>
           </div>

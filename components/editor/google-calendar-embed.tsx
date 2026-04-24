@@ -14,6 +14,7 @@ type GoogleCalendarEmbedAttrs = {
 
 const GOOGLE_CALENDAR_HOSTS = new Set([
   'calendar.google.com',
+  'calendar.app.google',
   'www.google.com',
 ]);
 
@@ -24,6 +25,7 @@ function extractIframeSrc(value: string) {
 
 function isGoogleCalendarUrl(url: URL) {
   if (url.hostname === 'calendar.google.com') return true;
+  if (url.hostname === 'calendar.app.google') return true;
   if (url.hostname === 'www.google.com' && url.pathname.startsWith('/calendar')) {
     return true;
   }
@@ -31,6 +33,9 @@ function isGoogleCalendarUrl(url: URL) {
 }
 
 function getGoogleCalendarKind(url: URL): GoogleCalendarKind {
+  if (url.hostname === 'calendar.app.google') {
+    return 'appointment';
+  }
   const path = url.pathname.toLowerCase();
   if (path.includes('/appointments') || path.includes('/schedules')) {
     return 'appointment';

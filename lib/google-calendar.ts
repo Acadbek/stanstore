@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { db } from '@/lib/db/drizzle';
+import { withDatabaseFallback } from '@/lib/db/drizzle';
 
 const GOOGLE_CALENDAR_CONNECTIONS_TABLE = 'google_calendar_connections';
 const GOOGLE_CALENDAR_STATE_COOKIE = 'google_calendar_oauth_state';
@@ -44,6 +44,10 @@ function normalizeBaseUrl(value: string) {
 function normalizeTimestamp(value: string | Date | null) {
   if (!value) return null;
   return value instanceof Date ? value : new Date(value);
+}
+
+function serializeTimestamp(value: Date | null | undefined) {
+  return value ? value.toISOString() : null;
 }
 
 export function getGoogleCalendarRedirectUri() {
@@ -120,6 +124,36 @@ export async function exchangeGoogleCalendarCode(code: string) {
   return (await response.json()) as GoogleCalendarTokenResponse;
 }
 
+async function refreshGoogleCalendarAccessToken(refreshToken: string) {
+  const config = getGoogleCalendarConfig();
+  if (!config.isConfigured) {
+    throw new Error('Google Calendar OAuth is not configured.');
+  }
+
+  const body = new URLSearchParams({
+    client_id: config.clientId,
+    client_secret: config.clientSecret,
+    refresh_token: refreshToken,
+    grant_type: 'refresh_token',
+  });
+
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: body.toString(),
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(`Google token refresh failed: ${message}`);
+  }
+
+  return (await response.json()) as GoogleCalendarTokenResponse;
+}
+
 export async function fetchGoogleCalendarUserEmail(accessToken: string) {
   const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
     headers: {
@@ -135,50 +169,54 @@ export async function fetchGoogleCalendarUserEmail(accessToken: string) {
 }
 
 export async function ensureGoogleCalendarConnectionsTable() {
-  await db.execute(sql.raw(`
-    CREATE TABLE IF NOT EXISTS ${GOOGLE_CALENDAR_CONNECTIONS_TABLE} (
-      id serial PRIMARY KEY,
-      user_id integer NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-      email varchar(255),
-      access_token text NOT NULL,
-      refresh_token text,
-      token_type varchar(50),
-      scope text,
-      expires_at timestamp,
-      created_at timestamp NOT NULL DEFAULT now(),
-      updated_at timestamp NOT NULL DEFAULT now()
-    )
-  `));
+  await withDatabaseFallback((database) =>
+    database.execute(sql.raw(`
+      CREATE TABLE IF NOT EXISTS ${GOOGLE_CALENDAR_CONNECTIONS_TABLE} (
+        id serial PRIMARY KEY,
+        user_id integer NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        email varchar(255),
+        access_token text NOT NULL,
+        refresh_token text,
+        token_type varchar(50),
+        scope text,
+        expires_at timestamp,
+        created_at timestamp NOT NULL DEFAULT now(),
+        updated_at timestamp NOT NULL DEFAULT now()
+      )
+    `))
+  );
 }
 
 export async function getGoogleCalendarConnection(userId: number) {
   await ensureGoogleCalendarConnectionsTable();
 
-  const rows = await db.execute<{
-    user_id: number;
-    email: string | null;
-    access_token: string;
-    refresh_token: string | null;
-    token_type: string | null;
-    scope: string | null;
-    expires_at: string | Date | null;
-    created_at: string | Date;
-    updated_at: string | Date;
-  }>(sql`
-    SELECT
-      user_id,
-      email,
-      access_token,
-      refresh_token,
-      token_type,
-      scope,
-      expires_at,
-      created_at,
-      updated_at
-    FROM ${sql.raw(GOOGLE_CALENDAR_CONNECTIONS_TABLE)}
-    WHERE user_id = ${userId}
-    LIMIT 1
-  `);
+  const rows = await withDatabaseFallback((database) =>
+    database.execute<{
+      user_id: number;
+      email: string | null;
+      access_token: string;
+      refresh_token: string | null;
+      token_type: string | null;
+      scope: string | null;
+      expires_at: string | Date | null;
+      created_at: string | Date;
+      updated_at: string | Date;
+    }>(sql`
+      SELECT
+        user_id,
+        email,
+        access_token,
+        refresh_token,
+        token_type,
+        scope,
+        expires_at,
+        created_at,
+        updated_at
+      FROM ${sql.raw(GOOGLE_CALENDAR_CONNECTIONS_TABLE)}
+      WHERE user_id = ${userId}
+      LIMIT 1
+    `)
+  );
 
   const row = rows[0];
   if (!row) return null;
@@ -206,48 +244,91 @@ export async function upsertGoogleCalendarConnection(input: {
   expiresAt?: Date | null;
 }) {
   await ensureGoogleCalendarConnectionsTable();
+  const expiresAt = serializeTimestamp(input.expiresAt);
 
-  await db.execute(sql`
-    INSERT INTO ${sql.raw(GOOGLE_CALENDAR_CONNECTIONS_TABLE)} (
-      user_id,
-      email,
-      access_token,
-      refresh_token,
-      token_type,
-      scope,
-      expires_at,
-      updated_at
-    )
-    VALUES (
-      ${input.userId},
-      ${input.email ?? null},
-      ${input.accessToken},
-      ${input.refreshToken ?? null},
-      ${input.tokenType ?? null},
-      ${input.scope ?? null},
-      ${input.expiresAt ?? null},
-      now()
-    )
-    ON CONFLICT (user_id) DO UPDATE SET
-      email = EXCLUDED.email,
-      access_token = EXCLUDED.access_token,
-      refresh_token = COALESCE(EXCLUDED.refresh_token, ${sql.raw(
-        `${GOOGLE_CALENDAR_CONNECTIONS_TABLE}.refresh_token`
-      )}),
-      token_type = EXCLUDED.token_type,
-      scope = EXCLUDED.scope,
-      expires_at = EXCLUDED.expires_at,
-      updated_at = now()
-  `);
+  await withDatabaseFallback((database) =>
+    database.execute(sql`
+      INSERT INTO ${sql.raw(GOOGLE_CALENDAR_CONNECTIONS_TABLE)} (
+        user_id,
+        email,
+        access_token,
+        refresh_token,
+        token_type,
+        scope,
+        expires_at,
+        updated_at
+      )
+      VALUES (
+        ${input.userId},
+        ${input.email ?? null},
+        ${input.accessToken},
+        ${input.refreshToken ?? null},
+        ${input.tokenType ?? null},
+        ${input.scope ?? null},
+        ${expiresAt},
+        now()
+      )
+      ON CONFLICT (user_id) DO UPDATE SET
+        email = EXCLUDED.email,
+        access_token = EXCLUDED.access_token,
+        refresh_token = COALESCE(EXCLUDED.refresh_token, ${sql.raw(
+          `${GOOGLE_CALENDAR_CONNECTIONS_TABLE}.refresh_token`
+        )}),
+        token_type = EXCLUDED.token_type,
+        scope = EXCLUDED.scope,
+        expires_at = EXCLUDED.expires_at,
+        updated_at = now()
+    `)
+  );
+}
+
+export async function getValidGoogleCalendarAccessToken(userId: number) {
+  const connection = await getGoogleCalendarConnection(userId);
+  if (!connection) {
+    throw new Error('Google Calendar is not connected.');
+  }
+
+  const expiresSoon =
+    connection.expiresAt &&
+    connection.expiresAt.getTime() - Date.now() <= 60 * 1000;
+
+  if (!expiresSoon) {
+    return connection.accessToken;
+  }
+
+  if (!connection.refreshToken) {
+    return connection.accessToken;
+  }
+
+  const refreshed = await refreshGoogleCalendarAccessToken(
+    connection.refreshToken
+  );
+
+  await upsertGoogleCalendarConnection({
+    userId,
+    email: connection.email,
+    accessToken: refreshed.access_token,
+    refreshToken: refreshed.refresh_token ?? connection.refreshToken,
+    tokenType: refreshed.token_type ?? connection.tokenType,
+    scope: refreshed.scope ?? connection.scope,
+    expiresAt:
+      typeof refreshed.expires_in === 'number'
+        ? new Date(Date.now() + refreshed.expires_in * 1000)
+        : connection.expiresAt,
+  });
+
+  return refreshed.access_token;
 }
 
 export async function deleteGoogleCalendarConnection(userId: number) {
   await ensureGoogleCalendarConnectionsTable();
 
-  await db.execute(sql`
-    DELETE FROM ${sql.raw(GOOGLE_CALENDAR_CONNECTIONS_TABLE)}
-    WHERE user_id = ${userId}
-  `);
+  await withDatabaseFallback((database) =>
+    database.execute(sql`
+      DELETE FROM ${sql.raw(GOOGLE_CALENDAR_CONNECTIONS_TABLE)}
+      WHERE user_id = ${userId}
+    `)
+  );
 }
 
 export function getGoogleCalendarStateCookieName() {

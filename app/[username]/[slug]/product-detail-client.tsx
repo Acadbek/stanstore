@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import posthog from 'posthog-js';
+import { BookingWidget } from '@/components/booking/booking-widget';
 
 const radiusMap: Record<string, string> = {
   none: '0px',
@@ -389,7 +390,20 @@ export default function ProductDetailClient({ profile, product }: Props) {
             </div>
           </div>
 
-          {product.productUrl ? (
+          {product.type === 'booking' ? (
+            <BookingWidget
+              username={profile.username || ''}
+              slug={product.slug}
+              buttonBg={s.buttonBg}
+              buttonText={s.buttonText}
+              cardBg={s.cardBg}
+              cardBorder={s.cardBorder}
+              headingColor={s.headingColor}
+              textColor={s.textColor}
+              mutedColor={s.mutedColor}
+              borderRadius={br}
+            />
+          ) : product.productUrl ? (
             <a
               href={product.productUrl}
               target="_blank"
