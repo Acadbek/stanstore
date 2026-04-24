@@ -248,16 +248,16 @@ function AvatarSection({ profileData }: { profileData?: ProfileData }) {
   const hasAvatar = !!profile?.avatarUrl;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Profile Photo</CardTitle>
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-base">Profile Photo</CardTitle>
         <CardDescription>
           Upload a profile photo to personalize your page.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center gap-6">
-          <div className="relative group">
+        <div className="flex flex-col sm:flex-row items-center gap-6">
+          <div className="relative group shrink-0">
             <input
               ref={fileInputRef}
               type="file"
@@ -270,13 +270,14 @@ function AvatarSection({ profileData }: { profileData?: ProfileData }) {
               <>
                 <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
                   <DialogTrigger asChild>
-                    <div className="cursor-pointer">
-                      <Avatar className="h-24 w-24">
+                    <div className="cursor-pointer rounded-full ring-4 ring-gray-50 hover:ring-orange-100 transition-all">
+                      <Avatar className="h-28 w-28 shadow-sm">
                         <AvatarImage
                           src={profile?.avatarUrl || ''}
                           alt={profile?.displayName || user?.name || ''}
+                          className="object-cover"
                         />
-                        <AvatarFallback className="text-lg">
+                        <AvatarFallback className="text-xl bg-gray-100">
                           {(
                             profile?.displayName ||
                             user?.name ||
@@ -304,16 +305,17 @@ function AvatarSection({ profileData }: { profileData?: ProfileData }) {
                   </DialogContent>
                 </Dialog>
 
-                <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 pointer-events-none">
+                <div className="absolute -bottom-1 -right-1 flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       setPreviewOpen(true);
                     }}
-                    className="pointer-events-auto p-1.5 rounded-full bg-white/90 hover:bg-white text-gray-700 transition-colors"
+                    className="p-1.5 rounded-full bg-white border shadow-sm hover:bg-gray-50 text-gray-600 transition-colors"
+                    title="Preview"
                   >
-                    <Eye className="h-4 w-4" />
+                    <Eye className="h-3.5 w-3.5" />
                   </button>
                   <button
                     type="button"
@@ -321,9 +323,10 @@ function AvatarSection({ profileData }: { profileData?: ProfileData }) {
                       e.stopPropagation();
                       handleAvatarDelete();
                     }}
-                    className="pointer-events-auto p-1.5 rounded-full bg-white/90 hover:bg-red-50 hover:text-red-500 text-gray-700 transition-colors"
+                    className="p-1.5 rounded-full bg-white border shadow-sm hover:bg-red-50 hover:text-red-500 text-gray-600 transition-colors"
+                    title="Remove"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </>
@@ -1177,9 +1180,9 @@ function ProfileForm({
 
   return (
     <form id="profile-config-form" className="space-y-8" action={formAction}>
-      <Card>
-        <CardHeader>
-          <CardTitle>Basic Information</CardTitle>
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base">Basic Information</CardTitle>
           <CardDescription>
             This information will be displayed on your public page.
           </CardDescription>
@@ -1250,10 +1253,10 @@ function ProfileForm({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Link2 className="h-5 w-5" />
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Link2 className="h-4 w-4" />
             Social Links
           </CardTitle>
           <CardDescription>
@@ -1592,10 +1595,10 @@ function ThemeConfigSection({
   ];
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Palette className="h-5 w-5" />
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Palette className="h-4 w-4" />
           Appearance
         </CardTitle>
         <CardDescription>
@@ -1875,15 +1878,19 @@ export default function ProfileConfigPage() {
     selectedBtnRadius !== null;
 
   return (
-    <section className="flex-1 lg:p-8">
-      <div className="fixed top-0 left-0 right-0 z-10 border-b bg-white/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-end">
-          <div className="flex items-center gap-4">
+    <section className="flex-1 lg:p-8 max-w-7xl mx-auto">
+      <div className="sticky top-0 z-30 -mx-4 lg:-mx-8 px-4 lg:px-8 border-b bg-white/90 backdrop-blur-md">
+        <div className="flex items-center justify-between h-16 gap-4">
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold tracking-tight">Profile Settings</h1>
+            <p className="text-xs text-muted-foreground hidden sm:block">Customize your public page and storefront</p>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
             <Button
               type="submit"
               form="profile-config-form"
               disabled={isPending}
-              className="bg-orange-500 hover:bg-orange-600"
+              className="bg-orange-500 hover:bg-orange-600 text-white shadow-sm"
             >
               {isPending ? (
                 <>
@@ -1898,7 +1905,7 @@ export default function ProfileConfigPage() {
         </div>
       </div>
       <Suspense fallback={<ProfileSkeleton />}>
-        <div className="space-y-6 pt-16">
+        <div className="space-y-6 pt-6">
           {state.error && (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {state.error}
