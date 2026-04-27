@@ -26,6 +26,75 @@ function stripHtml(value: string | null | undefined) {
     .trim();
 }
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const cleaned = (hex || '').trim().replace('#', '');
+  const normalized =
+    cleaned.length === 3
+      ? cleaned
+          .split('')
+          .map((c) => `${c}${c}`)
+          .join('')
+      : cleaned;
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return null;
+  return {
+    r: parseInt(normalized.slice(0, 2), 16),
+    g: parseInt(normalized.slice(2, 4), 16),
+    b: parseInt(normalized.slice(4, 6), 16),
+  };
+}
+
+function relativeLuminance(hex: string): number | null {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return null;
+  const linearize = (value: number) => {
+    const channel = value / 255;
+    return channel <= 0.03928
+      ? channel / 12.92
+      : Math.pow((channel + 0.055) / 1.055, 2.4);
+  };
+  const r = linearize(rgb.r);
+  const g = linearize(rgb.g);
+  const b = linearize(rgb.b);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrastRatio(foregroundHex: string, backgroundHex: string): number | null {
+  const fgLum = relativeLuminance(foregroundHex);
+  const bgLum = relativeLuminance(backgroundHex);
+  if (fgLum === null || bgLum === null) return null;
+  const lighter = Math.max(fgLum, bgLum);
+  const darker = Math.min(fgLum, bgLum);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function pickReadableColor(
+  foregroundHex: string,
+  backgroundHex: string,
+  fallbackHex: string,
+  minRatio = 4.5
+) {
+  const currentRatio = contrastRatio(foregroundHex, backgroundHex);
+  if (currentRatio !== null && currentRatio >= minRatio) {
+    return foregroundHex;
+  }
+
+  const candidates = [fallbackHex, '#0f172a', '#ffffff'].filter(
+    (value, index, arr) => value && arr.indexOf(value) === index
+  );
+
+  let best = fallbackHex;
+  let bestScore = -1;
+  for (const candidate of candidates) {
+    const score = contrastRatio(candidate, backgroundHex) ?? 0;
+    if (score > bestScore) {
+      bestScore = score;
+      best = candidate;
+    }
+  }
+
+  return best;
+}
+
 type StoreData = {
   profile: Profile;
   products: Product[];
@@ -251,14 +320,38 @@ export default function StorePage({
     const priceLabel = formatPrice(product.price);
     const descriptionText = stripHtml(product.description);
     const buttonLabel = getButtonLabel(product);
+    const isPresetStyle =
+      product.frontStyle === 'pill' ||
+      product.frontStyle === 'cta' ||
+      product.frontStyle === 'editorial';
+
+    const cardBg = isPresetStyle ? s.cardBg : frontStyle.bgColor;
+    const cardBorder = isPresetStyle ? s.cardBorder : frontStyle.borderColor;
+    const primaryText = isPresetStyle ? s.headingColor : frontStyle.textColor;
+    const secondaryTextBase = isPresetStyle ? s.mutedColor : frontStyle.mutedColor;
+    const accentColor = isPresetStyle ? s.buttonBg : frontStyle.accentColor;
+    const solidButtonTextBase = isPresetStyle ? s.buttonText : '#fff';
+    const secondaryText = pickReadableColor(
+      secondaryTextBase,
+      cardBg,
+      primaryText,
+      3.7
+    );
+    const accentText = pickReadableColor(accentColor, cardBg, primaryText, 4.5);
+    const solidButtonText = pickReadableColor(
+      solidButtonTextBase,
+      accentColor,
+      '#ffffff',
+      4.5
+    );
 
     if (frontStyle.preset === 'pill') {
       return (
         <div
           className="group flex items-center gap-3 border p-3 transition-all duration-200"
           style={{
-            background: frontStyle.bgColor,
-            borderColor: frontStyle.borderColor,
+            background: cardBg,
+            borderColor: cardBorder,
             borderRadius: 9999,
           }}
           onMouseEnter={(e) => {
@@ -281,28 +374,28 @@ export default function StorePage({
           ) : (
             <div
               className={`flex h-12 w-12 shrink-0 items-center justify-center ${imageClass}`}
-              style={{ background: frontStyle.accentColor, color: '#fff' }}
+              style={{ background: accentColor, color: solidButtonText }}
             >
               {(product.title[0] || '').toUpperCase()}
             </div>
           )}
           <h3
             className={`min-w-0 flex-1 truncate text-base ${titleClass}`}
-            style={{ color: frontStyle.textColor }}
+            style={{ color: primaryText }}
           >
             {product.title}
           </h3>
           {frontStyle.arrow ? (
             <span
               className="shrink-0 text-lg"
-              style={{ color: frontStyle.textColor }}
+              style={{ color: primaryText }}
             >
               -&gt;
             </span>
           ) : (
             <span
               className="shrink-0 text-sm font-semibold"
-              style={{ color: frontStyle.accentColor }}
+              style={{ color: accentText }}
             >
               {priceLabel}
             </span>
@@ -316,8 +409,8 @@ export default function StorePage({
         <div
           className="group border p-4 transition-all duration-200"
           style={{
-            background: frontStyle.bgColor,
-            borderColor: frontStyle.borderColor,
+            background: cardBg,
+            borderColor: cardBorder,
             borderRadius: '14px',
           }}
           onMouseEnter={(e) => {
@@ -343,7 +436,7 @@ export default function StorePage({
             ) : (
               <div
                 className={`flex h-28 w-24 shrink-0 items-center justify-center ${imageClass}`}
-                style={{ background: frontStyle.accentColor, color: '#fff' }}
+                style={{ background: accentColor, color: solidButtonText }}
               >
                 {(product.title[0] || '').toUpperCase()}
               </div>
@@ -352,19 +445,19 @@ export default function StorePage({
             <div className="min-w-0 flex-1">
               <h3
                 className={`text-xl leading-tight ${titleClass}`}
-                style={{ color: frontStyle.textColor }}
+                style={{ color: primaryText }}
               >
                 {product.title}
               </h3>
               <p
                 className="mt-1 line-clamp-3 text-sm"
-                style={{ color: frontStyle.mutedColor }}
+                style={{ color: secondaryText }}
               >
                 {descriptionText || 'Product description'}
               </p>
               <p
                 className="mt-2 text-lg"
-                style={{ color: frontStyle.accentColor }}
+                style={{ color: accentText }}
               >
                 {priceLabel}
               </p>
@@ -377,15 +470,15 @@ export default function StorePage({
               className="mt-3 h-10 w-full text-sm font-semibold"
               style={{
                 borderRadius: '10px',
-                border: `1px solid ${frontStyle.accentColor}`,
+                border: `1px solid ${accentColor}`,
                 background:
                   frontStyle.buttonVariant === 'solid'
-                    ? frontStyle.accentColor
+                    ? accentColor
                     : 'transparent',
                 color:
                   frontStyle.buttonVariant === 'solid'
-                    ? '#fff'
-                    : frontStyle.accentColor,
+                    ? solidButtonText
+                    : accentText,
               }}
             >
               {buttonLabel}
@@ -399,8 +492,8 @@ export default function StorePage({
       <div
         className="group border p-4 transition-all duration-200"
         style={{
-          background: frontStyle.bgColor,
-          borderColor: frontStyle.borderColor,
+          background: cardBg,
+          borderColor: cardBorder,
           borderRadius: r,
         }}
         onMouseEnter={(e) => {
@@ -424,7 +517,7 @@ export default function StorePage({
           ) : (
             <div
               className={`flex h-14 w-14 shrink-0 items-center justify-center ${imageClass}`}
-              style={{ background: frontStyle.accentColor, color: '#fff' }}
+              style={{ background: accentColor, color: solidButtonText }}
             >
               {(product.title[0] || '').toUpperCase()}
             </div>
@@ -433,13 +526,13 @@ export default function StorePage({
           <div className="min-w-0 flex-1">
             <h3
               className={`truncate text-sm ${titleClass}`}
-              style={{ color: frontStyle.textColor }}
+              style={{ color: primaryText }}
             >
               {product.title}
             </h3>
             <p
               className="mt-1 line-clamp-2 text-xs"
-              style={{ color: frontStyle.mutedColor }}
+              style={{ color: secondaryText }}
             >
               {descriptionText || 'Product description'}
             </p>
@@ -447,10 +540,13 @@ export default function StorePage({
         </div>
 
         <div className="mt-3 flex items-center justify-between text-xs">
-          <span className="font-semibold uppercase tracking-wide text-gray-400">
+          <span
+            className="font-semibold uppercase tracking-wide"
+            style={{ color: secondaryText }}
+          >
             {product.type}
           </span>
-          <span className="font-bold" style={{ color: frontStyle.accentColor }}>
+          <span className="font-bold" style={{ color: accentText }}>
             {priceLabel}
           </span>
         </div>
@@ -461,15 +557,15 @@ export default function StorePage({
             className="mt-3 h-10 w-full text-sm font-semibold"
             style={{
               borderRadius: br,
-              border: `1px solid ${frontStyle.accentColor}`,
+              border: `1px solid ${accentColor}`,
               background:
                 frontStyle.buttonVariant === 'solid'
-                  ? frontStyle.accentColor
+                  ? accentColor
                   : 'transparent',
               color:
                 frontStyle.buttonVariant === 'solid'
-                  ? '#fff'
-                  : frontStyle.accentColor,
+                  ? solidButtonText
+                  : accentText,
             }}
           >
             {buttonLabel}
@@ -696,59 +792,61 @@ export default function StorePage({
                           product={product}
                           username={profile.username}
                         >
-                          <div
-                            className="group relative overflow-hidden transition-all duration-200"
-                            style={{ borderRadius: r }}
-                            onMouseEnter={(e) => {
-                              const el = e.currentTarget as HTMLElement;
-                              el.style.boxShadow = s.cardHoverShadow;
-                            }}
-                            onMouseLeave={(e) => {
-                              const el = e.currentTarget as HTMLElement;
-                              el.style.boxShadow = 'none';
-                            }}
-                          >
-                            <div className="h-44">
-                              {product.imageUrl ? (
-                                <img
-                                  src={product.imageUrl}
-                                  alt={product.title}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <div
-                                  className="w-full h-full flex items-center justify-center"
-                                  style={{ background: s.productBadge }}
-                                >
-                                  <span
-                                    className="text-4xl font-bold"
-                                    style={{ color: s.productBadgeText }}
-                                  >
-                                    {(product.title[0] || '').toUpperCase()}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
+                          {renderFrontOverride(product) || (
                             <div
-                              className="absolute inset-x-0 bottom-0 p-3"
-                              style={{
-                                background:
-                                  'linear-gradient(to top, rgba(0,0,0,0.75), transparent)',
+                              className="group relative overflow-hidden transition-all duration-200"
+                              style={{ borderRadius: r }}
+                              onMouseEnter={(e) => {
+                                const el = e.currentTarget as HTMLElement;
+                                el.style.boxShadow = s.cardHoverShadow;
+                              }}
+                              onMouseLeave={(e) => {
+                                const el = e.currentTarget as HTMLElement;
+                                el.style.boxShadow = 'none';
                               }}
                             >
-                              <h3 className="font-semibold text-sm text-white truncate">
-                                {product.title}
-                              </h3>
-                              <div className="flex items-center justify-between mt-1">
-                                <span className="text-xs text-white/70">
-                                  {product.type}
-                                </span>
-                                <span className="text-sm font-bold text-white">
-                                  {formatPrice(product.price)}
-                                </span>
+                              <div className="h-44">
+                                {product.imageUrl ? (
+                                  <img
+                                    src={product.imageUrl}
+                                    alt={product.title}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div
+                                    className="w-full h-full flex items-center justify-center"
+                                    style={{ background: s.productBadge }}
+                                  >
+                                    <span
+                                      className="text-4xl font-bold"
+                                      style={{ color: s.productBadgeText }}
+                                    >
+                                      {(product.title[0] || '').toUpperCase()}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              <div
+                                className="absolute inset-x-0 bottom-0 p-3"
+                                style={{
+                                  background:
+                                    'linear-gradient(to top, rgba(0,0,0,0.75), transparent)',
+                                }}
+                              >
+                                <h3 className="font-semibold text-sm text-white truncate">
+                                  {product.title}
+                                </h3>
+                                <div className="flex items-center justify-between mt-1">
+                                  <span className="text-xs text-white/70">
+                                    {product.type}
+                                  </span>
+                                  <span className="text-sm font-bold text-white">
+                                    {formatPrice(product.price)}
+                                  </span>
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          )}
                         </ProductLink>
                       ))}
                     </div>
@@ -764,8 +862,69 @@ export default function StorePage({
                           product={product}
                           username={profile.username}
                         >
+                          {renderFrontOverride(product) || (
+                            <div
+                              className="group border p-4 transition-all duration-200"
+                              style={{
+                                background: s.cardBg,
+                                borderColor: s.cardBorder,
+                                borderRadius: r,
+                              }}
+                              onMouseEnter={(e) => {
+                                const el = e.currentTarget as HTMLElement;
+                                el.style.boxShadow = s.cardHoverShadow;
+                                el.style.borderColor = s.cardHoverBorder;
+                              }}
+                              onMouseLeave={(e) => {
+                                const el = e.currentTarget as HTMLElement;
+                                el.style.boxShadow = 'none';
+                                el.style.borderColor = s.cardBorder;
+                              }}
+                            >
+                              <h3
+                                className="font-semibold text-sm mb-1 truncate"
+                                style={{ color: s.headingColor }}
+                              >
+                                {product.title}
+                              </h3>
+                              {product.description && (
+                                <p
+                                  className="text-xs line-clamp-2 mb-2"
+                                  style={{ color: s.mutedColor }}
+                                >
+                                  {product.description}
+                                </p>
+                              )}
+                              <div
+                                className="pt-2 mt-auto"
+                                style={{ borderTop: `1px solid ${s.cardBorder}` }}
+                              >
+                                <span
+                                  className="text-sm font-bold"
+                                  style={{ color: s.priceColor }}
+                                >
+                                  {formatPrice(product.price)}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </ProductLink>
+                      ))}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className={`grid ${colClass} gap-4 md:gap-5`}>
+                    {products.map((product) => (
+                      <ProductLink
+                        key={product.id}
+                        product={product}
+                        username={profile.username}
+                      >
+                        {renderFrontOverride(product) || (
                           <div
-                            className="group border p-4 transition-all duration-200"
+                            className="group border p-4 transition-all duration-200 h-full flex flex-col"
                             style={{
                               background: s.cardBg,
                               borderColor: s.cardBorder,
@@ -782,22 +941,51 @@ export default function StorePage({
                               el.style.borderColor = s.cardBorder;
                             }}
                           >
-                            <h3
-                              className="font-semibold text-sm mb-1 truncate"
-                              style={{ color: s.headingColor }}
-                            >
-                              {product.title}
-                            </h3>
-                            {product.description && (
-                              <p
-                                className="text-xs line-clamp-2 mb-2"
-                                style={{ color: s.mutedColor }}
+                            {product.imageUrl ? (
+                              <div
+                                className="mb-4 h-32 w-full overflow-hidden"
+                                style={{ background: s.pageBg, borderRadius: r }}
                               >
-                                {product.description}
-                              </p>
+                                <img
+                                  src={product.imageUrl}
+                                  alt={product.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <div
+                                className="mb-4 flex h-32 w-full items-center justify-center"
+                                style={{
+                                  background: s.productBadge,
+                                  borderRadius: r,
+                                }}
+                              >
+                                <span
+                                  className="text-3xl font-bold"
+                                  style={{ color: s.productBadgeText }}
+                                >
+                                  {(product.title[0] || '').toUpperCase()}
+                                </span>
+                              </div>
                             )}
+                            <div className="flex-1 min-w-0">
+                              <h3
+                                className="font-semibold text-sm mb-1 truncate"
+                                style={{ color: s.headingColor }}
+                              >
+                                {product.title}
+                              </h3>
+                              {product.description && (
+                                <p
+                                  className="mb-3 text-xs line-clamp-2"
+                                  style={{ color: s.mutedColor }}
+                                >
+                                  {product.description}
+                                </p>
+                              )}
+                            </div>
                             <div
-                              className="pt-2 mt-auto"
+                              className="mt-auto flex items-center justify-between pt-3"
                               style={{ borderTop: `1px solid ${s.cardBorder}` }}
                             >
                               <span
@@ -806,101 +994,15 @@ export default function StorePage({
                               >
                                 {formatPrice(product.price)}
                               </span>
-                            </div>
-                          </div>
-                        </ProductLink>
-                      ))}
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className={`grid ${colClass} gap-4 md:gap-5`}>
-                    {products.map((product) => (
-                      <ProductLink
-                        key={product.id}
-                        product={product}
-                        username={profile.username}
-                      >
-                        <div
-                          className="group border p-4 transition-all duration-200 h-full flex flex-col"
-                          style={{
-                            background: s.cardBg,
-                            borderColor: s.cardBorder,
-                            borderRadius: r,
-                          }}
-                          onMouseEnter={(e) => {
-                            const el = e.currentTarget as HTMLElement;
-                            el.style.boxShadow = s.cardHoverShadow;
-                            el.style.borderColor = s.cardHoverBorder;
-                          }}
-                          onMouseLeave={(e) => {
-                            const el = e.currentTarget as HTMLElement;
-                            el.style.boxShadow = 'none';
-                            el.style.borderColor = s.cardBorder;
-                          }}
-                        >
-                          {product.imageUrl ? (
-                            <div
-                              className="mb-4 h-32 w-full overflow-hidden"
-                              style={{ background: s.pageBg, borderRadius: r }}
-                            >
-                              <img
-                                src={product.imageUrl}
-                                alt={product.title}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          ) : (
-                            <div
-                              className="mb-4 flex h-32 w-full items-center justify-center"
-                              style={{
-                                background: s.productBadge,
-                                borderRadius: r,
-                              }}
-                            >
                               <span
-                                className="text-3xl font-bold"
-                                style={{ color: s.productBadgeText }}
-                              >
-                                {(product.title[0] || '').toUpperCase()}
-                              </span>
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <h3
-                              className="font-semibold text-sm mb-1 truncate"
-                              style={{ color: s.headingColor }}
-                            >
-                              {product.title}
-                            </h3>
-                            {product.description && (
-                              <p
-                                className="mb-3 text-xs line-clamp-2"
+                                className="text-xs font-medium"
                                 style={{ color: s.mutedColor }}
                               >
-                                {product.description}
-                              </p>
-                            )}
+                                {product.type}
+                              </span>
+                            </div>
                           </div>
-                          <div
-                            className="mt-auto flex items-center justify-between pt-3"
-                            style={{ borderTop: `1px solid ${s.cardBorder}` }}
-                          >
-                            <span
-                              className="text-sm font-bold"
-                              style={{ color: s.priceColor }}
-                            >
-                              {formatPrice(product.price)}
-                            </span>
-                            <span
-                              className="text-xs font-medium"
-                              style={{ color: s.mutedColor }}
-                            >
-                              {product.type}
-                            </span>
-                          </div>
-                        </div>
+                        )}
                       </ProductLink>
                     ))}
                   </div>

@@ -47,7 +47,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { updateProfile, updateAvatar, deleteAvatar } from '../actions';
+import {
+  updateProfile,
+  updateAvatar,
+  deleteAvatar,
+  updateTheme,
+  updateProductFrontStyles,
+} from '../actions';
 import { Profile, Product, User } from '@/lib/db/schema';
 import {
   themes,
@@ -57,10 +63,7 @@ import {
   type ThemeConfig,
 } from '@/lib/themes';
 import {
-  getDisplayFrontStylePrompt,
-  isFrontStyleId,
   resolveFrontStyle,
-  type FrontStyleId,
 } from '@/lib/product-front-style';
 import useSWR, { mutate } from 'swr';
 import { Suspense } from 'react';
@@ -76,11 +79,14 @@ type ProfileData = {
   profile: Profile | null;
 };
 
-type ProductFrontStyleOption = FrontStyleId;
-
 type ActionState = {
   error?: string;
   success?: string;
+};
+
+type ThemeSaveStatus = {
+  type: 'saving' | 'success' | 'error';
+  message: string;
 };
 
 const PROFILE_FORM_ID = 'profile-config-form';
@@ -100,12 +106,6 @@ const btnRadiusOptions = [
   { id: 'lg', label: 'Large', css: '8px' },
   { id: 'full', label: 'Full', css: '9999px' },
 ] as const;
-
-const FRONT_STYLE_PRESETS: { id: FrontStyleId; label: string }[] = [
-  { id: 'pill', label: 'Min' },
-  { id: 'cta', label: 'Norm' },
-  { id: 'editorial', label: 'Info' },
-];
 
 const getRadiusCss = (id: string) =>
   borderRadiusOptions.find((r) => r.id === id)?.css ?? '6px';
@@ -445,19 +445,22 @@ function ThemePickerCard({
   theme,
   isSelected,
   onClick,
+  disabled = false,
 }: {
   theme: ThemeConfig;
   isSelected: boolean;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={`group relative rounded-xl border-2 p-1 transition-all text-left w-full ${isSelected
           ? 'border-orange-500 '
           : 'border-gray-200 hover:border-gray-300'
-        }`}
+        } ${disabled ? 'opacity-70 cursor-not-allowed hover:border-gray-200' : ''}`}
     >
       <div
         className="rounded-lg p-3 h-24 flex flex-col justify-between overflow-hidden"
@@ -742,6 +745,7 @@ function ProductCardsGrid({
   perProductFrontStyles,
   onPerProductFrontStyleChange,
   isCustomFrontStyleEnabled,
+  isFrontStyleSaving,
 }: {
   products: Product[];
   s: ThemeConfig['styles'];
@@ -752,6 +756,7 @@ function ProductCardsGrid({
   perProductFrontStyles: Record<number, 'pill' | 'cta' | 'editorial'>;
   onPerProductFrontStyleChange: (productId: number, style: 'pill' | 'cta' | 'editorial') => void;
   isCustomFrontStyleEnabled: boolean;
+  isFrontStyleSaving: boolean;
 }) {
   const items = products.slice(0, 8).map((product) => ({
     id: product.id,
@@ -947,24 +952,27 @@ function ProductCardsGrid({
           <>
             <button
               type="button"
+              disabled={isFrontStyleSaving}
               onClick={() => onPerProductFrontStyleChange(item.id, 'pill')}
-              className="mb-1 rounded px-2 py-1 text-[10px] font-semibold transition-colors"
+              className="mb-1 rounded px-2 py-1 text-[10px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
               style={selectedStyle === 'pill' ? { background: s.buttonBg, color: s.buttonText } : { color: s.mutedColor }}
             >
               Min
             </button>
             <button
               type="button"
+              disabled={isFrontStyleSaving}
               onClick={() => onPerProductFrontStyleChange(item.id, 'cta')}
-              className="mb-1 rounded px-2 py-1 text-[10px] font-semibold transition-colors"
+              className="mb-1 rounded px-2 py-1 text-[10px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
               style={selectedStyle === 'cta' ? { background: s.buttonBg, color: s.buttonText } : { color: s.mutedColor }}
             >
               Norm
             </button>
             <button
               type="button"
+              disabled={isFrontStyleSaving}
               onClick={() => onPerProductFrontStyleChange(item.id, 'editorial')}
-              className="mb-1 rounded px-2 py-1 text-[10px] font-semibold transition-colors"
+              className="mb-1 rounded px-2 py-1 text-[10px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
               style={selectedStyle === 'editorial' ? { background: s.buttonBg, color: s.buttonText } : { color: s.mutedColor }}
             >
               Info
@@ -1019,6 +1027,7 @@ function StorePreview({
   perProductFrontStyles,
   onPerProductFrontStyleChange,
   isCustomFrontStyleEnabled,
+  isFrontStyleSaving,
 }: {
   theme: ThemeConfig;
   cardRadius: string;
@@ -1030,6 +1039,7 @@ function StorePreview({
   perProductFrontStyles: Record<number, 'pill' | 'cta' | 'editorial'>;
   onPerProductFrontStyleChange: (productId: number, style: 'pill' | 'cta' | 'editorial') => void;
   isCustomFrontStyleEnabled: boolean;
+  isFrontStyleSaving: boolean;
 }) {
   const s = theme.styles;
   const cr = getRadiusCss(cardRadius);
@@ -1105,6 +1115,7 @@ function StorePreview({
                 perProductFrontStyles={perProductFrontStyles}
                 onPerProductFrontStyleChange={onPerProductFrontStyleChange}
                 isCustomFrontStyleEnabled={isCustomFrontStyleEnabled}
+                isFrontStyleSaving={isFrontStyleSaving}
               />
             ) : (
               <div
@@ -1354,7 +1365,6 @@ function ProfileFormWithData({
   selectedBtnRadius,
   productColumns,
   cardTemplate,
-  bulkFrontStyle,
   isCustomFrontStyleEnabled,
   bulkFrontStylePrompt,
   perProductFrontStyles,
@@ -1370,7 +1380,6 @@ function ProfileFormWithData({
   selectedBtnRadius: string;
   productColumns: number;
   cardTemplate: string;
-  bulkFrontStyle: ProductFrontStyleOption;
   isCustomFrontStyleEnabled: boolean;
   bulkFrontStylePrompt: string;
   perProductFrontStyles: Record<number, 'pill' | 'cta' | 'editorial'>;
@@ -1383,22 +1392,17 @@ function ProfileFormWithData({
 }) {
   const wrappedFormAction = useCallback(
     (formData: FormData) => {
-      const finalBulkFrontStyle = isCustomFrontStyleEnabled
-        ? bulkFrontStyle
-        : 'cta';
+      const finalBulkFrontStyle = isCustomFrontStyleEnabled ? 'cta' : 'inherit';
       formData.append('theme', selectedTheme);
       formData.append('borderRadius', selectedRadius);
       formData.append('buttonBorderRadius', selectedBtnRadius);
       formData.append('productColumns', String(productColumns));
       formData.append('cardTemplate', cardTemplate);
       formData.append('bulkFrontStyle', finalBulkFrontStyle);
-      formData.append(
-        'bulkFrontStylePrompt',
-        finalBulkFrontStyle === 'custom' ? bulkFrontStylePrompt : ''
-      );
+      formData.append('bulkFrontStylePrompt', '');
       formData.append(
         'perProductFrontStyles',
-        JSON.stringify(perProductFrontStyles)
+        isCustomFrontStyleEnabled ? JSON.stringify(perProductFrontStyles) : '{}'
       );
       formAction(formData);
     },
@@ -1409,7 +1413,6 @@ function ProfileFormWithData({
       selectedBtnRadius,
       productColumns,
       cardTemplate,
-      bulkFrontStyle,
       isCustomFrontStyleEnabled,
       bulkFrontStylePrompt,
       perProductFrontStyles,
@@ -1448,11 +1451,13 @@ function ThemeCardWithPopover({
   isSelected,
   selectedTheme,
   onSelect,
+  disabled = false,
 }: {
   theme: ThemeConfig;
   isSelected: boolean;
   selectedTheme: string;
   onSelect: (id: string) => void;
+  disabled?: boolean;
 }) {
   const categories = getThemeCategories();
   const category = categories.find((c) => c.id === theme.category);
@@ -1465,6 +1470,18 @@ function ThemeCardWithPopover({
         theme={theme}
         isSelected={isSelected}
         onClick={() => onSelect(theme.id)}
+        disabled={disabled}
+      />
+    );
+  }
+
+  if (disabled) {
+    return (
+      <ThemePickerCard
+        theme={theme}
+        isSelected={isSelected}
+        onClick={() => { }}
+        disabled
       />
     );
   }
@@ -1568,6 +1585,10 @@ function ThemeConfigSection({
   onCardTemplateChange,
   isCustomFrontStyleEnabled,
   onCustomFrontStyleToggle,
+  isThemeSaving,
+  themeSaveStatus,
+  isFrontStyleSaving,
+  frontStyleSaveStatus,
 }: {
   selectedTheme: string;
   selectedRadius: string;
@@ -1581,6 +1602,10 @@ function ThemeConfigSection({
   onCardTemplateChange: (id: string) => void;
   isCustomFrontStyleEnabled: boolean;
   onCustomFrontStyleToggle: (enabled: boolean) => void;
+  isThemeSaving: boolean;
+  themeSaveStatus: ThemeSaveStatus | null;
+  isFrontStyleSaving: boolean;
+  frontStyleSaveStatus: ThemeSaveStatus | null;
 }) {
   const theme = getTheme(selectedTheme);
   const cards = getUniqueThemeCards();
@@ -1607,9 +1632,24 @@ function ThemeConfigSection({
       </CardHeader>
       <CardContent className="space-y-5">
         <div>
-          <h3 className="text-sm font-medium text-gray-900 mb-3">
+          <h3 className="text-sm font-medium text-foreground mb-3">
             Store Theme
           </h3>
+          {themeSaveStatus && (
+            <div
+              className={`mb-3 rounded-lg border px-2.5 py-1.5 text-xs flex items-center gap-1.5 ${themeSaveStatus.type === 'error'
+                  ? 'border-red-200 bg-red-50 text-red-700'
+                  : themeSaveStatus.type === 'success'
+                    ? 'border-green-200 bg-green-50 text-green-700'
+                    : 'border-blue-200 bg-blue-50 text-blue-700'
+                }`}
+            >
+              {themeSaveStatus.type === 'saving' && (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              )}
+              <span>{themeSaveStatus.message}</span>
+            </div>
+          )}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {cards.map((t) => {
               const categories = getThemeCategories();
@@ -1624,6 +1664,7 @@ function ThemeConfigSection({
                   isSelected={isCategorySelected || false}
                   selectedTheme={selectedTheme}
                   onSelect={onThemeChange}
+                  disabled={isThemeSaving}
                 />
               );
             })}
@@ -1631,7 +1672,7 @@ function ThemeConfigSection({
         </div>
 
         <div>
-          <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
+          <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
             <GalleryHorizontal className="h-4 w-4" />
             Product Columns
           </h3>
@@ -1669,7 +1710,7 @@ function ThemeConfigSection({
                       />
                     ))}
                   </div>
-                  <span className="text-[10px] font-medium text-gray-600">
+                  <span className="text-[10px] font-medium text-muted-foreground">
                     {n}
                   </span>
                 </button>
@@ -1679,7 +1720,7 @@ function ThemeConfigSection({
         </div>
 
         <div>
-          <h3 className="text-sm font-medium text-gray-900 mb-3">
+          <h3 className="text-sm font-medium text-foreground mb-3">
             Card Template
           </h3>
           <div className="grid grid-cols-4 gap-2">
@@ -1702,7 +1743,7 @@ function ThemeConfigSection({
                       background: isActive ? '#fed7aa' : '#f9fafb',
                     }}
                   />
-                  <span className="text-[10px] font-medium text-gray-600">
+                  <span className="text-[10px] font-medium text-muted-foreground">
                     {t.label}
                   </span>
                 </button>
@@ -1713,7 +1754,7 @@ function ThemeConfigSection({
 
         <div>
           <div className="mb-3 flex items-center justify-between gap-3">
-            <h3 className="text-sm font-medium text-gray-900 flex items-center gap-2">
+            <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
               <LayoutGrid className="h-4 w-4" />
               Product Front Style
             </h3>
@@ -1721,11 +1762,13 @@ function ThemeConfigSection({
               type="button"
               role="switch"
               aria-checked={isCustomFrontStyleEnabled}
+              aria-busy={isFrontStyleSaving}
+              disabled={isFrontStyleSaving}
               onClick={() => onCustomFrontStyleToggle(!isCustomFrontStyleEnabled)}
               className={`inline-flex items-center gap-2 rounded-full border px-2 py-1 text-xs font-semibold transition-colors ${isCustomFrontStyleEnabled
                   ? 'border-orange-500 bg-orange-50 text-orange-700'
-                  : 'border-gray-200 bg-white text-gray-600'
-                }`}
+                  : 'border-border bg-card text-muted-foreground'
+                } ${isFrontStyleSaving ? 'cursor-not-allowed opacity-60' : ''}`}
             >
               <span>{isCustomFrontStyleEnabled ? 'ON' : 'OFF'}</span>
               <span
@@ -1739,22 +1782,37 @@ function ThemeConfigSection({
               </span>
             </button>
           </div>
+          {frontStyleSaveStatus && (
+            <div
+              className={`mb-3 rounded-lg border px-2.5 py-1.5 text-xs flex items-center gap-1.5 ${frontStyleSaveStatus.type === 'error'
+                  ? 'border-red-200 bg-red-50 text-red-700'
+                  : frontStyleSaveStatus.type === 'success'
+                    ? 'border-green-200 bg-green-50 text-green-700'
+                    : 'border-blue-200 bg-blue-50 text-blue-700'
+                }`}
+            >
+              {frontStyleSaveStatus.type === 'saving' && (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              )}
+              <span>{frontStyleSaveStatus.message}</span>
+            </div>
+          )}
 
           {!isCustomFrontStyleEnabled && (
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
+            <div className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
               Default front style is active.
             </div>
           )}
 
           {isCustomFrontStyleEnabled && (
-            <div className="mt-3 rounded-xl border border-orange-100 bg-orange-50/50 p-3 text-xs text-gray-600">
+            <div className="mt-3 rounded-xl border border-orange-100 bg-orange-50/50 p-3 text-xs text-muted-foreground">
               Per-product front styles are active. Use the switches above each card in the preview to toggle between Simple Row and CTA Card layouts.
             </div>
           )}
         </div>
 
         <div>
-          <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
+          <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
             <RectangleHorizontal className="h-4 w-4" />
             Card Radius
           </h3>
@@ -1767,7 +1825,7 @@ function ThemeConfigSection({
         </div>
 
         <div>
-          <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
+          <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
             <MousePointerClick className="h-4 w-4" />
             Button Radius
           </h3>
@@ -1793,15 +1851,23 @@ export default function ProfileConfigPage() {
   const profileFormRef = useRef<HTMLFormElement>(null);
 
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
+  const [isThemeSaving, setIsThemeSaving] = useState(false);
+  const isThemeSavingRef = useRef(false);
+  const [themeSaveStatus, setThemeSaveStatus] = useState<ThemeSaveStatus | null>(
+    null
+  );
+  const [isFrontStyleSaving, setIsFrontStyleSaving] = useState(false);
+  const isFrontStyleSavingRef = useRef(false);
+  const [frontStyleSaveStatus, setFrontStyleSaveStatus] = useState<
+    ThemeSaveStatus | null
+  >(null);
   const [selectedRadius, setSelectedRadius] = useState<string | null>(null);
   const [selectedBtnRadius, setSelectedBtnRadius] = useState<string | null>(
     null
   );
   const [productColumns, setProductColumns] = useState<number>(3);
   const [cardTemplate, setCardTemplate] = useState<string>('standard');
-  const [bulkFrontStyle, setBulkFrontStyle] = useState<ProductFrontStyleOption>('cta');
   const [bulkFrontStylePrompt, setBulkFrontStylePrompt] = useState('');
-  const [bulkFrontStylePromptInput, setBulkFrontStylePromptInput] = useState('');
   const [isCustomFrontStyleEnabled, setIsCustomFrontStyleEnabled] = useState(false);
   const hasHydratedBulkFrontStyle = useRef(false);
   const [perProductFrontStyles, setPerProductFrontStyles] = useState<
@@ -1840,14 +1906,16 @@ export default function ProfileConfigPage() {
       setCardTemplate(data.profile.cardTemplate || 'standard');
 
       if (!hasHydratedBulkFrontStyle.current) {
-        const source = productsData[0];
-        const initialStyle =
-          source && isFrontStyleId(source.frontStyle) ? source.frontStyle : 'cta';
-        setBulkFrontStyle(initialStyle);
+        const source =
+          productsData.find(
+            (product) => product.frontStyle && product.frontStyle !== 'inherit'
+          ) || productsData[0];
         const initialPrompt = source?.frontStylePrompt || '';
         setBulkFrontStylePrompt(initialPrompt);
-        setBulkFrontStylePromptInput(getDisplayFrontStylePrompt(initialPrompt));
-        setIsCustomFrontStyleEnabled(initialStyle === 'custom');
+        const hasFrontOverrides = productsData.some(
+          (product) => product.frontStyle && product.frontStyle !== 'inherit'
+        );
+        setIsCustomFrontStyleEnabled(hasFrontOverrides);
         hasHydratedBulkFrontStyle.current = true;
       }
 
@@ -1865,11 +1933,191 @@ export default function ProfileConfigPage() {
 
   const profile = data?.profile;
   const products = productsData || [];
-  const handlePerProductFrontStyleChange = useCallback(
-    (productId: number, style: 'pill' | 'cta' | 'editorial') => {
-      setPerProductFrontStyles((prev) => ({ ...prev, [productId]: style }));
+  const syncThemeInProfileCache = useCallback((themeId: string) => {
+    mutate(
+      '/api/profile',
+      (currentData?: ProfileData) => {
+        if (!currentData?.profile) return currentData;
+        return {
+          ...currentData,
+          profile: {
+            ...currentData.profile,
+            theme: themeId,
+          },
+        };
+      },
+      false
+    );
+  }, []);
+  const syncFrontStylesInProductsCache = useCallback(
+    (
+      enabled: boolean,
+      nextStyles: Record<number, 'pill' | 'cta' | 'editorial'>
+    ) => {
+      mutate(
+        '/api/products',
+        (currentProducts?: Product[]) => {
+          if (!currentProducts) return currentProducts;
+          return currentProducts.map((product) => ({
+            ...product,
+            frontStyle: enabled ? nextStyles[product.id] || 'cta' : 'inherit',
+            frontStylePrompt: null,
+          }));
+        },
+        false
+      );
     },
     []
+  );
+  const persistFrontStyleChange = useCallback(
+    async ({
+      enabled,
+      nextStyles,
+      previousEnabled,
+      previousStyles,
+    }: {
+      enabled: boolean;
+      nextStyles: Record<number, 'pill' | 'cta' | 'editorial'>;
+      previousEnabled: boolean;
+      previousStyles: Record<number, 'pill' | 'cta' | 'editorial'>;
+    }) => {
+      if (isFrontStyleSavingRef.current) return;
+
+      isFrontStyleSavingRef.current = true;
+      setIsFrontStyleSaving(true);
+      setFrontStyleSaveStatus({
+        type: 'saving',
+        message: enabled
+          ? 'Applying product front style...'
+          : 'Disabling product front style...',
+      });
+      setIsCustomFrontStyleEnabled(enabled);
+      setPerProductFrontStyles(nextStyles);
+      syncFrontStylesInProductsCache(enabled, nextStyles);
+
+      const rollback = (message: string) => {
+        setIsCustomFrontStyleEnabled(previousEnabled);
+        setPerProductFrontStyles(previousStyles);
+        syncFrontStylesInProductsCache(previousEnabled, previousStyles);
+        setFrontStyleSaveStatus({ type: 'error', message });
+      };
+
+      try {
+        const formData = new FormData();
+        formData.append('enabled', enabled ? 'true' : 'false');
+        formData.append(
+          'perProductFrontStyles',
+          enabled ? JSON.stringify(nextStyles) : '{}'
+        );
+        const result = await updateProductFrontStyles({}, formData);
+
+        if (result && 'error' in result && result.error) {
+          rollback(result.error);
+          return;
+        }
+
+        setFrontStyleSaveStatus({
+          type: 'success',
+          message: enabled
+            ? 'Product front style is ON.'
+            : 'Product front style is OFF.',
+        });
+      } catch {
+        rollback('Failed to update product front style. Please try again.');
+      } finally {
+        isFrontStyleSavingRef.current = false;
+        setIsFrontStyleSaving(false);
+      }
+    },
+    [syncFrontStylesInProductsCache]
+  );
+  const handlePerProductFrontStyleChange = useCallback(
+    (productId: number, style: 'pill' | 'cta' | 'editorial') => {
+      if (!isCustomFrontStyleEnabled || isFrontStyleSavingRef.current) return;
+
+      const previousStyles = { ...perProductFrontStyles };
+      const nextStyles = { ...perProductFrontStyles, [productId]: style };
+
+      void persistFrontStyleChange({
+        enabled: true,
+        nextStyles,
+        previousEnabled: isCustomFrontStyleEnabled,
+        previousStyles,
+      });
+    },
+    [isCustomFrontStyleEnabled, perProductFrontStyles, persistFrontStyleChange]
+  );
+  const handleCustomFrontStyleToggle = useCallback(
+    (enabled: boolean) => {
+      if (enabled === isCustomFrontStyleEnabled || isFrontStyleSavingRef.current)
+        return;
+
+      const previousStyles = { ...perProductFrontStyles };
+      const nextStyles =
+        Object.keys(previousStyles).length > 0
+          ? previousStyles
+          : products.reduce<Record<number, 'pill' | 'cta' | 'editorial'>>(
+            (acc, product) => {
+              acc[product.id] = 'cta';
+              return acc;
+            },
+            {}
+          );
+
+      void persistFrontStyleChange({
+        enabled,
+        nextStyles,
+        previousEnabled: isCustomFrontStyleEnabled,
+        previousStyles,
+      });
+    },
+    [
+      isCustomFrontStyleEnabled,
+      perProductFrontStyles,
+      persistFrontStyleChange,
+      products,
+    ]
+  );
+  const handleThemeChange = useCallback(
+    async (themeId: string) => {
+      if (selectedTheme === null || themeId === selectedTheme) return;
+      if (isThemeSavingRef.current) return;
+
+      const previousTheme = selectedTheme;
+
+      isThemeSavingRef.current = true;
+      setIsThemeSaving(true);
+      setThemeSaveStatus({ type: 'saving', message: 'Applying theme...' });
+      setSelectedTheme(themeId);
+      syncThemeInProfileCache(themeId);
+
+      try {
+        const formData = new FormData();
+        formData.append('theme', themeId);
+        const result = await updateTheme({}, formData);
+
+        if (result && 'error' in result && result.error) {
+          setSelectedTheme(previousTheme);
+          syncThemeInProfileCache(previousTheme);
+          setThemeSaveStatus({ type: 'error', message: result.error });
+          return;
+        }
+
+        mutate('/api/profile');
+        setThemeSaveStatus({ type: 'success', message: 'Theme applied.' });
+      } catch {
+        setSelectedTheme(previousTheme);
+        syncThemeInProfileCache(previousTheme);
+        setThemeSaveStatus({
+          type: 'error',
+          message: 'Failed to apply theme. Please try again.',
+        });
+      } finally {
+        isThemeSavingRef.current = false;
+        setIsThemeSaving(false);
+      }
+    },
+    [selectedTheme, syncThemeInProfileCache]
   );
 
   const isReady =
@@ -1879,7 +2127,7 @@ export default function ProfileConfigPage() {
 
   return (
     <section className="flex-1 lg:p-8 max-w-7xl mx-auto">
-      <div className="sticky top-0 z-30 -mx-4 lg:-mx-8 px-4 lg:px-8 border-b bg-white/90 backdrop-blur-md">
+      <div className="sticky top-0 z-30 -mx-4 lg:-mx-8 px-4 lg:px-8 border-b border-border bg-card/90 backdrop-blur-md">
         <div className="flex items-center justify-between h-16 gap-4">
           <div className="min-w-0">
             <h1 className="text-lg font-semibold tracking-tight">Profile Settings</h1>
@@ -1928,19 +2176,16 @@ export default function ProfileConfigPage() {
                 productColumns={productColumns}
                 cardTemplate={cardTemplate}
                 isCustomFrontStyleEnabled={isCustomFrontStyleEnabled}
-                onThemeChange={setSelectedTheme}
+                onThemeChange={handleThemeChange}
                 onRadiusChange={setSelectedRadius}
                 onBtnRadiusChange={setSelectedBtnRadius}
                 onColumnsChange={setProductColumns}
                 onCardTemplateChange={setCardTemplate}
-                onCustomFrontStyleToggle={(enabled) => {
-                  setIsCustomFrontStyleEnabled(enabled);
-                  if (!enabled) {
-                    setBulkFrontStyle('cta');
-                    return;
-                  }
-                  setBulkFrontStyle('custom');
-                }}
+                isThemeSaving={isThemeSaving}
+                themeSaveStatus={themeSaveStatus}
+                isFrontStyleSaving={isFrontStyleSaving}
+                frontStyleSaveStatus={frontStyleSaveStatus}
+                onCustomFrontStyleToggle={handleCustomFrontStyleToggle}
               />
               <div className="lg:sticky lg:top-24 self-start">
                 <StorePreview
@@ -1954,6 +2199,7 @@ export default function ProfileConfigPage() {
                   onPerProductFrontStyleChange={handlePerProductFrontStyleChange}
                   profile={profile}
                   isCustomFrontStyleEnabled={isCustomFrontStyleEnabled}
+                  isFrontStyleSaving={isFrontStyleSaving}
                 />
               </div>
             </div>
@@ -1965,7 +2211,6 @@ export default function ProfileConfigPage() {
             selectedBtnRadius={selectedBtnRadius || 'md'}
             productColumns={productColumns}
             cardTemplate={cardTemplate}
-            bulkFrontStyle={bulkFrontStyle}
             isCustomFrontStyleEnabled={isCustomFrontStyleEnabled}
             bulkFrontStylePrompt={bulkFrontStylePrompt}
             perProductFrontStyles={perProductFrontStyles}

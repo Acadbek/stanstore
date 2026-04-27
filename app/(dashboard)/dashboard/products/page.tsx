@@ -311,7 +311,7 @@ function DeleteProductButton({ productId }: { productId: number }) {
       type="button"
       variant="ghost"
       size="icon"
-      className="text-gray-400 hover:text-red-500"
+      className="text-muted-foreground hover:text-red-500"
       onClick={handleDelete}
     >
       <Trash2 className="h-4 w-4" />
@@ -341,7 +341,7 @@ function TogglePublishButton({ product }: { product: Product }) {
       className={
         product.isPublished
           ? 'text-green-500'
-          : 'text-gray-400 hover:text-orange-500'
+          : 'text-muted-foreground hover:text-orange-500'
       }
       onClick={handleToggle}
       disabled={isLoading}
@@ -367,7 +367,7 @@ function ProductCard({
       <CardContent className="p-4">
         <div className="flex items-start gap-4">
           {product.imageUrl ? (
-            <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 shrink-0">
+            <div className="w-16 h-16 rounded-xl overflow-hidden bg-muted shrink-0">
               <img
                 src={product.imageUrl}
                 alt={product.title}
@@ -384,11 +384,11 @@ function ProductCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <h3 className="font-semibold text-sm text-gray-900 truncate">
+                <h3 className="font-semibold text-sm text-foreground truncate">
                   {product.title}
                 </h3>
                 {product.description && (
-                  <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">
+                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
                     {product.description}
                   </p>
                 )}
@@ -398,7 +398,7 @@ function ProductCard({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="text-gray-400 hover:text-gray-700"
+                  className="text-muted-foreground hover:text-foreground"
                   onClick={() => onEdit(product)}
                 >
                   <Pencil className="h-4 w-4" />
@@ -408,12 +408,12 @@ function ProductCard({
               </div>
             </div>
             <div className="flex items-center gap-2 mt-2">
-              <span className="text-xs font-medium text-gray-900">
+              <span className="text-xs font-medium text-foreground">
                 {product.price
                   ? `$${(product.price / 100).toFixed(2)}`
                   : 'Free'}
               </span>
-              <span className="text-xs text-gray-400 uppercase">
+              <span className="text-xs text-muted-foreground uppercase">
                 {product.type}
               </span>
               {product.productUrl && (
@@ -443,7 +443,7 @@ function ProductGridCard({
 }) {
   return (
     <Card className={`group ${product.isPublished ? '' : 'opacity-60'}`}>
-      <div className="relative aspect-video overflow-hidden rounded-t-xl bg-gray-100">
+      <div className="relative aspect-video overflow-hidden rounded-t-xl bg-muted">
         {product.imageUrl ? (
           <img
             src={product.imageUrl}
@@ -462,7 +462,7 @@ function ProductGridCard({
             type="button"
             variant="ghost"
             size="icon"
-            className="bg-white/80 hover:bg-white text-gray-400 hover:text-gray-700 h-7 w-7"
+            className="bg-card/80 hover:bg-card text-muted-foreground hover:text-foreground h-7 w-7"
             onClick={() => onEdit(product)}
           >
             <Pencil className="h-3.5 w-3.5" />
@@ -472,19 +472,19 @@ function ProductGridCard({
         </div>
       </div>
       <CardContent className="p-4">
-        <h3 className="font-semibold text-sm text-gray-900 truncate">
+        <h3 className="font-semibold text-sm text-foreground truncate">
           {product.title}
         </h3>
         {product.description && (
-          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
             {product.description}
           </p>
         )}
         <div className="flex items-center gap-2 mt-2">
-          <span className="text-xs font-medium text-gray-900">
+          <span className="text-xs font-medium text-foreground">
             {product.price ? `$${(product.price / 100).toFixed(2)}` : 'Free'}
           </span>
-          <span className="text-xs text-gray-400 uppercase">
+          <span className="text-xs text-muted-foreground uppercase">
             {product.type}
           </span>
         </div>
@@ -541,10 +541,10 @@ function ProductList({
 function ProductSkeleton() {
   return (
     <div className="flex-1 lg:p-8 space-y-6">
-      <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
-      <div className="h-[200px] bg-gray-100 rounded-xl animate-pulse" />
-      <div className="h-[100px] bg-gray-100 rounded-xl animate-pulse" />
-      <div className="h-[100px] bg-gray-100 rounded-xl animate-pulse" />
+      <div className="h-8 w-48 bg-muted rounded animate-pulse" />
+      <div className="h-[200px] bg-muted rounded-xl animate-pulse" />
+      <div className="h-[100px] bg-muted rounded-xl animate-pulse" />
+      <div className="h-[100px] bg-muted rounded-xl animate-pulse" />
     </div>
   );
 }

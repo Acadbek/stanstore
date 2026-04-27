@@ -35,7 +35,9 @@ const updateProfileSchema = z.object({
   buttonBorderRadius: z.string().max(10).optional(),
   productColumns: z.coerce.number().min(1).max(4).optional(),
   cardTemplate: z.string().max(20).optional(),
-  bulkFrontStyle: z.enum(['pill', 'cta', 'editorial', 'custom']).optional(),
+  bulkFrontStyle: z
+    .enum(['inherit', 'pill', 'cta', 'editorial', 'custom'])
+    .optional(),
   bulkFrontStylePrompt: z.string().max(3000).optional(),
   perProductFrontStyles: z.string().optional(),
   instagram: z.string().optional(),
@@ -66,7 +68,7 @@ async function ensureFrontStyleColumns() {
   `);
 }
 
-type PerProductStyle = 'pill' | 'cta';
+type PerProductStyle = 'pill' | 'cta' | 'editorial';
 
 function parsePerProductFrontStyles(value?: string) {
   if (!value) return [] as { productId: number; style: PerProductStyle }[];
@@ -79,7 +81,12 @@ function parsePerProductFrontStyles(value?: string) {
     for (const [key, rawStyle] of Object.entries(parsed)) {
       const productId = Number(key);
       if (!Number.isInteger(productId) || productId <= 0) continue;
-      if (rawStyle !== 'pill' && rawStyle !== 'cta') continue;
+      if (
+        rawStyle !== 'pill' &&
+        rawStyle !== 'cta' &&
+        rawStyle !== 'editorial'
+      )
+        continue;
       entries.push({ productId, style: rawStyle });
     }
     return entries;
@@ -270,6 +277,65 @@ export async function deleteAvatar() {
   return { success: 'Avatar removed.' };
 }
 
+const updateProductFrontStylesSchema = z.object({
+  enabled: z.enum(['true', 'false']),
+  perProductFrontStyles: z.string().optional(),
+});
+
+export const updateProductFrontStyles = validatedActionWithUser(
+  updateProductFrontStylesSchema,
+  async (data, _, user) => {
+    const { enabled, perProductFrontStyles } = data;
+    const isEnabled = enabled === 'true';
+    const entries = parsePerProductFrontStyles(perProductFrontStyles);
+
+    const applyChanges = async () => {
+      const defaultFrontStyle = isEnabled ? 'cta' : 'inherit';
+      await db
+        .update(products)
+        .set({
+          frontStyle: defaultFrontStyle,
+          frontStylePrompt: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(products.userId, user.id));
+
+      if (isEnabled && entries.length > 0) {
+        await applyPerProductFrontStyles(user.id, entries);
+      }
+    };
+
+    try {
+      await applyChanges();
+    } catch (error) {
+      if (!isMissingFrontStyleColumnsError(error)) {
+        throw error;
+      }
+      await ensureFrontStyleColumns();
+      await applyChanges();
+    }
+
+    const existingProfile = await getProfileByUserId(user.id);
+    const username =
+      existingProfile?.username || user.email?.split('@')[0] || `user${user.id}`;
+
+    const userProducts = await db
+      .select({ slug: products.slug })
+      .from(products)
+      .where(eq(products.userId, user.id));
+
+    revalidatePath('/dashboard/profile');
+    revalidatePath('/dashboard/profile/config');
+    revalidatePath('/dashboard/products');
+    revalidatePath(`/${username}`);
+    for (const product of userProducts) {
+      revalidatePath(`/${username}/${product.slug}`);
+    }
+
+    return { success: 'Product front styles updated.' };
+  }
+);
+
 const updateThemeSchema = z.object({
   theme: z.string().min(1).max(30),
 });
@@ -280,6 +346,8 @@ export const updateTheme = validatedActionWithUser(
     const { theme } = data;
 
     const existingProfile = await getProfileByUserId(user.id);
+    const username =
+      existingProfile?.username || user.email?.split('@')[0] || `user${user.id}`;
 
     if (existingProfile) {
       await db
@@ -292,6 +360,18 @@ export const updateTheme = validatedActionWithUser(
         username: user.email?.split('@')[0] || `user${user.id}`,
         theme,
       });
+    }
+
+    const userProducts = await db
+      .select({ slug: products.slug })
+      .from(products)
+      .where(eq(products.userId, user.id));
+
+    revalidatePath('/dashboard/profile');
+    revalidatePath('/dashboard/profile/config');
+    revalidatePath(`/${username}`);
+    for (const product of userProducts) {
+      revalidatePath(`/${username}/${product.slug}`);
     }
 
     return { success: 'Theme updated.' };
